@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 16 16"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="ai-bookmark-3-white.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="36.769553"
+     inkscape:cx="10.633798"
+     inkscape:cy="4.1882479"
+     inkscape:window-width="1512"
+     inkscape:window-height="921"
+     inkscape:window-x="0"
+     inkscape:window-y="61"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg1" />
+  <!-- AI Bookmark 3: bookmark with bot face (vertical eyes + horizontal mouth cutouts) -->
+  <path
+     fill-rule="evenodd"
+     clip-rule="evenodd"
+     fill="#ffffff"
+     d="m 4,1 h 8 c 0.55,0 1,0.45 1,1 v 12.5 l -5,-2 -5,2 V 2 C 3,1.45 3.45,1 4,1 Z M 4.5313936,3.788696 7,3 V 5 L 4.5313936,5.788696 Z M 9,3 11.794963,3.7343032 v 2 L 9,5 Z M 6,6.5 h 4 V 8.4615385 H 6 Z"
+     id="path1"
+     sodipodi:nodetypes="ssscccssccccccccccccccc" />
+  <rect
+     style="fill:#ffffff"
+     id="rect1"
+     width="2.5020702"
+     height="1.4686064"
+     x="4.1066585"
+     y="0.26569682" />
+  <rect
+     style="fill:#ffffff"
+     id="rect1-4"
+     width="2.5020702"
+     height="1.4686064"
+     x="9.5020704"
+     y="0.26569682" />
+  <rect
+     style="fill:#ffffff;stroke-width:1.25699"
+     id="rect2"
+     width="3.122453"
+     height="2.0687237"
+     x="12.014039"
+     y="6.7156382" />
+  <rect
+     style="fill:#ffffff;stroke-width:1.3223"
+     id="rect2-2"
+     width="3.122453"
+     height="2.2892623"
+     x="0.63189864"
+     y="4.9712024" />
+</svg>

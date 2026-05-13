@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 16 16"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="ai-bookmark-1-white.svg"
+   inkscape:version="1.4.3 (0d15f75, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs5">
+    <inkscape:path-effect
+       effect="powerclip"
+       message=""
+       id="path-effect12"
+       is_visible="true"
+       lpeversion="1"
+       inverse="true"
+       flatten="false"
+       hide_clip="false" />
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath12">
+      <path
+         id="path12"
+         style="display:none;fill:#ffffff;stroke-width:1.3914"
+         d="M 6.1993013,0.27354706 V 5.0334056 h -0.497349 v 0.8804819 h -4.040612 v 1.0355519 h 4.040612 V 7.932425 h -4.096809 v 1.0355519 h 4.096809 v 0.9330479 h 0.331565 v 4.3472142 h 0.828916 V 9.9010248 h 1.770226 V 12.384773 H 9.57397 V 9.9010248 h 1.329074 V 9.020543 h 4.150197 V 7.9849911 h -4.150197 v -0.933048 h 4.259782 V 6.0190197 H 10.903044 V 5.0334056 H 9.8493384 V 3.2225042 H 13.061034 V 2.3945885 H 9.8493384 8.8546401 V 5.0334056 H 7.1939993 V 0.27354706 Z" />
+      <path
+         id="lpe_path-effect12"
+         style="fill:#ffffff;stroke-width:1.3914"
+         class="powerclip"
+         d="M -2,-4 H 18 V 19.5 H -2 Z M 6.1993013,0.27354706 V 5.0334056 h -0.497349 v 0.8804819 h -4.040612 v 1.0355519 h 4.040612 V 7.932425 h -4.096809 v 1.0355519 h 4.096809 v 0.9330479 h 0.331565 v 4.3472142 h 0.828916 V 9.9010248 h 1.770226 V 12.384773 H 9.57397 V 9.9010248 h 1.329074 V 9.020543 h 4.150197 V 7.9849911 h -4.150197 v -0.933048 h 4.259782 V 6.0190197 H 10.903044 V 5.0334056 H 9.8493384 V 3.2225042 H 13.061034 V 2.3945885 H 9.8493384 8.8546401 V 5.0334056 H 7.1939993 V 0.27354706 Z" />
+    </clipPath>
+  </defs>
+  <sodipodi:namedview
+     id="namedview5"
+     pagecolor="#505050"
+     bordercolor="#ffffff"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="1"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="18.384776"
+     inkscape:cx="4.3514264"
+     inkscape:cy="9.3011738"
+     inkscape:window-width="1512"
+     inkscape:window-height="949"
+     inkscape:window-x="0"
+     inkscape:window-y="33"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="svg5" />
+  <!-- AI Bookmark 1: bookmark with chip and multiple outward leads (3 top, 3 each side) -->
+  <!-- Body -->
+  <path
+     d="m 4,1 h 8 c 0.55,0 1,0.45 1,1 v 12.5 l -5,-2 -5,2 V 2 C 3,1.45 3.45,1 4,1 Z"
+     fill="#ffffff"
+     id="path1"
+     clip-path="url(#clipPath12)"
+     inkscape:path-effect="#path-effect12"
+     inkscape:original-d="m 4,1 h 8 c 0.55,0 1,0.45 1,1 v 12.5 l -5,-2 -5,2 V 2 C 3,1.45 3.45,1 4,1 Z" />
+  <!-- Chip -->
+  <!-- Top leads (wider spread) -->
+  <!-- Left side leads (spaced with gaps) -->
+  <!-- Right side leads (spaced with gaps) -->
+</svg>

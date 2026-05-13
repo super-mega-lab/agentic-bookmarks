@@ -1,0 +1,21 @@
+{
+  "name": "@agentic-bookmarks/server",
+  "version": "0.5.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "agentic-bookmarks-server": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsup --clean",
+    "build:watch": "tsup --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test:smoke": "node scripts/run-smoke-tests.mjs"
+  },
+  "dependencies": {
+    "@agentic-bookmarks/core": "file:../../../agentic-bookmarks-core",
+    "@modelcontextprotocol/sdk": "^1.17.4",
+    "nanoid": "^5.0.7"
+  }
+}

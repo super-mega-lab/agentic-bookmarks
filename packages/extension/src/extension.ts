@@ -1,0 +1,711 @@
+import * as vscode from 'vscode';
+import * as path from 'node:path';
+import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, readRegistry, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath } from '@agentic-bookmarks/core';
+import { BookmarksProvider } from './treeProvider';
+import { FilesGroupsProvider } from './filesGroupsProvider';
+import { SettingsProvider } from './settingsProvider';
+import { LicensingService } from './licensingService';
+import { TrialStore } from './trialStore';
+import { createTrialMirror } from './trialMirror';
+import { registerTestLicenseCommands } from './testLicenseCommands';
+import { BookmarkCodeLensProvider } from './bookmarkCodeLensProvider';
+import {
+  getBrokenAnchors,
+  getDeepFlexAnchors,
+  updateAnchorState,
+  updateDeepFlexState,
+  clearStateForFile,
+  hasStateForFile,
+} from './anchorState';
+import { AnchorRepairQueue } from './repairQueue';
+import { syncBrokenAnchorsCache, clearRegisteredUris } from './brokenAnchorsSync';
+import { createLogger, type LogLevel } from './logger';
+import {
+  syncDataRootSetting, syncLoadedWorkspaceFoldersAcrossRegistries,
+  getMcpWorkspaceConfig, getBookmarksForUri, getAllBookmarksForUri,
+  getOpenDocumentLines, bootstrapWorkspaces,
+  getDefaultTargetForWorkspace,
+} from './workspace-helpers';
+import { registerBookmarkCrudCommands } from './commands/bookmark-crud';
+import { registerRevealInPanelCommand } from './commands/reveal-in-panel';
+import { registerBookmarkJumpCommands } from './commands/bookmark-jump';
+import { registerBookmarkSelectionCommands } from './commands/bookmark-selection';
+import { registerBookmarkNavigationCommands, cleanupPickMode } from './commands/bookmark-navigation';
+import { registerBookmarkQuickpicksCommands } from './commands/bookmark-quickpicks';
+import { registerBookmarkExportCommand } from './commands/bookmark-export';
+import { registerGroupManagementCommands } from './commands/group-management';
+import { registerAppearanceCommands } from './commands/appearance';
+import { registerSettingsAndFilterCommands } from './commands/settings-and-filters';
+import { registerMcpConfigAndDiagnosticsCommands } from './commands/mcp-config-and-diagnostics';
+import {
+  type RepairDeps,
+  getBookmarkAnchorForRepair,
+  applyAutoRepairCandidate,
+} from './anchor-repair-helpers';
+import { createDecorationManager } from './decorations';
+import { registerStickyHandler } from './sticky';
+import { createWatcherManager } from './watchers';
+import { getBuiltinCatalog, clearCatalogCache, getCatalogCache } from './catalog-cache';
+import { createAnchorResolution } from './anchor-resolution';
+import { migrateLocalLayout } from './migrate-local-layout';
+import { maybeShowGitignoreNudge } from './gitignore-nudge';
+
+// ---------------------------------------------------------------------------
+// activate
+// ---------------------------------------------------------------------------
+
+export async function activate(context: vscode.ExtensionContext) {
+  console.log('Agentic Bookmarks extension activating...');
+
+  // --- Logger ---
+  const outputChannel = vscode.window.createOutputChannel('Agentic Bookmarks');
+  const log = createLogger(outputChannel,
+    vscode.workspace.getConfiguration('agenticBookmarks').get<LogLevel>('logLevel', 'error'));
+  log.info('Extension activation started');
+  context.subscriptions.push(outputChannel);
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (e.affectsConfiguration('agenticBookmarks.logLevel')) {
+        log.setLevel(
+          vscode.workspace.getConfiguration('agenticBookmarks').get<LogLevel>('logLevel', 'info')!
+        );
+      }
+    })
+  );
+
+  // --- Workspace root & default paths ---
+  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+  const defaultDataRoot = DEFAULT_BOOKMARKS_DATA_ROOT;
+
+  // --- Migrate legacy layout (registry/icon-cache/.cache/logs) into .bookmarks/local/ ---
+  // Runs before path resolution so subsequent helpers see the new layout.
+  for (const folder of vscode.workspace.workspaceFolders || []) {
+    try {
+      await migrateLocalLayout(folder.uri.fsPath);
+    } catch (err) {
+      log.error(`Local-layout migration failed for ${folder.uri.fsPath}: ${err}`);
+    }
+  }
+
+  // --- One-time gitignore nudge (SML-1335) ---
+  // Fire-and-forget per workspace folder. Spawns `git ls-files` to detect
+  // tracked files under .bookmarks/local/; if found, prompts the user once
+  // (per workspace) to add the canonical ignore line.
+  for (const folder of vscode.workspace.workspaceFolders || []) {
+    void maybeShowGitignoreNudge({
+      workspaceRoot: folder.uri.fsPath,
+      workspaceState: context.workspaceState,
+      log,
+      showInformationMessage: (msg, ...buttons) =>
+        vscode.window.showInformationMessage(msg, ...buttons),
+      showWarningMessage: (msg) => vscode.window.showWarningMessage(msg),
+    });
+  }
+
+  const defaultLocalPath = getDefaultLocalFilePath(workspaceRoot, defaultDataRoot);
+  const paths = pathsForDataFile(defaultLocalPath, workspaceRoot, defaultDataRoot);
+
+  // --- Bootstrap workspaces (registry init, data files, style catalogs) ---
+  await bootstrapWorkspaces({ context, log, workspaceRoot, defaultDataRoot, paths });
+
+  // --- UI state helpers ---
+  type UIState = { hidden: string[]; focus: string | null; filterEnabled?: boolean; hiddenFiles?: string[] };
+  type SearchFilter = { id: string; text: string; regex: boolean; op: 'AND' | 'OR' };
+
+  function getUIState(): UIState & { searches?: SearchFilter[] } {
+    return context.workspaceState.get<UIState & { searches?: SearchFilter[] }>('agenticBookmarks.ui', { hidden: [], focus: null, filterEnabled: true, searches: [], hiddenFiles: [] });
+  }
+  async function setUIState(next: UIState & { searches?: SearchFilter[] }) {
+    await context.workspaceState.update('agenticBookmarks.ui', next);
+  }
+
+  const hiddenNotesStorageKey = 'agenticBookmarks.hiddenNoteIds';
+  const hiddenNotes = new Set<string>(context.workspaceState.get<string[]>(hiddenNotesStorageKey) || []);
+  const isNoteVisible = (bookmarkId: string) => !hiddenNotes.has(bookmarkId);
+  async function setNoteVisibility(bookmarkId: string, visible: boolean): Promise<void> {
+    if (visible) hiddenNotes.delete(bookmarkId);
+    else hiddenNotes.add(bookmarkId);
+    await context.workspaceState.update(hiddenNotesStorageKey, Array.from(hiddenNotes));
+  }
+
+  function isFileHidden(fileId: string, reg: WorkspaceRegistryV1): boolean {
+    const ui = getUIState();
+    if (ui.hiddenFiles?.includes(fileId)) return true;
+    const file = reg.files.find(f => (f as any).fileId === fileId);
+    return file?.enabled === false;
+  }
+
+  // --- Tree views ---
+  log.debug(`Workspace root: ${workspaceRoot}`);
+  log.debug(`Data path: ${paths.data}`);
+
+  const defaultIconPath = context.asAbsolutePath('media/styles/icons/marker-white.svg');
+  const getCatalog = () => getBuiltinCatalog(context);
+  const provider = new BookmarksProvider(paths, workspaceRoot, defaultIconPath, getUIState, isFileHidden, context);
+
+  async function updateFilterContext() {
+    try {
+      const ui = getUIState();
+      await vscode.commands.executeCommand('setContext', 'agenticBookmarks.filterEnabled', ui.filterEnabled === true);
+    } catch (err) {
+      console.error(`[updateFilterContext] Error setting VS Code context:`, err);
+      log.error(`[updateFilterContext] ERROR: Failed to set context: ${err}`);
+    }
+  }
+  await updateFilterContext();
+  log.info('Tree provider created');
+
+  const treeView = vscode.window.createTreeView('agenticBookmarks.view', { treeDataProvider: provider, showCollapseAll: true });
+  context.subscriptions.push(treeView);
+  log.info('Tree view registered');
+
+  const filesGroups = new FilesGroupsProvider(workspaceRoot, getUIState, defaultIconPath, isFileHidden, context);
+  const filesGroupsView = vscode.window.createTreeView('agenticBookmarks.filesGroups', { treeDataProvider: filesGroups, showCollapseAll: true });
+  context.subscriptions.push(filesGroupsView);
+
+  // --- Licensing (SML-1302 Phase 1, repo detection wired in SML-1338, trial timer in SML-1333) ---
+  const trialMirror = createTrialMirror(workspaceRoot);
+  const trialStore = new TrialStore(context.globalState, trialMirror);
+  const licensing = new LicensingService({
+    getTierSetting: () => vscode.workspace.getConfiguration('agenticBookmarks.licensing').get<string>('testTier'),
+    getVisibilitySetting: () => vscode.workspace.getConfiguration('agenticBookmarks.licensing').get<string>('testVisibility'),
+    setContextKey: (key, value) => { void vscode.commands.executeCommand('setContext', key, value); },
+    getWorkspaceFolders: () => vscode.workspace.workspaceFolders?.map(f => f.uri.fsPath) ?? [],
+    readTrialRecord: () => trialStore.read(),
+    writeTrialRecord: (r) => trialStore.write(r),
+    clearTrialRecord: () => trialStore.clear(),
+    machineId: vscode.env.machineId,
+  });
+  await licensing.hydrate();
+  const refreshIsDevelopment = () => {
+    const enabled = vscode.workspace.getConfiguration('agenticBookmarks.licensing').get<boolean>('devCommandsEnabled') === true;
+    const dev = context.extensionMode !== vscode.ExtensionMode.Production || enabled;
+    void vscode.commands.executeCommand('setContext', 'agenticBookmarks.isDevelopment', dev);
+  };
+  refreshIsDevelopment();
+  licensing.pushContext();
+  // Fire-and-forget initial detection. pushContext re-runs once the cached
+  // visibility settles so agenticBookmarks.repoVisibility reflects reality.
+  void licensing.detect().then(() => licensing.pushContext());
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => {
+      void licensing.detect(true).then(() => licensing.pushContext());
+    }),
+  );
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(e => {
+      if (
+        e.affectsConfiguration('agenticBookmarks.licensing.testTier') ||
+        e.affectsConfiguration('agenticBookmarks.licensing.testVisibility')
+      ) {
+        licensing.notifyChanged();
+      }
+      if (e.affectsConfiguration('agenticBookmarks.licensing.devCommandsEnabled')) {
+        refreshIsDevelopment();
+      }
+    }),
+  );
+  registerTestLicenseCommands(context, licensing, outputChannel);
+
+  const settingsProvider = new SettingsProvider(workspaceRoot, context, licensing);
+  const settingsView = vscode.window.createTreeView('agenticBookmarks.settings', { treeDataProvider: settingsProvider, showCollapseAll: true });
+  context.subscriptions.push(settingsView);
+
+  // --- Multi-workspace context ---
+  const updateHasMultipleWorkspacesContext = () => {
+    const hasMultiple = (vscode.workspace.workspaceFolders?.length ?? 0) > 1;
+    vscode.commands.executeCommand('setContext', 'agenticBookmarks.hasMultipleWorkspaces', hasMultiple);
+  };
+  updateHasMultipleWorkspacesContext();
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => updateHasMultipleWorkspacesContext())
+  );
+
+  // --- Status bar ---
+  const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  statusBarItem.command = 'agenticBookmarks.showWorkspaceInfo';
+  context.subscriptions.push(statusBarItem);
+
+  async function updateStatusBar(): Promise<void> {
+    const folders = vscode.workspace.workspaceFolders || [];
+    if (folders.length === 0) { statusBarItem.hide(); return; }
+    if (folders.length === 1) {
+      statusBarItem.text = `$(bookmark) ${folders[0].name}`;
+      statusBarItem.tooltip = 'Bookmarks workspace';
+    } else {
+      statusBarItem.text = `$(bookmark) ${folders.length} workspaces`;
+      statusBarItem.tooltip = folders.map(f => f.name).join('\n');
+    }
+    statusBarItem.show();
+  }
+
+  updateStatusBar();
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(async (_e) => {
+      await updateStatusBar();
+      await syncLoadedWorkspaceFoldersAcrossRegistries();
+      // (Style-catalog install on new folder removed in SML-1320 — catalog
+      // now loads from extension media; nothing per-folder to set up.)
+    })
+  );
+
+  // --- Debounced cache sync ---
+  let cacheSyncTimer: ReturnType<typeof setTimeout> | null = null;
+  function debouncedCacheSync() {
+    if (cacheSyncTimer) clearTimeout(cacheSyncTimer);
+    cacheSyncTimer = setTimeout(async () => {
+      cacheSyncTimer = null;
+      const reg = await readRegistry(workspaceRoot);
+      await syncBrokenAnchorsCache(workspaceRoot, reg, (msg) => log.debug(msg));
+    }, 1000);
+  }
+  context.subscriptions.push({ dispose: () => { if (cacheSyncTimer) clearTimeout(cacheSyncTimer); } });
+
+  // --- Repair queue (created later, referenced by anchor resolution) ---
+  let repairQueue: AnchorRepairQueue | null = null;
+
+  // --- Anchor resolution (onFileOpened + revalidateOpenDocuments) ---
+  const { onFileOpened, revalidateOpenDocuments } = createAnchorResolution({
+    workspaceRoot,
+    log,
+    getAllBookmarksForUri,
+    getResolutionOptions: async () => {
+      const reg = await readRegistry(workspaceRoot);
+      const anchorSettings = (reg.settings?.anchors as any) ?? {};
+      return {
+        enableFlexContext: anchorSettings.enableFlexContext ?? true,
+        enableFlexContextShared: anchorSettings.enableFlexContextShared ?? true,
+        isLocal: true, // default safe — per-bookmark isLocal is now threaded via getAllBookmarksForUri
+        showWarningOnShared: anchorSettings.showWarningOnShared ?? false,
+        enableLocalContextRefresh: anchorSettings.enableLocalContextRefresh ?? true,
+      };
+    },
+    writeRefreshedAnchors: async (updates) => {
+      const reg = await readRegistry(workspaceRoot);
+      const dataRoot = getBookmarksDataRoot(reg);
+      for (const update of updates) {
+        try {
+          const found = await getBookmarkAnchorForRepair(update.bookmarkId, workspaceRoot);
+          if (!found) continue;
+          await editFileV2WithContext(found.bookmarksDataFilePath, workspaceRoot, dataRoot, (d) => {
+            const idx = d.bookmarks.findIndex((b: any) => b.id === update.bookmarkId);
+            if (idx !== -1) {
+              d.bookmarks[idx].anchor = update.anchor;
+              d.bookmarks[idx].updatedAt = Date.now();
+            }
+          });
+        } catch (err: any) {
+          log.error(`[contextRefresh] Write failed for ${update.bookmarkId}: ${err?.message || err}`);
+        }
+      }
+    },
+    refreshTree: () => provider.refresh(),
+    getRepairQueue: () => repairQueue,
+    debouncedCacheSync,
+  });
+
+  // --- CodeLens ---
+  const codeLensProvider = new BookmarkCodeLensProvider(
+    workspaceRoot,
+    (uri: string) => getBookmarksForUri(uri, workspaceRoot),
+    isNoteVisible,
+  );
+  context.subscriptions.push(
+    vscode.languages.registerCodeLensProvider({ scheme: 'file' }, codeLensProvider)
+  );
+
+  // --- Decorations ---
+  const { updateDecorations, refreshDecorationAppearance } = createDecorationManager({
+    extensionContext: context,
+    log,
+    workspaceRoot,
+    getUIState,
+    isNoteVisible,
+    getCatalog,
+  });
+  await refreshDecorationAppearance();
+
+  // --- Config helpers ---
+  function getLineCacheLength(): number {
+    try {
+      const cfg = vscode.workspace.getConfiguration('agenticBookmarks');
+      const n = cfg.get<number>('lineCacheLength');
+      if (typeof n === 'number' && isFinite(n) && n >= 0) return Math.floor(n);
+    } catch {}
+    return 80;
+  }
+  function getLineCacheFor(editor: vscode.TextEditor, line: number): string | undefined {
+    try {
+      const txt = editor.document.lineAt(line).text ?? '';
+      const max = Math.max(0, getLineCacheLength());
+      return txt.slice(0, max);
+    } catch { return undefined; }
+  }
+
+  // --- Repair deps ---
+  const repairDeps: RepairDeps = {
+    workspaceRoot,
+    log,
+    getLineCacheLength,
+    updateDecorations,
+    debouncedCacheSync,
+    refreshTrees: () => { provider.refresh(); filesGroups.refresh(); },
+  };
+
+  // --- Sticky bookmarks ---
+  const sticky = registerStickyHandler({
+    workspaceRoot,
+    log,
+    updateDecorations,
+    getLineCacheLength,
+    refreshTree: () => provider.refresh(),
+    markEdited: (docUri) => repairQueue?.markEdited(docUri),
+  });
+  context.subscriptions.push(sticky.disposable);
+
+  // --- File & registry watchers ---
+  const watchers = createWatcherManager(
+    {
+      workspaceRoot,
+      log,
+      context,
+      updateDecorations,
+      refreshDecorationAppearance,
+      refreshTrees: () => { settingsProvider.refresh(); filesGroups.refresh(); provider.refresh(); },
+      refreshBookmarkTrees: () => { filesGroups.refresh(); provider.refresh(); },
+      refreshCodeLens: () => codeLensProvider.refresh(),
+      revalidateOpenDocuments,
+    },
+    sticky.getLastStickyRefreshAt,
+  );
+  await watchers.setupWatchers();
+  context.subscriptions.push(watchers.setupRegistryWatcher());
+
+  // --- Document lifecycle ---
+  context.subscriptions.push(
+    vscode.workspace.onDidOpenTextDocument(async (document) => {
+      await onFileOpened(document);
+      await updateDecorations();
+    })
+  );
+  context.subscriptions.push(
+    vscode.workspace.onDidCloseTextDocument((document) => {
+      const docUri = document.uri.toString();
+      repairQueue?.cancel(docUri);
+      clearStateForFile(docUri);
+      clearRegisteredUris(docUri);
+      debouncedCacheSync();
+    })
+  );
+
+  // --- File rename tracking ---
+  context.subscriptions.push(
+    vscode.workspace.onDidRenameFiles(async (e) => {
+      const reg = await readRegistry(workspaceRoot);
+      const dataRoot = getBookmarksDataRoot(reg);
+
+      // Gate: skip if live rename tracking is disabled
+      if (reg.settings?.anchors?.enableLiveRenameTracking === false) {
+        log.debug('[rename] Live rename tracking disabled, skipping');
+        return;
+      }
+
+      const renames: Array<{ oldRelPath: string; newRelPath: string }> = [];
+      for (const { oldUri, newUri } of e.files) {
+        const oldRel = toWorkspaceRelativePath(oldUri.fsPath, workspaceRoot);
+        const newRel = toWorkspaceRelativePath(newUri.fsPath, workspaceRoot);
+        if (!oldRel || !newRel) continue;
+
+        // Detect directory renames: if the newUri is a directory, append '/'
+        // so updateBookmarkUris uses prefix matching.
+        try {
+          const stat = await vscode.workspace.fs.stat(newUri);
+          if (stat.type & vscode.FileType.Directory) {
+            renames.push({
+              oldRelPath: oldRel.endsWith('/') ? oldRel : oldRel + '/',
+              newRelPath: newRel.endsWith('/') ? newRel : newRel + '/',
+            });
+            continue;
+          }
+        } catch {
+          // stat failed — treat as file rename
+        }
+
+        renames.push({ oldRelPath: oldRel, newRelPath: newRel });
+      }
+
+      if (renames.length === 0) return;
+
+      log.info(`[rename] Updating bookmark URIs for ${renames.length} rename(s)`);
+      try {
+        const result = await updateBookmarkUris(workspaceRoot, dataRoot, renames);
+        if (result.updatedCount > 0) {
+          log.info(`[rename] Updated ${result.updatedCount} bookmark(s)`);
+        }
+        for (const err of result.errors) {
+          log.error(`[rename] Error in ${err.filePath}: ${err.message}`);
+        }
+      } catch (err) {
+        log.error(`[rename] Failed to update bookmark URIs: ${err}`);
+      }
+
+      // Clear stale in-memory state keyed by old URIs.
+      // Re-resolution will happen via revalidateOpenDocuments below.
+      for (const { oldUri } of e.files) {
+        const oldDocUri = oldUri.toString();
+        repairQueue?.cancel(oldDocUri);
+        clearStateForFile(oldDocUri);
+        clearRegisteredUris(oldDocUri);
+      }
+
+      // Force re-resolve anchors for all open documents so the renamed file
+      // picks up its bookmarks under the new URI immediately.
+      await revalidateOpenDocuments();
+      await updateDecorations();
+    })
+  );
+
+  // --- Commands ---
+  log.info('Registering commands...');
+  const crudNavDeps = {
+    workspaceRoot,
+    log,
+    provider,
+    filesGroups,
+    codeLensProvider,
+    updateDecorations,
+    debouncedCacheSync,
+    getLineCacheLength,
+    getLineCacheFor,
+    getDefaultTargetForWorkspace: (root: string, folder: vscode.WorkspaceFolder) =>
+      getDefaultTargetForWorkspace(root, folder, log),
+    repairDeps,
+    getUIState,
+    isFileHidden,
+  };
+  context.subscriptions.push(
+    ...registerBookmarkCrudCommands(crudNavDeps),
+    ...registerRevealInPanelCommand({
+      workspaceRoot,
+      log,
+      provider,
+      treeView,
+      getUIState,
+      isFileHidden,
+    }),
+    ...registerBookmarkNavigationCommands(crudNavDeps),
+    ...registerBookmarkJumpCommands({ workspaceRoot, log, getUIState, isFileHidden }),
+    ...registerBookmarkSelectionCommands({ workspaceRoot, log, getUIState, isFileHidden }),
+    ...registerBookmarkQuickpicksCommands({
+      workspaceRoot,
+      log,
+      getUIState,
+      isFileHidden,
+      getCatalog,
+      defaultIconPath,
+    }),
+    ...registerBookmarkExportCommand({ workspaceRoot, log, getUIState, isFileHidden }),
+    ...registerGroupManagementCommands({
+      workspaceRoot,
+      log,
+      provider,
+      filesGroups,
+      updateDecorations,
+      getUIState,
+      setUIState,
+    }),
+    ...registerAppearanceCommands({
+      workspaceRoot,
+      log,
+      context,
+      provider,
+      filesGroups,
+      settingsProvider,
+      updateDecorations,
+      refreshDecorationAppearance,
+      getCatalog,
+      clearCatalogCache,
+    }),
+    ...registerSettingsAndFilterCommands({
+      workspaceRoot,
+      log,
+      paths,
+      provider,
+      filesGroups,
+      settingsProvider,
+      settingsView,
+      codeLensProvider,
+      updateDecorations,
+      restartWatchers: () => watchers.restartWatchers(),
+      getUIState,
+      setUIState,
+      updateFilterContext,
+      isNoteVisible,
+      setNoteVisibility,
+    }),
+    ...registerMcpConfigAndDiagnosticsCommands({
+      workspaceRoot,
+      log,
+      context,
+      outputChannel,
+      paths,
+      provider,
+      filesGroups,
+      settingsProvider,
+      codeLensProvider,
+      updateDecorations,
+      revalidateOpenDocuments,
+      getUIState,
+      setUIState,
+      getCatalogCache,
+    }),
+  );
+  log.info('Commands registered');
+
+  // --- Initialize anchor state for already-open documents ---
+  for (const editor of vscode.window.visibleTextEditors) {
+    await onFileOpened(editor.document);
+  }
+  await updateDecorations();
+
+  // --- Background repair queue ---
+  repairQueue = new AnchorRepairQueue({
+    getBrokenAnchors,
+    getDeepFlexAnchors,
+    getBookmarkAnchor: async (bookmarkId: string) => {
+      const bookmarkData = await getBookmarkAnchorForRepair(bookmarkId, workspaceRoot);
+      if (!bookmarkData) return null;
+      return {
+        anchor: bookmarkData.anchor,
+        targetRelPath: bookmarkData.targetRelPath,
+        workspaceRoot: bookmarkData.workspaceRoot,
+        bookmarksDataFilePath: bookmarkData.bookmarksDataFilePath,
+      };
+    },
+    findRepairCandidate: autoRepairCandidate.findRepairCandidate as any,
+    applyRepair: (bookmarkId: string, candidateLine: number) =>
+      applyAutoRepairCandidate(bookmarkId, candidateLine, workspaceRoot, getLineCacheLength),
+    updateAnchorState,
+    updateDeepFlexState,
+    refreshUI: () => { provider.refresh(); debouncedCacheSync(); },
+    getFileLines: getOpenDocumentLines,
+    log: (msg: string) => log.debug(msg),
+  });
+  context.subscriptions.push(repairQueue);
+
+  // --- Active editor change ---
+  setTimeout(() => { log.info('Initial decoration update'); updateDecorations(); }, 100);
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(async (ed) => {
+      log.debug('Active editor changed, updating decorations');
+      if (!ed || ed.document.uri.scheme !== 'file') {
+        vscode.commands.executeCommand('setContext', 'agenticBookmarks.linesForActiveDoc', []);
+        return;
+      }
+      const docUri = ed.document.uri.toString();
+      if (!hasStateForFile(docUri)) {
+        await onFileOpened(ed.document);
+      }
+      updateDecorations();
+    })
+  );
+
+  // --- Source file save → re-validate anchors + context refresh ---
+  context.subscriptions.push(
+    vscode.workspace.onDidSaveTextDocument(async (doc) => {
+      if (doc.uri.scheme !== 'file') return;
+      const docUri = doc.uri.toString();
+      if (!hasStateForFile(docUri)) return;
+      await onFileOpened(doc);
+      updateDecorations();
+    })
+  );
+
+  // --- Configuration change listener ---
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration(async (e) => {
+      if (e.affectsConfiguration('agenticBookmarks.dataRoot')) {
+        for (const folder of vscode.workspace.workspaceFolders || []) {
+          if (e.affectsConfiguration('agenticBookmarks.dataRoot', folder.uri)) {
+            await syncDataRootSetting(folder.uri.fsPath);
+            provider.refresh();
+            filesGroups.refresh();
+            settingsProvider.refresh();
+          }
+        }
+      }
+    })
+  );
+
+  // --- MCP server registration ---
+  try {
+    const vscodeLm = (vscode as any).lm;
+    if (vscodeLm && typeof vscodeLm.registerMcpServerDefinitionProvider === 'function') {
+      const mcpEmitter = new vscode.EventEmitter<void>();
+      context.subscriptions.push(mcpEmitter);
+
+      const serverPath = context.asAbsolutePath('server-bundle/index.js');
+      log.info(`MCP server path: ${serverPath}`);
+
+      const registration = vscodeLm.registerMcpServerDefinitionProvider('agentic_bookmarks', {
+        onDidChangeMcpServerDefinitions: mcpEmitter.event,
+        provideMcpServerDefinitions: async () => {
+          log.debug('Providing MCP server definitions');
+          const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+          const workspaceConfig = getMcpWorkspaceConfig();
+
+          if ((vscode as any).McpStdioServerDefinition) {
+            log.debug('Using vscode.McpStdioServerDefinition');
+            return [new (vscode as any).McpStdioServerDefinition({
+              label: 'Agentic Bookmarks',
+              command: process.execPath,
+              args: [serverPath],
+              cwd: vscode.Uri.file(context.extensionUri.fsPath),
+              env: {
+                BOOKMARKS_DIR: getLocalDir(workspaceFolder),
+                MCP_BOOKMARKS_WORKSPACES: JSON.stringify(workspaceConfig),
+              },
+              version: '0.5.0',
+            })];
+          }
+
+          log.debug('Using plain object for server definition');
+          const definition = {
+            label: 'Agentic Bookmarks',
+            command: process.execPath,
+            args: [serverPath],
+            cwd: vscode.Uri.file(context.extensionUri.fsPath),
+            env: {
+              BOOKMARKS_DIR: getLocalDir(workspaceFolder),
+              MCP_BOOKMARKS_WORKSPACES: JSON.stringify(workspaceConfig),
+            },
+            version: '0.5.0',
+            type: 'stdio',
+          };
+          log.debug(() => `Returning definition: ${JSON.stringify({ ...definition, args: ['...'] })}`);
+          return [definition];
+        },
+      });
+
+      context.subscriptions.push(registration);
+      log.info('MCP server provider registered successfully');
+    } else {
+      log.info('MCP API (vscode.lm.registerMcpServerDefinitionProvider) not available in this VS Code version');
+    }
+  } catch (error) {
+    log.error(`Failed to register MCP server: ${error}`);
+  }
+
+  log.info('Extension activation complete');
+  console.log('Agentic Bookmarks extension ready');
+  outputChannel.show();
+}
+
+// ---------------------------------------------------------------------------
+// deactivate
+// ---------------------------------------------------------------------------
+
+export function deactivate() {
+  cleanupPickMode();
+  console.log('Agentic Bookmarks extension deactivated');
+}

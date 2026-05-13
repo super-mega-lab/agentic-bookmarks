@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "palette": [
+    { "id": "red", "hex": "#e74c3c" },
+    { "id": "orange", "hex": "#f39c12" },
+    { "id": "yellow", "hex": "#f1c40f" },
+    { "id": "green", "hex": "#2ecc71" },
+    { "id": "blue", "hex": "#3498db" },
+    { "id": "purple", "hex": "#9b59b6" }
+  ],
+  "styles": [
+    {
+      "id": "style1",
+      "displayName": "Bookmark Marker",
+      "description": "Simple marker ribbon",
+      "tags": ["standard"],
+      "svg": {
+        "white": "icons/marker-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "yellow"
+    },
+    {
+      "id": "style2",
+      "displayName": "Flag",
+      "description": "Flag marker",
+      "tags": ["standard"],
+      "svg": {
+        "white": "icons/flag-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "red"
+    },
+    {
+      "id": "style3",
+      "displayName": "Star",
+      "description": "Star marker",
+      "tags": ["standard"],
+      "svg": {
+        "white": "icons/star-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "yellow"
+    }
+    ,
+    {
+      "id": "aiBookmark1",
+      "displayName": "AI Bookmark 1",
+      "description": "Bookmark with chip top (3 leads)",
+      "tags": ["ai"],
+      "svg": {
+        "white": "icons/ai-bookmark-1-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "blue"
+    },
+    {
+      "id": "aiBookmark2",
+      "displayName": "AI Bookmark 2",
+      "description": "Bookmark with bot head",
+      "tags": ["ai"],
+      "svg": {
+        "white": "icons/ai-bookmark-2-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "purple"
+    },
+    {
+      "id": "aiBookmark3",
+      "displayName": "AI Bookmark 3",
+      "description": "Bookmark with bot face (eyes + mouth)",
+      "tags": ["ai"],
+      "svg": {
+        "white": "icons/ai-bookmark-3-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "green"
+    },
+    {
+      "id": "bookmark",
+      "displayName": "Bookmark",
+      "description": "Classic bookmark ribbon",
+      "tags": ["standard"],
+      "svg": {
+        "white": "icons/bookmark-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "blue"
+    },
+    {
+      "id": "car",
+      "displayName": "Car",
+      "description": "Car icon",
+      "tags": ["vehicle"],
+      "svg": {
+        "white": "icons/car-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "red"
+    },
+    {
+      "id": "engine",
+      "displayName": "Engine",
+      "description": "Engine icon",
+      "tags": ["mechanical"],
+      "svg": {
+        "white": "icons/engine-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "orange"
+    },
+    {
+      "id": "face",
+      "displayName": "Face",
+      "description": "Face icon",
+      "tags": ["people"],
+      "svg": {
+        "white": "icons/face1-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "yellow"
+    },
+    {
+      "id": "factory",
+      "displayName": "Factory",
+      "description": "Factory icon",
+      "tags": ["industrial"],
+      "svg": {
+        "white": "icons/factory-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "purple"
+    },
+    {
+      "id": "flag2",
+      "displayName": "Flag 2",
+      "description": "Alternative flag icon",
+      "tags": ["standard"],
+      "svg": {
+        "white": "icons/flag2-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "red"
+    },
+    {
+      "id": "lightbulb",
+      "displayName": "Lightbulb",
+      "description": "Lightbulb icon",
+      "tags": ["ideas"],
+      "svg": {
+        "white": "icons/lightbulb-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "yellow"
+    },
+    {
+      "id": "abstract1",
+      "displayName": "Abstract 1",
+      "description": "Abstract shape icon",
+      "tags": ["abstract"],
+      "svg": {
+        "white": "icons/abstract1-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "purple"
+    },
+    {
+      "id": "abstract2",
+      "displayName": "Abstract 2",
+      "description": "Abstract shape icon variant",
+      "tags": ["abstract"],
+      "svg": {
+        "white": "icons/abstract2-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "blue"
+    },
+    {
+      "id": "bug",
+      "displayName": "Bug",
+      "description": "Bug icon",
+      "tags": ["development"],
+      "svg": {
+        "white": "icons/bug-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "red"
+    },
+    {
+      "id": "pentagon",
+      "displayName": "Pentagon",
+      "description": "Pentagon shape icon",
+      "tags": ["shapes"],
+      "svg": {
+        "white": "icons/pentagon-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "green"
+    },
+    {
+      "id": "pentagon2",
+      "displayName": "Pentagon 2",
+      "description": "Pentagon shape icon variant",
+      "tags": ["shapes"],
+      "svg": {
+        "white": "icons/pentagon2-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "blue"
+    },
+    {
+      "id": "rocket",
+      "displayName": "Rocket",
+      "description": "Rocket icon",
+      "tags": ["space"],
+      "svg": {
+        "white": "icons/rocket-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "orange"
+    },
+    {
+      "id": "todo",
+      "displayName": "Todo",
+      "description": "Todo checkbox icon",
+      "tags": ["tasks"],
+      "svg": {
+        "white": "icons/todo-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "green"
+    },
+    {
+      "id": "wrench",
+      "displayName": "Wrench",
+      "description": "Wrench tool icon",
+      "tags": ["tools"],
+      "svg": {
+        "white": "icons/wrench-white.svg",
+        "tintable": true
+      },
+      "defaultColor": "yellow"
+    }
+  ]
+}
