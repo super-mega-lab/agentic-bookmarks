@@ -8,8 +8,13 @@
     "url": "https://supermegalab.com"
   },
   "homepage": "https://supermegalab.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/super-mega-lab/agentic-bookmarks"
+  },
+  "license": "SEE LICENSE IN LICENSE",
   "icon": "icon512.png",
-  "version": "0.5.3",
+  "version": "0.5.4",
   "engines": {
     "vscode": "^1.92.0"
   },

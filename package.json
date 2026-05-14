@@ -13,7 +13,7 @@
     "typecheck": "pnpm -r --no-bail typecheck",
     "test": "vitest run",
     "test:smoke": "pnpm -r test:smoke",
-    "package": "pnpm build && mkdir -p dist && cd packages/extension && vsce package --no-dependencies --allow-missing-repository -o ../../dist/agentic-bookmarks.vsix",
+    "package": "pnpm build && mkdir -p dist && cd packages/extension && vsce package --no-dependencies -o ../../dist/agentic-bookmarks.vsix",
     "package:install": "pnpm package && code --install-extension dist/agentic-bookmarks.vsix --force",
     "package:update": "code --install-extension dist/agentic-bookmarks.vsix --force",    
     "cursor:install": "pnpm package && cursor --install-extension dist/agentic-bookmarks.vsix",
