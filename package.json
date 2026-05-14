@@ -15,7 +15,7 @@
     "test:smoke": "pnpm -r test:smoke",
     "package": "pnpm build && mkdir -p dist && cd packages/extension && vsce package --no-dependencies -o ../../dist/agentic-bookmarks.vsix",
     "package:install": "pnpm package && code --install-extension dist/agentic-bookmarks.vsix --force",
-    "package:update": "code --install-extension dist/agentic-bookmarks.vsix --force",    
+    "package:update": "code --install-extension dist/agentic-bookmarks.vsix --force",
     "cursor:install": "pnpm package && cursor --install-extension dist/agentic-bookmarks.vsix",
     "cursor:update": "cursor --install-extension dist/agentic-bookmarks.vsix --force",
     "cursor:uninstall": "cursor --uninstall-extension supermegalab.agentic-bookmarks",
@@ -33,14 +33,14 @@
     "iterate": "pnpm increment:patch && pnpm package && pnpm package:update"
   },
   "devDependencies": {
-    "typescript": "^5.5.0",
-    "tsup": "^8.0.0",
-    "@types/node": "^20.11.0",
-    "eslint": "^9.0.0",
-    "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
-    "vitest": "^1.6.0",
-    "@vscode/vsce": "^2.24.0"
+    "@types/node": "^20.19.41",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vscode/vsce": "^2.32.0",
+    "eslint": "^9.39.4",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^1.6.1"
   },
   "engines": {
     "node": ">=20.0.0"
