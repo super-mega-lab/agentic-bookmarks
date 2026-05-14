@@ -10,11 +10,14 @@
   "homepage": "https://supermegalab.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/super-mega-lab/agentic-bookmarks"
+    "url": "git+https://github.com/super-mega-lab/agentic-bookmarks.git"
   },
-  "license": "SEE LICENSE IN LICENSE",
+  "bugs": {
+    "url": "https://github.com/super-mega-lab/agentic-bookmarks/issues"
+  },
+  "license": "LicenseRef-PolyForm-Shield-1.0.0",
   "icon": "icon512.png",
-  "version": "0.5.4",
+  "version": "0.5.8",
   "engines": {
     "vscode": "^1.92.0"
   },
