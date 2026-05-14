@@ -7,6 +7,9 @@ export default defineConfig({
   noExternal: ['@agentic-bookmarks/core', '@agentic-bookmarks/licensing', 'nanoid'],
   clean: true,
   bundle: true,
-  minify: false,
+  minify: true,
   sourcemap: false,
+  esbuildOptions(options) {
+    options.drop = ['console'];
+  },
 });

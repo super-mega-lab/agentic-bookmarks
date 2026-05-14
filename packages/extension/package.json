@@ -9,7 +9,7 @@
   },
   "homepage": "https://supermegalab.com",
   "icon": "icon512.png",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "engines": {
     "vscode": "^1.92.0"
   },
