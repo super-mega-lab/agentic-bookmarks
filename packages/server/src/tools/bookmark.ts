@@ -185,7 +185,7 @@ export async function handleBookmarkAdd(ctx: ServerContext, args: Record<string,
         unsortedGroup = {
           id: nanoid(8),
           name: 'Unsorted',
-          icon: { svg_style: 'style1', svg_color: 'gray' },
+          icon: { svg_style: 'bookmark', svg_color: 'gray' },
           createdAt: Date.now(),
           isUnsorted: true,
         };

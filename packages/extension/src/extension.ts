@@ -139,7 +139,7 @@ export async function activate(context: vscode.ExtensionContext) {
   log.debug(`Workspace root: ${workspaceRoot}`);
   log.debug(`Data path: ${paths.data}`);
 
-  const defaultIconPath = context.asAbsolutePath('media/styles/icons/marker-white.svg');
+  const defaultIconPath = context.asAbsolutePath('media/styles/icons/bookmark-white.svg');
   const getCatalog = () => getBuiltinCatalog(context);
   const provider = new BookmarksProvider(paths, workspaceRoot, defaultIconPath, getUIState, isFileHidden, context);
 

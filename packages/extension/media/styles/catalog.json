@@ -10,28 +10,6 @@
   ],
   "styles": [
     {
-      "id": "style1",
-      "displayName": "Bookmark Marker",
-      "description": "Simple marker ribbon",
-      "tags": ["standard"],
-      "svg": {
-        "white": "icons/marker-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "yellow"
-    },
-    {
-      "id": "style2",
-      "displayName": "Flag",
-      "description": "Flag marker",
-      "tags": ["standard"],
-      "svg": {
-        "white": "icons/flag-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "red"
-    },
-    {
       "id": "style3",
       "displayName": "Star",
       "description": "Star marker",
@@ -41,40 +19,6 @@
         "tintable": true
       },
       "defaultColor": "yellow"
-    }
-    ,
-    {
-      "id": "aiBookmark1",
-      "displayName": "AI Bookmark 1",
-      "description": "Bookmark with chip top (3 leads)",
-      "tags": ["ai"],
-      "svg": {
-        "white": "icons/ai-bookmark-1-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "blue"
-    },
-    {
-      "id": "aiBookmark2",
-      "displayName": "AI Bookmark 2",
-      "description": "Bookmark with bot head",
-      "tags": ["ai"],
-      "svg": {
-        "white": "icons/ai-bookmark-2-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "purple"
-    },
-    {
-      "id": "aiBookmark3",
-      "displayName": "AI Bookmark 3",
-      "description": "Bookmark with bot face (eyes + mouth)",
-      "tags": ["ai"],
-      "svg": {
-        "white": "icons/ai-bookmark-3-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "green"
     },
     {
       "id": "bookmark",
@@ -88,61 +32,6 @@
       "defaultColor": "blue"
     },
     {
-      "id": "car",
-      "displayName": "Car",
-      "description": "Car icon",
-      "tags": ["vehicle"],
-      "svg": {
-        "white": "icons/car-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "red"
-    },
-    {
-      "id": "engine",
-      "displayName": "Engine",
-      "description": "Engine icon",
-      "tags": ["mechanical"],
-      "svg": {
-        "white": "icons/engine-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "orange"
-    },
-    {
-      "id": "face",
-      "displayName": "Face",
-      "description": "Face icon",
-      "tags": ["people"],
-      "svg": {
-        "white": "icons/face1-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "yellow"
-    },
-    {
-      "id": "factory",
-      "displayName": "Factory",
-      "description": "Factory icon",
-      "tags": ["industrial"],
-      "svg": {
-        "white": "icons/factory-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "purple"
-    },
-    {
-      "id": "flag2",
-      "displayName": "Flag 2",
-      "description": "Alternative flag icon",
-      "tags": ["standard"],
-      "svg": {
-        "white": "icons/flag2-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "red"
-    },
-    {
       "id": "lightbulb",
       "displayName": "Lightbulb",
       "description": "Lightbulb icon",
@@ -154,28 +43,6 @@
       "defaultColor": "yellow"
     },
     {
-      "id": "abstract1",
-      "displayName": "Abstract 1",
-      "description": "Abstract shape icon",
-      "tags": ["abstract"],
-      "svg": {
-        "white": "icons/abstract1-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "purple"
-    },
-    {
-      "id": "abstract2",
-      "displayName": "Abstract 2",
-      "description": "Abstract shape icon variant",
-      "tags": ["abstract"],
-      "svg": {
-        "white": "icons/abstract2-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "blue"
-    },
-    {
       "id": "bug",
       "displayName": "Bug",
       "description": "Bug icon",
@@ -185,39 +52,6 @@
         "tintable": true
       },
       "defaultColor": "red"
-    },
-    {
-      "id": "pentagon",
-      "displayName": "Pentagon",
-      "description": "Pentagon shape icon",
-      "tags": ["shapes"],
-      "svg": {
-        "white": "icons/pentagon-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "green"
-    },
-    {
-      "id": "pentagon2",
-      "displayName": "Pentagon 2",
-      "description": "Pentagon shape icon variant",
-      "tags": ["shapes"],
-      "svg": {
-        "white": "icons/pentagon2-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "blue"
-    },
-    {
-      "id": "rocket",
-      "displayName": "Rocket",
-      "description": "Rocket icon",
-      "tags": ["space"],
-      "svg": {
-        "white": "icons/rocket-white.svg",
-        "tintable": true
-      },
-      "defaultColor": "orange"
     },
     {
       "id": "todo",

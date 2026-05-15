@@ -210,7 +210,7 @@ export function createDecorationManager(deps: DecorationDeps) {
       const color = uniform && /^#/.test(uniform) ? hexToRgba(uniform, 0.8) : 'rgba(255, 200, 0, 0.8)';
 
       // Try to resolve icon from style catalog if configured
-      let iconPath = context.asAbsolutePath('media/styles/icons/marker-white.svg');
+      let iconPath = context.asAbsolutePath('media/styles/icons/bookmark-white.svg');
       try {
         const cat = await getCatalog();
         if (cat) {
@@ -251,7 +251,7 @@ export function createDecorationManager(deps: DecorationDeps) {
       }
       if (bookmarkDecoration) bookmarkDecoration.dispose();
       bookmarkDecoration = vscode.window.createTextEditorDecorationType({
-        gutterIconPath: context.asAbsolutePath('media/styles/icons/marker-white.svg'),
+        gutterIconPath: context.asAbsolutePath('media/styles/icons/bookmark-white.svg'),
         gutterIconSize: 'contain',
         overviewRulerColor: 'rgba(255, 200, 0, 0.8)',
         overviewRulerLane: rulerLane
@@ -385,7 +385,7 @@ export function createDecorationManager(deps: DecorationDeps) {
     async function resolveIconAndColor(groupId: string, parentFile: BookmarksFileV2): Promise<{ icon: string; color: string }> {
       const memo = iconMemo.get(groupId);
       if (memo) return memo;
-      const defaultIcon = context.asAbsolutePath('media/styles/icons/marker-white.svg');
+      const defaultIcon = context.asAbsolutePath('media/styles/icons/bookmark-white.svg');
       // Defaults
       let color = '#ffc800';
       if (appearance?.uniformColor && /^#/.test(appearance.uniformColor)) color = appearance.uniformColor;

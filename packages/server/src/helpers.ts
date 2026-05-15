@@ -138,7 +138,7 @@ export async function createGroupWithStyleSetActive(workspaceRoot: string, dataF
       gname = base;
     }
   }
-  const icon = { svg_style: 'aiBookmark3', svg_color: randomReadableHexColor() } as any;
+  const icon = { svg_style: 'bookmark', svg_color: randomReadableHexColor() } as any;
   (f.groups as any).push({ id: groupId as any, name: gname, icon, createdAt: Date.now() });
 
   // Update registry name index best-effort
@@ -186,7 +186,7 @@ export async function createGroupWithAIStyle(
     groupName,
     {
       icon: {
-        svg_style: 'aiBookmark3',  // AI-created bookmark style
+        svg_style: 'bookmark',  // Default bookmark style
         svg_color: randomReadableHexColor(),
       },
       setAsDefault: true,  // Set newly created group as default target
