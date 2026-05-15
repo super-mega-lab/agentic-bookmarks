@@ -1,10 +1,12 @@
-# Bookmarks MCP
+# Agentic Bookmarks
 
 ![public beta](https://img.shields.io/badge/status-public%20beta-blue)
 
-**Public beta:** all pro features are free for everyone through 2026-07-01.
+**Public beta:** all Pro features are free for everyone. Beta end date: **to be announced**.
 
-A VS Code extension with a bundled MCP server for managing bookmarks. Uses pure JavaScript with atomic JSON storage (no native dependencies).
+**Agentic Bookmarks** — durable code bookmarks for you and your AI agents. Bookmarks survive refactors, merge cleanly when checked into git, and LLM agents can read, place, and repair them through MCP. Implemented in pure JavaScript with atomic JSON storage (no native dependencies).
+
+> **Source-available repository.** The code in this repository is published under [PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/) — see [`LICENSE`](LICENSE). The proprietary core that implements Agentic Bookmarks' Pro features is maintained in a separate private repository and is distributed only as a compiled artifact bundled with the Marketplace release.
 
 ## Important: add this line to your project's `.gitignore`
 
@@ -252,3 +254,42 @@ codanna index packages
 codanna documents add-collection docs ./docs
 codanna documents index
 ```
+
+## Legal
+
+### License and acceptance
+
+Agentic Bookmarks is **source-available** under the
+[PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/)
+license — see [`LICENSE`](LICENSE). In short: you can use, read, modify, and
+share the source for any purpose **except** offering it as a competing
+product. The proprietary core (described at the top of this README) is
+not source-available and is governed solely by the Provider-Specific
+Terms.
+
+**By installing or using Agentic Bookmarks, you agree to:**
+
+- the [End User License Agreement](https://agenticbookmarks.com/legal/eula)
+  (Bonterms Standard End User Agreement v1.0),
+- the [Provider-Specific Terms](https://agenticbookmarks.com/legal/terms),
+  including the
+  [Beta and Pro Features Policy](https://agenticbookmarks.com/legal/policy),
+- the [Privacy Policy](https://agenticbookmarks.com/legal/privacy), and
+- where it applies to your use of the extension, the
+  [Data Processing Addendum](https://agenticbookmarks.com/legal/dpa).
+
+If you do not agree to these, please do not install or use the extension.
+
+### Links
+
+- Product page: <https://agenticbookmarks.com>
+- Company / Publisher: <https://supermegalab.com>
+- Privacy Policy: <https://agenticbookmarks.com/legal/privacy>
+- Security Overview: <https://agenticbookmarks.com/legal/security>
+- Provider-Specific Terms: <https://agenticbookmarks.com/legal/terms>
+- End User License Agreement: <https://agenticbookmarks.com/legal/eula>
+- Data Processing Addendum: <https://agenticbookmarks.com/legal/dpa>
+- Data Handling Statement: <https://agenticbookmarks.com/legal/data-handling>
+- Beta and Pro Features Policy: <https://agenticbookmarks.com/legal/policy>
+- Sub-processor list: <https://agenticbookmarks.com/legal/subprocessors>
+- License (PolyForm Shield 1.0.0): [`LICENSE`](LICENSE)

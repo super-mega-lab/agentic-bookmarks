@@ -1,0 +1,1249 @@
+{
+  "name": "agentic-bookmarks",
+  "displayName": "Agentic Bookmarks",
+  "description": "Durable code bookmarks with self-healing anchors, so you and your agents can create local bookmarks or Git-friendly shared groups that survive refactors and code movement.",
+  "publisher": "supermegalab",
+  "author": {
+    "name": "Super Mega Lab",
+    "url": "https://supermegalab.com"
+  },
+  "homepage": "https://agenticbookmarks.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/super-mega-lab/agentic-bookmarks.git"
+  },
+  "bugs": {
+    "url": "https://github.com/super-mega-lab/agentic-bookmarks/issues"
+  },
+  "license": "LicenseRef-PolyForm-Shield-1.0.0",
+  "icon": "icon512.png",
+  "version": "0.5.12",
+  "engines": {
+    "vscode": "^1.92.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onCommand:agenticBookmarks.add",
+    "onCommand:agenticBookmarks.addAtLine",
+    "onCommand:agenticBookmarks.addLabeledAtLine",
+    "onCommand:agenticBookmarks.removeAtLine",
+    "onCommand:agenticBookmarks.revealInPanel",
+    "onCommand:agenticBookmarks.export",
+    "onCommand:agenticBookmarks.clearFile",
+    "onCommand:agenticBookmarks.clearAll",
+    "onCommand:agenticBookmarks.toggle",
+    "onCommand:agenticBookmarks.toggleLabeled",
+    "onCommand:agenticBookmarks.jumpNext",
+    "onCommand:agenticBookmarks.jumpPrevious",
+    "onCommand:agenticBookmarks.selectLines",
+    "onCommand:agenticBookmarks.expandSelectionToNext",
+    "onCommand:agenticBookmarks.expandSelectionToPrevious",
+    "onCommand:agenticBookmarks.shrinkSelection",
+    "onCommand:agenticBookmarks.delete",
+    "onCommand:agenticBookmarks.edit",
+    "onCommand:agenticBookmarks.addNote",
+    "onCommand:agenticBookmarks.editNote",
+    "onCommand:agenticBookmarks.changeGroup",
+    "onCommand:agenticBookmarks.toggleFiltering",
+    "onCommand:agenticBookmarks.toggleFilteringFilled",
+    "onCommand:agenticBookmarks.clearGroupFilter",
+    "onCommand:agenticBookmarks.addSearchFilter",
+    "onCommand:agenticBookmarks.editSearchFilter",
+    "onCommand:agenticBookmarks.toggleSearchOp",
+    "onCommand:agenticBookmarks.toggleSearchRegex",
+    "onCommand:agenticBookmarks.removeSearchFilter",
+    "onCommand:agenticBookmarks.open",
+    "onCommand:agenticBookmarks.refresh",
+    "onCommand:agenticBookmarks.setupClaude",
+    "onCommand:agenticBookmarks.setupCursor",
+    "onCommand:agenticBookmarks.setupCodex",
+    "onCommand:agenticBookmarks.newFile",
+    "onCommand:agenticBookmarks.newGroup",
+    "onCommand:agenticBookmarks.groupRename",
+    "onCommand:agenticBookmarks.groupMove",
+    "onCommand:agenticBookmarks.fileDeregister",
+    "onCommand:agenticBookmarks.fileToggleEnabled",
+    "onCommand:agenticBookmarks.groupSetDefault",
+    "onCommand:agenticBookmarks.groupDelete",
+    "onCommand:agenticBookmarks.groupToggleVisibility",
+    "onCommand:agenticBookmarks.groupToggleFocus",
+    "onCommand:agenticBookmarks.groupSetStyle",
+    "onCommand:agenticBookmarks.groupSetColor",
+    "onCommand:agenticBookmarks.toggleWatchers",
+    "onCommand:agenticBookmarks.toggleFileWatch",
+    "onCommand:agenticBookmarks.toggleInlineDots",
+    "onCommand:agenticBookmarks.toggleShowStyles",
+    "onCommand:agenticBookmarks.toggleShowColors",
+    "onCommand:agenticBookmarks.setUniformStyle",
+    "onCommand:agenticBookmarks.setUniformColor",
+    "onCommand:agenticBookmarks.clearUniformStyle",
+    "onCommand:agenticBookmarks.clearUniformColor",
+    "onCommand:agenticBookmarks.rebuildNameIndex",
+    "onCommand:agenticBookmarks.diagnostics",
+    "onCommand:agenticBookmarks.cleanLegacyFiles",
+    "onCommand:agenticBookmarks.debugGutterHere",
+    "onCommand:agenticBookmarks.initializeRegistry",
+    "onCommand:agenticBookmarks.autoRepairBookmark",
+    "onCommand:agenticBookmarks.testLicense.testFeatureGate",
+    "onCommand:agenticBookmarks.testLicense.testIntercept",
+    "onCommand:agenticBookmarks.testLicense.getState",
+    "onCommand:agenticBookmarks.testLicense.refreshVisibility",
+    "onCommand:agenticBookmarks.testLicense.diagnoseStatus",
+    "onCommand:agenticBookmarks.testLicense.simulateTrialActive",
+    "onCommand:agenticBookmarks.testLicense.simulateTrialExpiringSoon",
+    "onCommand:agenticBookmarks.testLicense.simulateTrialExpired",
+    "onCommand:agenticBookmarks.testLicense.clearTrial"
+  ],
+  "contributes": {
+    "configuration": {
+      "title": "Agentic Bookmarks",
+      "properties": {
+        "agenticBookmarks.lineCacheLength": {
+          "type": "number",
+          "default": 80,
+          "minimum": 0,
+          "maximum": 500,
+          "description": "Number of characters from the line to cache on bookmark creation. Used to derive labels for unlabeled bookmarks."
+        },
+        "agenticBookmarks.updateLineCacheOnEdits": {
+          "type": "boolean",
+          "default": true,
+          "description": "When enabled, recomputes anchor.lineCache for affected bookmarks when editing lines or when anchors shift. Avoids writing if the value is unchanged."
+        },
+        "agenticBookmarks.delayedExtraRefresh": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, performs an extra delayed (150ms) gutter reapply to win decoration ordering. Disable to reduce flicker."
+        },
+        "agenticBookmarks.noteDecorationMaxLength": {
+          "type": "number",
+          "default": 100,
+          "minimum": 40,
+          "maximum": 500,
+          "description": "Maximum character length for note decorations. Longer notes will be truncated at word boundaries with ellipsis (...). Full text is visible in the bookmarks tree view."
+        },
+        "agenticBookmarks.notePlacement": {
+          "type": "string",
+          "enum": [
+            "above",
+            "centered",
+            "below"
+          ],
+          "default": "above",
+          "description": "Controls where bookmark note decorations appear relative to the bookmarked line."
+        },
+        "agenticBookmarks.noteStartColumn": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "description": "Column offset (in monospace characters) where note decorations begin. Values larger than noteDecorationMaxLength automatically expand the available note width by 20 characters."
+        },
+        "agenticBookmarks.overviewRulerLane": {
+          "type": "string",
+          "enum": [
+            "left",
+            "center",
+            "right",
+            "full"
+          ],
+          "default": "center",
+          "description": "Which lane of the overview ruler (mini-scrollbar) bookmark marks appear in. 'full' spans all lanes."
+        },
+        "agenticBookmarks.dataRoot": {
+          "type": "string",
+          "default": ".bookmarks",
+          "description": "Root directory for bookmark data files, relative to workspace root. Change this if your project already uses .bookmarks for something else.",
+          "scope": "resource"
+        },
+        "agenticBookmarks.anchors.MCPcanEditTagsDirectly": {
+          "type": "boolean",
+          "default": false,
+          "description": "Allow MCP server to edit source files when creating tag anchors. When false (default), MCP returns the tag comment for the agent to insert."
+        },
+        "agenticBookmarks.anchors.blankLinesUseSupport": {
+          "type": "boolean",
+          "default": true,
+          "description": "When bookmarking blank lines, anchor to the nearest non-blank line and store an offset. Disable to allow empty lineCache in smart anchors."
+        },
+        "agenticBookmarks.autoRepair": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically attempt to repair broken smart anchors when files are opened. Uses context-search (always available) and optionally git history analysis (see autoRepairCanUseGit)."
+        },
+        "agenticBookmarks.autoRepairCanUseGit": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Allow auto-repair to use git history analysis (blame, line tracing through patches) as an enhancement. When **disabled**, auto-repair still runs using context-search alone — only git operations are skipped. When **enabled**, git-trace is used as a fallback when context-search confidence is low.",
+          "description": "Allow auto-repair to use git history analysis (blame, line tracing) as an enhancement. When disabled, auto-repair still runs using context-search alone. When enabled, git-trace is used as a fallback when context-search confidence is low."
+        },
+        "agenticBookmarks.autoRepairCanCrossFileSearch": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Allow auto-repair to search across all changed files when a bookmark's target file is missing and git rename detection alone didn't find it. When **enabled**, auto-repair searches diff activity (added lines) across the workspace to find where code may have moved. More expensive than rename detection but catches copy-then-delete scenarios. Requires `autoRepairCanUseGit` to be enabled."
+        },
+        "agenticBookmarks.showWarningIndicators": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show visual indicators (? overlay) on bookmarks with low-confidence anchor matches."
+        },
+        "agenticBookmarks.showCommandsInContextMenu": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show bookmark commands (Toggle, Toggle Labeled, Jump to Next/Previous, List in file) in the editor body right-click context menu. Off by default to avoid menu clutter; the line-number gutter menu is unaffected."
+        },
+        "agenticBookmarks.logLevel": {
+          "type": "string",
+          "enum": [
+            "error",
+            "info",
+            "debug",
+            "trace"
+          ],
+          "default": "error",
+          "description": "Controls the verbosity of messages written to the Agentic Bookmarks output channel. 'error' shows only failures, 'info' adds startup and command messages, 'debug' adds per-operation summaries, 'trace' adds per-bookmark iteration details."
+        },
+        "agenticBookmarks.focusSetsDefault": {
+          "type": "boolean",
+          "default": true,
+          "description": "When focusing on a group, also set it as the default target for new bookmarks."
+        },
+        "agenticBookmarks.navigateThroughAllFiles": {
+          "type": "boolean",
+          "default": false,
+          "description": "When jumping with Bookmarks: Jump to Next / Previous, navigate across all registered files. When false, navigation stays within the current file."
+        },
+        "agenticBookmarks.wrapNavigation": {
+          "type": "boolean",
+          "default": true,
+          "description": "When jumping with Bookmarks: Jump to Next / Previous, wrap from the last bookmark to the first (and vice versa)."
+        },
+        "agenticBookmarks.revealLocation": {
+          "type": "string",
+          "enum": [
+            "top",
+            "center"
+          ],
+          "default": "center",
+          "description": "Where the bookmarked line appears in the editor after a jump."
+        },
+        "agenticBookmarks.licensing.testTier": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "free",
+            "pro",
+            "trial"
+          ],
+          "default": "auto",
+          "description": "[Dev only] Simulated license tier. 'auto' defers to the real license check (currently a Phase 1 stub that always returns 'free'). Replaced by real license checking in SML-1300."
+        },
+        "agenticBookmarks.licensing.testVisibility": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "public",
+            "private",
+            "local"
+          ],
+          "default": "auto",
+          "description": "[Dev only] Simulated repo visibility. 'auto' defers to the real workspace visibility detector (git remote + HTTPS HEAD probe). Pick public/private/local to force a value for testing."
+        },
+        "agenticBookmarks.licensing.devCommandsEnabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "[Dev only] Force-show the agenticBookmarks.testLicense.* commands in the palette even when the extension is in production mode. Normally these auto-show in development/test mode."
+        },
+        "agenticBookmarks.confirmClear": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, show a confirmation prompt before bulk-clearing bookmarks (Bookmarks: Clear / Clear from All Files). Disable to skip the prompt."
+        },
+        "agenticBookmarks.export.pattern": {
+          "type": "string",
+          "default": "- [`${file}:${line}`](${file}#L${line}) ${label}",
+          "markdownDescription": "Template used to render each bookmark line in `Agentic Bookmarks: Export to Markdown…`. Supported variables: `${file}` (workspace-relative path), `${line}` (1-based line number), `${endLine}` (1-based end line for ranges, equals `${line}` otherwise), `${label}`, `${group}`, `${note}`. Unknown placeholders are left verbatim. Trailing whitespace is trimmed automatically."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agenticBookmarks-container",
+          "title": "Bookmarks",
+          "icon": "media/bookmarks-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "agenticBookmarks-container": [
+        {
+          "id": "agenticBookmarks.view",
+          "name": "All Bookmarks",
+          "icon": "media/bookmarks-icon.svg"
+        },
+        {
+          "id": "agenticBookmarks.filesGroups",
+          "name": "Files + Groups"
+        },
+        {
+          "id": "agenticBookmarks.settings",
+          "name": "Settings"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "agenticBookmarks.add",
+        "title": "Add from Editor",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.addAtLine",
+        "title": "Add Bookmark",
+        "icon": "$(bookmark)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.addLabeledAtLine",
+        "title": "Add Labeled Bookmark",
+        "icon": "$(bookmark)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.removeAtLine",
+        "title": "Remove Bookmark",
+        "icon": "$(bookmark)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.revealInPanel",
+        "title": "Select Bookmark",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggle",
+        "title": "Toggle",
+        "icon": "$(bookmark)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleLabeled",
+        "title": "Toggle Labeled",
+        "icon": "$(bookmark)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.jumpNext",
+        "title": "Jump to Next",
+        "icon": "$(arrow-down)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.jumpPrevious",
+        "title": "Jump to Previous",
+        "icon": "$(arrow-up)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.selectLines",
+        "title": "Select Lines",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.expandSelectionToNext",
+        "title": "Expand Selection to Next",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.expandSelectionToPrevious",
+        "title": "Expand Selection to Previous",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.shrinkSelection",
+        "title": "Shrink Selection",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.listInFile",
+        "title": "List",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.listAll",
+        "title": "List from All Files",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.export",
+        "title": "Export to Markdown…",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.delete",
+        "title": "Delete Bookmark",
+        "icon": "$(trash)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.edit",
+        "title": "Edit Description",
+        "icon": "$(edit)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.addNote",
+        "title": "Add Note",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.editNote",
+        "title": "Edit Note",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.changeGroup",
+        "title": "Change Group…",
+        "icon": "$(arrow-right)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.open",
+        "title": "Open Bookmark",
+        "icon": "$(go-to-file)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleFiltering",
+        "title": "Toggle Group Filtering",
+        "icon": "$(filter)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleFilteringFilled",
+        "title": "Toggle Group Filtering",
+        "icon": "$(filter-filled)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.addSearchFilter",
+        "title": "Add Search Filter",
+        "icon": "$(search)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.editSearchFilter",
+        "title": "Edit Search Filter",
+        "icon": "$(edit)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleSearchOp",
+        "title": "Toggle Search Operator",
+        "icon": "$(symbol-operator)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleSearchRegex",
+        "title": "Toggle Regex",
+        "icon": "$(regex)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.removeSearchFilter",
+        "title": "Remove Search Filter",
+        "icon": "$(trash)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.setupClaude",
+        "title": "Setup for Claude Code",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.setupCursor",
+        "title": "Setup for Cursor",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.setupCodex",
+        "title": "Setup for Codex",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.newFile",
+        "title": "New Bookmarks File…",
+        "icon": "$(new-file)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.groupRename",
+        "title": "Rename Group…",
+        "category": "Agentic Bookmarks",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "agenticBookmarks.groupMove",
+        "title": "Move Group to File…",
+        "category": "Agentic Bookmarks",
+        "icon": "$(arrow-right)"
+      },
+      {
+        "command": "agenticBookmarks.fileDeregister",
+        "title": "Deregister File",
+        "icon": "$(trash)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.fileToggleEnabled",
+        "title": "Enable/Disable File",
+        "icon": "$(circle-slash)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.fileToggleVisibility",
+        "title": "Toggle File Visibility",
+        "icon": "$(eye)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.groupSetDefault",
+        "title": "Set as Default Target",
+        "category": "Agentic Bookmarks",
+        "icon": "$(star-full)"
+      },
+      {
+        "command": "agenticBookmarks.groupDelete",
+        "title": "Delete/Clear Group…",
+        "category": "Agentic Bookmarks",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "agenticBookmarks.newGroup",
+        "title": "New Group…",
+        "icon": "$(new-collection)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.groupToggleVisibility",
+        "title": "Toggle Group Visibility",
+        "icon": "$(eye)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.groupToggleFocus",
+        "title": "Focus/Unfocus Group",
+        "icon": "$(target)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleWatchers",
+        "title": "Toggle Watchers",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleFileWatch",
+        "title": "Toggle File Watch",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleInlineDots",
+        "title": "Toggle Inline Dots",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.cycleDefaultAnchorType",
+        "title": "Cycle Default Anchor Type",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleShowStyles",
+        "title": "Toggle Show Styles",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleShowColors",
+        "title": "Toggle Show Colors",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.setUniformStyle",
+        "title": "Set Uniform Style…",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.setUniformColor",
+        "title": "Set Uniform Color…",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.rebuildNameIndex",
+        "title": "Rebuild Name Index",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.groupSetAppearance",
+        "title": "Set Group Appearance…",
+        "icon": "$(symbol-color)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.groupSetStyle",
+        "title": "Change Group Icon Style…",
+        "icon": "$(json)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.groupSetColor",
+        "title": "Change Group Color…",
+        "icon": "$(paintcan)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.diagnostics",
+        "title": "Show Diagnostics",
+        "icon": "$(beaker)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.cleanLegacyFiles",
+        "title": "Clean Legacy Files (dev helper)",
+        "icon": "$(trash)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.debugGutterHere",
+        "title": "Debug: Place Gutter Icon Here",
+        "icon": "$(debug)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.copyFileId",
+        "title": "Copy File ID",
+        "icon": "$(copy)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.copyGroupId",
+        "title": "Copy Group ID",
+        "icon": "$(copy)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.copyBookmarkId",
+        "title": "Copy Bookmark ID",
+        "icon": "$(copy)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.copyRepairPrompt",
+        "title": "Copy Agent Repair Prompt",
+        "icon": "$(copy)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.openExtensionSettings",
+        "title": "Open Extension Settings",
+        "icon": "$(gear)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.initializeRegistry",
+        "title": "Initialize Registry",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.selectSettingsWorkspace",
+        "title": "Select Workspace for Settings",
+        "icon": "$(folder-library)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.setFileAnchorType",
+        "title": "Set Default Anchor Type...",
+        "icon": "$(symbol-type-parameter)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.setFileIsLocal",
+        "title": "Set Local/Shared Mode...",
+        "icon": "$(lock)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.reanchor",
+        "title": "Re-anchor Bookmark",
+        "icon": "$(link)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.statusInfo",
+        "title": "Bookmark Status",
+        "icon": "$(info)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.autoRepairBookmark",
+        "title": "Auto-Repair Bookmark",
+        "icon": "$(wrench)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.confirmReanchor",
+        "title": "Confirm Re-anchor",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.cancelReanchor",
+        "title": "Cancel Re-anchor",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.testLicense.testFeatureGate",
+        "title": "Dev: Test Feature Gate...",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.testLicense.testIntercept",
+        "title": "Dev: Show Intercept Dialog",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.testLicense.getState",
+        "title": "Dev: Show Licensing State",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.testLicense.refreshVisibility",
+        "title": "Dev: Refresh Repo Visibility",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.testLicense.diagnoseStatus",
+        "title": "Dev: Diagnose License Status",
+        "category": "Agentic Bookmarks",
+        "icon": "$(debug-console)"
+      },
+      {
+        "command": "agenticBookmarks.testLicense.simulateTrialActive",
+        "title": "Dev: Simulate Trial — Active (~9 days left)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.testLicense.simulateTrialExpiringSoon",
+        "title": "Dev: Simulate Trial — Expiring Soon (~2 days left)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.testLicense.simulateTrialExpired",
+        "title": "Dev: Simulate Trial — Expired",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.testLicense.clearTrial",
+        "title": "Dev: Clear Trial State",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.clearFile",
+        "title": "Clear",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.clearAll",
+        "title": "Clear from All Files",
+        "category": "Agentic Bookmarks"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "agenticBookmarks.refresh",
+          "when": "view == agenticBookmarks.view",
+          "group": "navigation"
+        },
+        {
+          "command": "agenticBookmarks.toggleFiltering",
+          "when": "view == agenticBookmarks.view && !agenticBookmarks.filterEnabled",
+          "group": "navigation@1",
+          "icon": "$(filter)"
+        },
+        {
+          "command": "agenticBookmarks.toggleFilteringFilled",
+          "when": "view == agenticBookmarks.view && agenticBookmarks.filterEnabled",
+          "group": "navigation@1",
+          "icon": "$(filter-filled)"
+        },
+        {
+          "command": "agenticBookmarks.refresh",
+          "when": "view == agenticBookmarks.filesGroups",
+          "group": "navigation"
+        },
+        {
+          "command": "agenticBookmarks.refresh",
+          "when": "view == agenticBookmarks.settings",
+          "group": "navigation"
+        },
+        {
+          "command": "agenticBookmarks.openExtensionSettings",
+          "when": "view == agenticBookmarks.settings",
+          "group": "navigation@1",
+          "icon": "$(gear)"
+        },
+        {
+          "command": "agenticBookmarks.selectSettingsWorkspace",
+          "when": "view == agenticBookmarks.settings && agenticBookmarks.hasMultipleWorkspaces",
+          "group": "navigation@2",
+          "icon": "$(folder-library)"
+        },
+        {
+          "command": "agenticBookmarks.newFile",
+          "when": "view == agenticBookmarks.filesGroups",
+          "group": "navigation@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "agenticBookmarks.testLicense.diagnoseStatus",
+          "when": "view == agenticBookmarks.settings && viewItem == licenseStatusRow && agenticBookmarks.isDevelopment",
+          "group": "inline@0"
+        },
+        {
+          "command": "agenticBookmarks.testLicense.diagnoseStatus",
+          "when": "view == agenticBookmarks.settings && viewItem == licenseStatusRow && agenticBookmarks.isDevelopment",
+          "group": "context@0"
+        },
+        {
+          "command": "agenticBookmarks.autoRepairBookmark",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmarkBroken/",
+          "group": "inline@0"
+        },
+        {
+          "command": "agenticBookmarks.reanchor",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmarkBroken/",
+          "group": "inline@1"
+        },
+        {
+          "command": "agenticBookmarks.reanchor",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmarkWarning/",
+          "group": "inline@0"
+        },
+        {
+          "command": "agenticBookmarks.edit",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmark/",
+          "group": "inline@1"
+        },
+        {
+          "command": "agenticBookmarks.addNote",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmark(Warning|Broken)?$/",
+          "group": "2_note"
+        },
+        {
+          "command": "agenticBookmarks.editNote",
+          "when": "view == agenticBookmarks.view && viewItem =~ /WithNote$/",
+          "group": "2_note"
+        },
+        {
+          "command": "agenticBookmarks.edit",
+          "when": "view == agenticBookmarks.filesGroups && viewItem =~ /^bookmark/",
+          "group": "inline@1"
+        },
+        {
+          "command": "agenticBookmarks.addNote",
+          "when": "view == agenticBookmarks.filesGroups && viewItem =~ /^bookmark(Warning|Broken)?$/",
+          "group": "2_note"
+        },
+        {
+          "command": "agenticBookmarks.editNote",
+          "when": "view == agenticBookmarks.filesGroups && viewItem =~ /WithNote$/",
+          "group": "2_note"
+        },
+        {
+          "command": "agenticBookmarks.addSearchFilter",
+          "when": "view == agenticBookmarks.view && viewItem == filterInfo",
+          "group": "inline@1"
+        },
+        {
+          "command": "agenticBookmarks.editSearchFilter",
+          "when": "view == agenticBookmarks.view && viewItem == subSearch",
+          "group": "inline@1"
+        },
+        {
+          "command": "agenticBookmarks.toggleSearchOp",
+          "when": "view == agenticBookmarks.view && viewItem == subSearch",
+          "group": "inline@2"
+        },
+        {
+          "command": "agenticBookmarks.toggleSearchRegex",
+          "when": "view == agenticBookmarks.view && viewItem == subSearch",
+          "group": "inline@3"
+        },
+        {
+          "command": "agenticBookmarks.removeSearchFilter",
+          "when": "view == agenticBookmarks.view && viewItem == subSearch",
+          "group": "inline@99"
+        },
+        {
+          "command": "agenticBookmarks.changeGroup",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmark/",
+          "group": "inline@2"
+        },
+        {
+          "command": "agenticBookmarks.delete",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmark/",
+          "group": "inline@3"
+        },
+        {
+          "command": "agenticBookmarks.statusInfo",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmarkWarning/",
+          "group": "0_status"
+        },
+        {
+          "command": "agenticBookmarks.statusInfo",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmarkBroken/",
+          "group": "0_status"
+        },
+        {
+          "command": "agenticBookmarks.reanchor",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmark/",
+          "group": "navigation"
+        },
+        {
+          "command": "agenticBookmarks.copyBookmarkId",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmark/",
+          "group": "9_cutcopypaste"
+        },
+        {
+          "command": "agenticBookmarks.copyRepairPrompt",
+          "when": "view == agenticBookmarks.view && viewItem =~ /^bookmarkBroken/",
+          "group": "9_cutcopypaste"
+        },
+        {
+          "command": "agenticBookmarks.groupRename",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == group || viewItem == groupHidden)",
+          "group": "3_modify@1"
+        },
+        {
+          "command": "agenticBookmarks.groupMove",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == group || viewItem == groupHidden)",
+          "group": "3_modify@2"
+        },
+        {
+          "command": "agenticBookmarks.groupSetDefault",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == group || viewItem == groupHidden)",
+          "group": "inline@1"
+        },
+        {
+          "command": "agenticBookmarks.groupSetDefault",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == group || viewItem == groupHidden)",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agenticBookmarks.groupDelete",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == group || viewItem == groupHidden)",
+          "group": "7_modification"
+        },
+        {
+          "command": "agenticBookmarks.groupToggleVisibility",
+          "when": "view == agenticBookmarks.filesGroups && viewItem == group",
+          "group": "inline@4",
+          "icon": "$(eye)"
+        },
+        {
+          "command": "agenticBookmarks.groupToggleVisibility",
+          "when": "view == agenticBookmarks.filesGroups && viewItem == groupHidden",
+          "group": "inline@4",
+          "icon": "$(eye-closed)"
+        },
+        {
+          "command": "agenticBookmarks.groupToggleFocus",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == group || viewItem == groupHidden)",
+          "group": "inline@5"
+        },
+        {
+          "command": "agenticBookmarks.groupSetAppearance",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == group || viewItem == groupHidden)",
+          "group": "inline@6"
+        },
+        {
+          "command": "agenticBookmarks.groupSetStyle",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == group || viewItem == groupHidden)",
+          "group": "6_appearance@1"
+        },
+        {
+          "command": "agenticBookmarks.groupSetColor",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == group || viewItem == groupHidden)",
+          "group": "6_appearance@2"
+        },
+        {
+          "command": "agenticBookmarks.newGroup",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == regFile || viewItem == regFileHidden)",
+          "group": "inline@1"
+        },
+        {
+          "command": "agenticBookmarks.fileDeregister",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == regFile || viewItem == regFileHidden)",
+          "group": "7_modification"
+        },
+        {
+          "command": "agenticBookmarks.fileToggleVisibility",
+          "when": "view == agenticBookmarks.filesGroups && viewItem == regFile",
+          "group": "inline@97",
+          "icon": "$(eye)"
+        },
+        {
+          "command": "agenticBookmarks.fileToggleVisibility",
+          "when": "view == agenticBookmarks.filesGroups && viewItem == regFileHidden",
+          "group": "inline@97",
+          "icon": "$(eye-closed)"
+        },
+        {
+          "command": "agenticBookmarks.copyFileId",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == regFile || viewItem == regFileHidden)",
+          "group": "9_cutcopypaste"
+        },
+        {
+          "command": "agenticBookmarks.copyGroupId",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == group || viewItem == groupHidden)",
+          "group": "9_cutcopypaste"
+        },
+        {
+          "command": "agenticBookmarks.setFileAnchorType",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == regFile || viewItem == regFileHidden)",
+          "group": "8_settings@1"
+        },
+        {
+          "command": "agenticBookmarks.setFileIsLocal",
+          "when": "view == agenticBookmarks.filesGroups && (viewItem == regFile || viewItem == regFileHidden)",
+          "group": "8_settings@2"
+        }
+      ],
+      "editor/lineNumber/context": [
+        {
+          "command": "agenticBookmarks.addAtLine",
+          "when": "editorLineNumber not in agenticBookmarks.linesForActiveDoc",
+          "group": "navigation@10"
+        },
+        {
+          "command": "agenticBookmarks.addLabeledAtLine",
+          "when": "editorLineNumber not in agenticBookmarks.linesForActiveDoc",
+          "group": "navigation@11"
+        },
+        {
+          "command": "agenticBookmarks.removeAtLine",
+          "when": "editorLineNumber in agenticBookmarks.linesForActiveDoc",
+          "group": "navigation@10"
+        },
+        {
+          "command": "agenticBookmarks.revealInPanel",
+          "when": "editorLineNumber in agenticBookmarks.linesForActiveDoc",
+          "group": "navigation@12"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "agenticBookmarks.toggle",
+          "when": "config.agenticBookmarks.showCommandsInContextMenu",
+          "group": "bookmarks"
+        },
+        {
+          "command": "agenticBookmarks.toggleLabeled",
+          "when": "config.agenticBookmarks.showCommandsInContextMenu",
+          "group": "bookmarks"
+        },
+        {
+          "command": "agenticBookmarks.jumpNext",
+          "when": "config.agenticBookmarks.showCommandsInContextMenu",
+          "group": "bookmarks"
+        },
+        {
+          "command": "agenticBookmarks.jumpPrevious",
+          "when": "config.agenticBookmarks.showCommandsInContextMenu",
+          "group": "bookmarks"
+        },
+        {
+          "command": "agenticBookmarks.listInFile",
+          "when": "config.agenticBookmarks.showCommandsInContextMenu",
+          "group": "bookmarks"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "agenticBookmarks.testLicense.testFeatureGate",
+          "when": "agenticBookmarks.isDevelopment"
+        },
+        {
+          "command": "agenticBookmarks.testLicense.testIntercept",
+          "when": "agenticBookmarks.isDevelopment"
+        },
+        {
+          "command": "agenticBookmarks.testLicense.getState",
+          "when": "agenticBookmarks.isDevelopment"
+        },
+        {
+          "command": "agenticBookmarks.testLicense.refreshVisibility",
+          "when": "agenticBookmarks.isDevelopment"
+        },
+        {
+          "command": "agenticBookmarks.testLicense.diagnoseStatus",
+          "when": "agenticBookmarks.isDevelopment"
+        },
+        {
+          "command": "agenticBookmarks.testLicense.simulateTrialActive",
+          "when": "agenticBookmarks.isDevelopment"
+        },
+        {
+          "command": "agenticBookmarks.testLicense.simulateTrialExpiringSoon",
+          "when": "agenticBookmarks.isDevelopment"
+        },
+        {
+          "command": "agenticBookmarks.testLicense.simulateTrialExpired",
+          "when": "agenticBookmarks.isDevelopment"
+        },
+        {
+          "command": "agenticBookmarks.testLicense.clearTrial",
+          "when": "agenticBookmarks.isDevelopment"
+        },
+        {
+          "command": "agenticBookmarks.statusInfo",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.delete",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.edit",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.addNote",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.editNote",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.addAtLine",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.addLabeledAtLine",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.removeAtLine",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.revealInPanel",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.fileToggleEnabled",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.copyBookmarkId",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.copyRepairPrompt",
+          "when": "false"
+        }
+      ]
+    },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "agentic_bookmarks",
+        "label": "Agentic Bookmarks"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "agenticBookmarks.confirmReanchor",
+        "key": "enter",
+        "when": "agenticBookmarks.pickModeActive && editorTextFocus"
+      },
+      {
+        "command": "agenticBookmarks.cancelReanchor",
+        "key": "escape",
+        "when": "agenticBookmarks.pickModeActive"
+      },
+      {
+        "command": "agenticBookmarks.toggleFiltering",
+        "key": "ctrl+k ctrl+f",
+        "mac": "cmd+k cmd+f",
+        "when": "view == agenticBookmarks.view && listFocus"
+      },
+      {
+        "command": "agenticBookmarks.toggle",
+        "key": "ctrl+k ctrl+b",
+        "mac": "cmd+k cmd+b",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "agenticBookmarks.toggleLabeled",
+        "key": "ctrl+k ctrl+shift+b",
+        "mac": "cmd+k cmd+shift+b",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "agenticBookmarks.jumpNext",
+        "key": "ctrl+k ctrl+n",
+        "mac": "cmd+k cmd+n",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "agenticBookmarks.jumpPrevious",
+        "key": "ctrl+k ctrl+p",
+        "mac": "cmd+k cmd+p",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "agenticBookmarks.listInFile",
+        "key": "ctrl+k l",
+        "mac": "cmd+k l",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "agenticBookmarks.listAll",
+        "key": "ctrl+k ctrl+shift+l",
+        "mac": "cmd+k cmd+shift+l",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "agenticBookmarks.editNote",
+        "key": "ctrl+k ctrl+n",
+        "mac": "cmd+k cmd+n",
+        "when": "view == agenticBookmarks.view && listFocus"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "tsup && npm run copy-server",
+    "build:watch": "tsup --watch",
+    "copy-server": "mkdir -p server-bundle && cp ../server/dist/index.cjs server-bundle/index.js",
+    "clean": "rm -rf dist server-bundle",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agentic-bookmarks/core": "file:../../../agentic-bookmarks-core",
+    "@agentic-bookmarks/licensing": "workspace:*",
+    "nanoid": "^5.0.7"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.92.0"
+  }
+}
