@@ -18,7 +18,17 @@ The extension stores machine-local runtime state (registry, lock/pulse cache, ge
 
 `.bookmarks/shared/` (team-distributable bookmark data) is intentionally *not* gitignored — that's the part you do want to share with collaborators. See [Workspace Layout](#workspace-layout) below for the full picture, including a transitional block of legacy paths to ignore for one release cycle if you're upgrading from a pre-0.5 version.
 
-## 1: Setup
+## Quickstart
+
+- install "Agentic Bookmarks" by supermegalab extension from VS Code extension browser
+- Optional, but awesome: setup the MCP to work with the agent of your choise
+  - ctrl-shift-p / cmd-shift-p and type "Agentic Bookmarks: setup" to see options for setting up the MCP server
+  - for claude, please select user instead of local level install of MCP for now
+
+Thats all.  See marketplace page for more details.  Will post some videos soon.
+
+
+## 1: Dev Setup (please instead install from VS Code extensions list: "Agentic Bookmarks").  These are internal dev team steps.
 
 This project uses pnpm.
 
@@ -56,10 +66,12 @@ For MCP update in claude code run this first:
 
 ```bash
 # uninstall the MCP server
-claude mcp remove bookmarks
+claude mcp remove agentic_bookmarks
 ```
 then run. (ctrl-shift-p  /  command-shift-p)
 "MCP Bookmarks: setup for claude" 
+
+Please select user (instead of local) for now.  Local option is not functioning.
 
 This will re-intsall the latest. 
 This will be different with other agents and could have some variablity.
