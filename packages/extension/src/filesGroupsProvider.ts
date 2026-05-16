@@ -4,6 +4,7 @@ import { readRegistry, readFileV2, pathsForDataFile, resolveIsLocal, isLocalPath
 import { loadBuiltinCatalog, resolveGroupIconPath, type AppearanceOverrides } from './appearance';
 import { buildBookmarkNode } from './treeProvider';
 import { computeFileChildrenVisibility, computeGroupVisualHidden } from './filesGroupsProvider-helpers';
+import { getViewPrefs } from './commands/views';
 
 export { computeFileChildrenVisibility, computeGroupVisualHidden } from './filesGroupsProvider-helpers';
 
@@ -213,9 +214,11 @@ export class FilesGroupsProvider implements vscode.TreeDataProvider<vscode.TreeI
         const appearance: AppearanceOverrides | undefined = reg.settings?.appearance;
 
         const fileIsLocal = resolveIsLocal(file, p.data, wsRoot);
+        const showBookmarks = getViewPrefs(this.extensionContext).showBookmarksInFilesAndGroups !== false;
         const nodes: GroupNode[] = [];
         for (const g of file.groups) {
           const node = new GroupNode(g, e.reg.path, wsRoot, fileIsLocal, childrenForcedHidden);
+          if (!showBookmarks) node.collapsibleState = vscode.TreeItemCollapsibleState.None;
             const gid = (g as any).id as string;
             // File-forced hidden wins over the canonical focus/hidden precedence
             // (SML-1380): `ui.focus ? ui.focus !== gid : ui.hidden.includes(gid)`.
@@ -252,6 +255,7 @@ export class FilesGroupsProvider implements vscode.TreeDataProvider<vscode.TreeI
 
     if (e instanceof GroupNode) {
       try {
+        if (getViewPrefs(this.extensionContext).showBookmarksInFilesAndGroups === false) return [];
         const wsRoot = e.workspaceRoot;
         const reg = await readRegistry(wsRoot);
         const dataRoot = getBookmarksDataRoot(reg);

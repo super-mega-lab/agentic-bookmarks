@@ -137,3 +137,10 @@ describe('bulk open/scan commands', () => {
     });
   }
 });
+
+describe('view-structure toggle commands', () => {
+  it('declares toggleShowFilesInAllBookmarks and toggleShowBookmarksInFilesAndGroups', () => {
+    expect(linesMatching(/"command":\s*"agenticBookmarks\.toggleShowFilesInAllBookmarks"/)).not.toEqual([]);
+    expect(linesMatching(/"command":\s*"agenticBookmarks\.toggleShowBookmarksInFilesAndGroups"/)).not.toEqual([]);
+  });
+});

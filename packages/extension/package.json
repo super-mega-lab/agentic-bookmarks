@@ -17,7 +17,7 @@
   },
   "license": "LicenseRef-PolyForm-Shield-1.0.0",
   "icon": "icon512.png",
-  "version": "0.7.2",
+  "version": "0.7.5",
   "engines": {
     "vscode": "^1.92.0"
   },
@@ -514,6 +514,16 @@
       {
         "command": "agenticBookmarks.toggleShowColors",
         "title": "Toggle Show Colors",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleShowFilesInAllBookmarks",
+        "title": "Toggle Show Files in All Bookmarks",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.toggleShowBookmarksInFilesAndGroups",
+        "title": "Toggle Show Bookmarks in Files & Groups",
         "category": "Agentic Bookmarks"
       },
       {

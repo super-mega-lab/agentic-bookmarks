@@ -36,6 +36,7 @@ import { registerBookmarkBulkOpenCommands } from './commands/bookmark-bulk-open'
 import { registerBookmarkExportCommand } from './commands/bookmark-export';
 import { registerGroupManagementCommands } from './commands/group-management';
 import { registerAppearanceCommands } from './commands/appearance';
+import { registerViewsCommands } from './commands/views';
 import { registerSettingsAndFilterCommands } from './commands/settings-and-filters';
 import { registerMcpConfigAndDiagnosticsCommands } from './commands/mcp-config-and-diagnostics';
 import {
@@ -527,6 +528,12 @@ export async function activate(context: vscode.ExtensionContext) {
       refreshDecorationAppearance,
       getCatalog,
       clearCatalogCache,
+    }),
+    ...registerViewsCommands({
+      context,
+      provider,
+      filesGroups,
+      settingsProvider,
     }),
     ...registerSettingsAndFilterCommands({
       workspaceRoot,

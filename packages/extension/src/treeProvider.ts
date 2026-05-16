@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { readFileV2, readRegistry, pathsForDataFile, type Paths, type BookmarksFileV2, matchesTextQuery, COMMON_SEARCH_SCOPE, getBookmarksDataRoot, workspaceRelativeToUri } from '@agentic-bookmarks/core';
 import { loadBuiltinCatalog, resolveGroupIconPath, resolveEffectiveStyleAndColor, ensureOverlayIconWithFallback, tokenToHex, type AppearanceOverrides, type EffectiveCatalog } from './appearance';
 import { getStatus, getErrorDetails, getScore, getResolvedLine, type AnchorStatus } from './anchorState';
+import { getViewPrefs } from './commands/views';
 
 export class FileNode extends vscode.TreeItem {
   public readonly workspaceRoot: string;
@@ -323,6 +324,46 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
         (info as any).contextValue = 'filterInfo';
         nodes.push(info);
       }
+      // Determine whether to group bookmarks under file parents. Stored in
+      // workspaceState because the registry schema strips unknown keys.
+      const showFiles = getViewPrefs(this.extensionContext).showFilesInAllBookmarks !== false;
+
+      if (!showFiles) {
+        const catalog = await loadBuiltinCatalog(this.extensionContext);
+        const flatEntries: Array<{ uri: string; entry: { bookmark: BookmarksFileV2['bookmarks'][number]; dataFilePath: string; group?: BookmarksFileV2['groups'][number]; wsRoot: string } }> = [];
+        for (const [absoluteUri, entries] of fileMap) {
+          for (const entry of entries) flatEntries.push({ uri: absoluteUri, entry });
+        }
+        flatEntries.sort((a, b) => {
+          const uriCmp = a.uri.localeCompare(b.uri);
+          if (uriCmp !== 0) return uriCmp;
+          const startA = a.entry.bookmark.anchor.kind === 'point' ? a.entry.bookmark.anchor.line
+            : a.entry.bookmark.anchor.kind === 'range' ? a.entry.bookmark.anchor.start.line
+            : a.entry.bookmark.anchor.lastUpdatedLine;
+          const startB = b.entry.bookmark.anchor.kind === 'point' ? b.entry.bookmark.anchor.line
+            : b.entry.bookmark.anchor.kind === 'range' ? b.entry.bookmark.anchor.start.line
+            : b.entry.bookmark.anchor.lastUpdatedLine;
+          return startA - startB;
+        });
+        // Cache per-workspace registry lookups to avoid re-reading on every entry.
+        const regCache = new Map<string, { dataRoot: string; appearance: AppearanceOverrides | undefined }>();
+        for (const { entry } of flatEntries) {
+          try {
+            let cached = regCache.get(entry.wsRoot);
+            if (!cached) {
+              const reg = await readRegistry(entry.wsRoot);
+              cached = { dataRoot: getBookmarksDataRoot(reg), appearance: reg.settings?.appearance };
+              regCache.set(entry.wsRoot, cached);
+            }
+            const node = await buildBookmarkNode(entry.bookmark, entry.group, entry.dataFilePath, entry.wsRoot, catalog, this.defaultIconPath, cached.dataRoot, cached.appearance);
+            nodes.push(node);
+          } catch (err) {
+            console.error(`[BookmarkTreeProvider] Error building flat bookmark node for ${entry.bookmark.id}:`, err);
+          }
+        }
+        return nodes;
+      }
+
       const fileNodes: FileNode[] = [];
       for (const [absoluteUri, entries] of fileMap) {
         if (entries.length === 0) continue; // hide documents with no visible bookmarks under filtering

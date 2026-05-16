@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { readRegistry, setWatchersEnabled, setFileWatch, rebuildNameIndex, getBookmarksDataRoot, ensureIconCacheDir } from '@agentic-bookmarks/core';
 import { loadBuiltinCatalog, resolveGroupIconPath, tokenToHex } from './appearance';
+import { getViewPrefs } from './commands/views';
 import { computeWorkspaceStats } from './settingsStats';
 import type { LicensingService } from './licensingService';
 
@@ -51,6 +52,11 @@ export class SettingsProvider implements vscode.TreeDataProvider<vscode.TreeItem
       styles.iconPath = new vscode.ThemeIcon('paintcan');
       (styles as any).contextValue = 'section';
       nodes.push(styles);
+
+      const views = new vscode.TreeItem('Views', vscode.TreeItemCollapsibleState.Expanded);
+      views.iconPath = new vscode.ThemeIcon('list-tree');
+      (views as any).contextValue = 'section';
+      nodes.push(views);
 
       const processing = new vscode.TreeItem('Processing', vscode.TreeItemCollapsibleState.Expanded);
       processing.iconPath = new vscode.ThemeIcon('server-process');
@@ -124,6 +130,13 @@ export class SettingsProvider implements vscode.TreeDataProvider<vscode.TreeItem
       }
       // Style catalog is loaded from extension media (SML-1320). No user-facing
       // catalog override surface exists — see catalog-cache.ts for the pro-mode hook.
+      return items;
+    }
+    if ((e as any).label === 'Views') {
+      const items: vscode.TreeItem[] = [];
+      const v = getViewPrefs(this._extensionContext);
+      items.push(this.toggleItem('Show files in All Bookmarks', v.showFilesInAllBookmarks !== false, 'agenticBookmarks.toggleShowFilesInAllBookmarks'));
+      items.push(this.toggleItem('Show bookmarks in Files & Groups', v.showBookmarksInFilesAndGroups !== false, 'agenticBookmarks.toggleShowBookmarksInFilesAndGroups'));
       return items;
     }
     if ((e as any).label === 'Processing') {
