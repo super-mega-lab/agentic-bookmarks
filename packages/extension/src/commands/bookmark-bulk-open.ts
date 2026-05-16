@@ -133,10 +133,22 @@ async function openOrScanFiles(
   let cancelled = false;
 
   const runOne = async (target: BulkOpenTarget): Promise<void> => {
+    const cmdLabel = mode === 'open' ? 'openAllFiles' : 'scanAllFiles';
+    let doc: vscode.TextDocument;
     try {
       const uri = vscode.Uri.file(target.fsPath);
-      const doc = await vscode.workspace.openTextDocument(uri);
-      if (mode === 'open') {
+      doc = await vscode.workspace.openTextDocument(uri);
+    } catch (err) {
+      // Load failed — no anchor validation, no tab, nothing accomplished.
+      // This is the only case that counts as a failure for the user-facing tally.
+      failed += 1;
+      const msg = err instanceof Error ? err.message : String(err);
+      deps.log.error(`${cmdLabel}: failed to load ${target.fsPath}: ${msg}`);
+      return;
+    }
+
+    if (mode === 'open') {
+      try {
         // preview:false → permanent tab. preserveFocus:true → active editor
         // unchanged. viewColumn:Active → tabs land in the focused column.
         // Explicitly DO NOT pass selection or revealRange — already-open
@@ -146,15 +158,17 @@ async function openOrScanFiles(
           preserveFocus: true,
           viewColumn: vscode.ViewColumn.Active,
         });
+      } catch (err) {
+        // Doc IS loaded (anchor validation already fired). The tab just
+        // couldn't be shown — log it but count as succeeded since the
+        // primary side effect happened.
+        const msg = err instanceof Error ? err.message : String(err);
+        deps.log.error(
+          `${cmdLabel}: loaded ${target.fsPath} but failed to show as tab: ${msg}`
+        );
       }
-      succeeded += 1;
-    } catch (err) {
-      failed += 1;
-      const msg = err instanceof Error ? err.message : String(err);
-      deps.log.error(
-        `${mode === 'open' ? 'openAllFiles' : 'scanAllFiles'}: failed to load ${target.fsPath}: ${msg}`
-      );
     }
+    succeeded += 1;
   };
 
   const iterate = async (
@@ -203,6 +217,10 @@ async function runCommand(
   mode: BulkOpenMode,
   scope: BulkOpenScope
 ): Promise<void> {
+  if (!vscode.workspace.workspaceFolders?.length) {
+    vscode.window.showWarningMessage('No workspace folder open');
+    return;
+  }
   const targets = await collectTargets(deps, scope);
   if (targets.length === 0) {
     vscode.window.showInformationMessage('No bookmarks found');

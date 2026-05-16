@@ -2,14 +2,16 @@
 // ABOUTME: Open/Scan all-files commands. Visible vs including-hidden scopes both
 // ABOUTME: funnel through buildBookmarkPickItems for consistent dedupe and sort.
 
-import type {
-  BookmarksFileV2,
-  WorkspaceRegistryV1,
-} from '@agentic-bookmarks/core';
+import type { WorkspaceRegistryV1 } from '@agentic-bookmarks/core';
 import {
   buildBookmarkPickItems,
   type Visibility,
 } from './bookmark-quickpick-items';
+import type { LoadedFile, LoadedFolder } from './bookmark-loaders';
+
+// Re-exported so callers and tests can import the loaded-file shapes from
+// this module without taking a second dependency on bookmark-loaders.
+export type { LoadedFile, LoadedFolder };
 
 /** One file the Open/Scan runner will load. */
 export type BulkOpenTarget = {
@@ -17,21 +19,6 @@ export type BulkOpenTarget = {
   fsPath: string;
   /** Workspace-relative path (POSIX separators) for sort + display. */
   relativePath: string;
-};
-
-/** Mirrors bookmark-loaders.ts LoadedFile — keep in sync if that file changes. */
-export type LoadedFile = {
-  wsRoot: string;
-  dataRoot: string;
-  regPath: string;
-  data: BookmarksFileV2;
-};
-
-/** Mirrors bookmark-loaders.ts LoadedFolder — keep in sync if that file changes. */
-export type LoadedFolder = {
-  wsRoot: string;
-  reg: WorkspaceRegistryV1;
-  dataRoot: string;
 };
 
 // Tests inspect fsPath + relativePath only; the line value never reaches the
