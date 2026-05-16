@@ -267,8 +267,28 @@ Open Keyboard Shortcuts (JSON)").
 
 ### Migrating from other extensions or not a fan of chords?
 
-If you're used to another extension's defaults and want the same keys to drive
-ours, paste this into `keybindings.json`:
+The simplest path is the **`agenticBookmarks.hotkeyStyle`** setting. Pick the
+mode that matches how you want to work:
+
+- **`chorded`** (default) — the `Ctrl+K Ctrl+B …` chord shortcuts described
+  above.
+- **`basic`** — single-press shortcuts that match many other bookmark
+  extensions: `Ctrl+Alt+K` to toggle, `Ctrl+Alt+L` to jump to the next
+  bookmark, `Ctrl+Alt+J` to jump to the previous one.
+- **`custom`** — keeps the chorded defaults active and unlocks the
+  **Agentic Bookmarks: Customize Keybindings…** command, which opens VS
+  Code's Keyboard Shortcuts UI pre-filtered to this extension's commands
+  so you can bind whatever you like without leaving the extension's mental
+  model.
+
+Heads-up: `Ctrl+Alt+<key>` produces AltGr characters on many European
+keyboard layouts (DE, FR, etc.) — if you're on one of those, prefer
+`custom` mode and pick different keys. On macOS, the basic bindings use
+`Cmd+Alt` instead of `Ctrl+Alt`.
+
+**Advanced: hand-rolled `keybindings.json`.** If you'd rather manage
+bindings yourself, paste this snippet — it reproduces the basic-mode keys
+and is a good starting point to tweak:
 
 ```jsonc
 [
@@ -278,9 +298,7 @@ ours, paste this into `keybindings.json`:
 ]
 ```
 
-On macOS, replace `ctrl+alt` with `cmd+alt`. Heads-up: `Ctrl+Alt+<key>`
-produces AltGr characters on many European keyboard layouts (DE, FR, etc.)
-— pick different keys if you're on one of those.
+On macOS, replace `ctrl+alt` with `cmd+alt`.
 
 ---
 
@@ -292,6 +310,10 @@ Highlights:
 - **`agenticBookmarks.dataDirectory`** — where shared bookmark data is
   stored, relative to the workspace root (default `.bookmarks`). Change
   this if your project already uses `.bookmarks` for something else.
+- **`agenticBookmarks.hotkeyStyle`** — picks the keybinding preset:
+  `chorded` (default) for the `Ctrl+K Ctrl+B …` chords, `basic` for the
+  single-press `Ctrl+Alt+K/L/J` shortcuts, or `custom` to keep the chords
+  and enable the **Agentic Bookmarks: Customize Keybindings…** command.
 - **`agenticBookmarks.autoRepair`** — automatically attempt to repair
   broken smart anchors when files are opened.
 - **`agenticBookmarks.autoRepairCanUseGit`** — allow auto-repair to use

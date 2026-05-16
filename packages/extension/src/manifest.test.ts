@@ -53,3 +53,55 @@ describe('extension manifest legacy-identifier sweep', () => {
     expect(linesMatching(/@bookmarks-mcp\//)).toEqual([]);
   });
 });
+
+describe('hotkey style preset support', () => {
+  it('declares the agenticBookmarks.hotkeyStyle setting with the expected enum values and default', () => {
+    expect(linesMatching(/"agenticBookmarks\.hotkeyStyle"/)).not.toEqual([]);
+    expect(linesMatching(/"chorded"/)).not.toEqual([]);
+    expect(linesMatching(/"basic"/)).not.toEqual([]);
+    expect(linesMatching(/"custom"/)).not.toEqual([]);
+    expect(linesMatching(/"default":\s*"chorded"/)).not.toEqual([]);
+  });
+
+  it('ships Basic keybindings gated on hotkeyStyle == basic', () => {
+    const basicWhenLines = linesMatching(/config\.agenticBookmarks\.hotkeyStyle == 'basic'/);
+    expect(basicWhenLines.length).toBeGreaterThanOrEqual(3);
+
+    // Each of these commands must appear in the manifest in at least one Basic-gated binding.
+    // We use the full manifest JSON to verify per-binding co-occurrence.
+    const manifest = JSON.parse(manifestText) as {
+      contributes: { keybindings: Array<{ command: string; when?: string }> };
+    };
+    const basicBindings = manifest.contributes.keybindings.filter(
+      (kb) => typeof kb.when === 'string' && kb.when.includes("config.agenticBookmarks.hotkeyStyle == 'basic'"),
+    );
+    expect(basicBindings.length).toBeGreaterThanOrEqual(3);
+    const basicCommands = new Set(basicBindings.map((kb) => kb.command));
+    expect(basicCommands.has('agenticBookmarks.toggle')).toBe(true);
+    expect(basicCommands.has('agenticBookmarks.jumpNext')).toBe(true);
+    expect(basicCommands.has('agenticBookmarks.jumpPrevious')).toBe(true);
+  });
+
+  it('gates chord keybindings so they yield to Basic mode', () => {
+    const manifest = JSON.parse(manifestText) as {
+      contributes: { keybindings: Array<{ key?: string; when?: string }> };
+    };
+    const editorChords = manifest.contributes.keybindings.filter(
+      (kb) =>
+        typeof kb.key === 'string' &&
+        kb.key.includes('ctrl+k') &&
+        typeof kb.when === 'string' &&
+        kb.when.includes('editorTextFocus'),
+    );
+    expect(editorChords.length).toBeGreaterThan(0);
+    for (const kb of editorChords) {
+      expect(kb.when).toContain("config.agenticBookmarks.hotkeyStyle != 'basic'");
+    }
+  });
+
+  it('declares the agenticBookmarks.customizeKeybindings command', () => {
+    expect(linesMatching(/"command":\s*"agenticBookmarks\.customizeKeybindings"/)).not.toEqual([]);
+    expect(linesMatching(/"title":\s*"Customize Keybindings…"/)).not.toEqual([]);
+    expect(linesMatching(/"onCommand:agenticBookmarks\.customizeKeybindings"/)).not.toEqual([]);
+  });
+});
