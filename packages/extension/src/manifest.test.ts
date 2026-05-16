@@ -106,3 +106,34 @@ describe('hotkey style preset support', () => {
     expect(linesMatching(/"onCommand:agenticBookmarks\.customizeKeybindings"/)).not.toEqual([]);
   });
 });
+
+describe('bulk open/scan commands', () => {
+  const manifest = JSON.parse(manifestText) as {
+    contributes: {
+      commands: Array<{ command: string; title: string; category?: string }>;
+    };
+  };
+  const byId = new Map(manifest.contributes.commands.map((c) => [c.command, c]));
+
+  const expected: Array<{ id: string; title: string }> = [
+    { id: 'agenticBookmarks.openAllFiles', title: 'Open All Files With Bookmarks' },
+    {
+      id: 'agenticBookmarks.openAllFilesIncludingHidden',
+      title: 'Open All Files With Bookmarks (Including Hidden Groups)',
+    },
+    { id: 'agenticBookmarks.scanAllFiles', title: 'Scan All Files With Bookmarks' },
+    {
+      id: 'agenticBookmarks.scanAllFilesIncludingHidden',
+      title: 'Scan All Files With Bookmarks (Including Hidden Groups)',
+    },
+  ];
+
+  for (const { id, title } of expected) {
+    it(`declares ${id} with the expected title and category`, () => {
+      const entry = byId.get(id);
+      expect(entry, `command ${id} not declared in contributes.commands`).toBeDefined();
+      expect(entry!.title).toBe(title);
+      expect(entry!.category).toBe('Agentic Bookmarks');
+    });
+  }
+});

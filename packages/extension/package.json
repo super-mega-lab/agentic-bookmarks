@@ -719,6 +719,26 @@
         "command": "agenticBookmarks.clearAll",
         "title": "Clear from All Files",
         "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.openAllFiles",
+        "title": "Open All Files With Bookmarks",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.openAllFilesIncludingHidden",
+        "title": "Open All Files With Bookmarks (Including Hidden Groups)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.scanAllFiles",
+        "title": "Scan All Files With Bookmarks",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.scanAllFilesIncludingHidden",
+        "title": "Scan All Files With Bookmarks (Including Hidden Groups)",
+        "category": "Agentic Bookmarks"
       }
     ],
     "menus": {

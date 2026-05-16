@@ -32,6 +32,7 @@ import { registerBookmarkJumpCommands } from './commands/bookmark-jump';
 import { registerBookmarkSelectionCommands } from './commands/bookmark-selection';
 import { registerBookmarkNavigationCommands, cleanupPickMode } from './commands/bookmark-navigation';
 import { registerBookmarkQuickpicksCommands } from './commands/bookmark-quickpicks';
+import { registerBookmarkBulkOpenCommands } from './commands/bookmark-bulk-open';
 import { registerBookmarkExportCommand } from './commands/bookmark-export';
 import { registerGroupManagementCommands } from './commands/group-management';
 import { registerAppearanceCommands } from './commands/appearance';
@@ -504,6 +505,7 @@ export async function activate(context: vscode.ExtensionContext) {
       getCatalog,
       defaultIconPath,
     }),
+    ...registerBookmarkBulkOpenCommands({ workspaceRoot, log, getUIState, isFileHidden }),
     ...registerBookmarkExportCommand({ workspaceRoot, log, getUIState, isFileHidden }),
     ...registerGroupManagementCommands({
       workspaceRoot,
