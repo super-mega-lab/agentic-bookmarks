@@ -63,23 +63,24 @@ describe('hotkey style preset support', () => {
     expect(linesMatching(/"default":\s*"chorded"/)).not.toEqual([]);
   });
 
-  it('ships Basic keybindings gated on hotkeyStyle == basic', () => {
-    const basicWhenLines = linesMatching(/config\.agenticBookmarks\.hotkeyStyle == 'basic'/);
-    expect(basicWhenLines.length).toBeGreaterThanOrEqual(3);
-
+  it('ships Basic keybindings gated on hotkeyStyle == basic matching alefragnani.Bookmarks', () => {
     // Each of these commands must appear in the manifest in at least one Basic-gated binding.
-    // We use the full manifest JSON to verify per-binding co-occurrence.
+    // Basic mode mirrors alefragnani.Bookmarks' six editor keybindings:
+    //   navigation triplet (Ctrl+Alt+K/L/J) + selection triplet (Shift+Alt+K/L/J).
     const manifest = JSON.parse(manifestText) as {
       contributes: { keybindings: Array<{ command: string; when?: string }> };
     };
     const basicBindings = manifest.contributes.keybindings.filter(
       (kb) => typeof kb.when === 'string' && kb.when.includes("config.agenticBookmarks.hotkeyStyle == 'basic'"),
     );
-    expect(basicBindings.length).toBeGreaterThanOrEqual(3);
+    expect(basicBindings.length).toBeGreaterThanOrEqual(6);
     const basicCommands = new Set(basicBindings.map((kb) => kb.command));
     expect(basicCommands.has('agenticBookmarks.toggle')).toBe(true);
     expect(basicCommands.has('agenticBookmarks.jumpNext')).toBe(true);
     expect(basicCommands.has('agenticBookmarks.jumpPrevious')).toBe(true);
+    expect(basicCommands.has('agenticBookmarks.expandSelectionToNext')).toBe(true);
+    expect(basicCommands.has('agenticBookmarks.expandSelectionToPrevious')).toBe(true);
+    expect(basicCommands.has('agenticBookmarks.shrinkSelection')).toBe(true);
   });
 
   it('gates chord keybindings so they yield to Basic mode', () => {

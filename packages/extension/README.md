@@ -272,9 +272,10 @@ mode that matches how you want to work:
 
 - **`chorded`** (default) — the `Ctrl+K Ctrl+B …` chord shortcuts described
   above.
-- **`basic`** — single-press shortcuts that match many other bookmark
-  extensions: `Ctrl+Alt+K` to toggle, `Ctrl+Alt+L` to jump to the next
-  bookmark, `Ctrl+Alt+J` to jump to the previous one.
+- **`basic`** — single-press shortcuts matching `alefragnani.Bookmarks`:
+  `Ctrl+Alt+K` to toggle, `Ctrl+Alt+L` / `Ctrl+Alt+J` to jump to the next
+  / previous bookmark, and `Shift+Alt+L` / `Shift+Alt+J` / `Shift+Alt+K`
+  to expand the selection to the next / previous bookmark / shrink it.
 - **`custom`** — keeps the chorded defaults active and unlocks the
   **Agentic Bookmarks: Customize Keybindings…** command, which opens VS
   Code's Keyboard Shortcuts UI pre-filtered to this extension's commands
@@ -292,13 +293,17 @@ and is a good starting point to tweak:
 
 ```jsonc
 [
-  { "key": "ctrl+alt+k", "command": "agenticBookmarks.toggle",         "when": "editorTextFocus" },
-  { "key": "ctrl+alt+l", "command": "agenticBookmarks.jumpNext",       "when": "editorTextFocus" },
-  { "key": "ctrl+alt+j", "command": "agenticBookmarks.jumpPrevious",   "when": "editorTextFocus" }
+  { "key": "ctrl+alt+k",  "command": "agenticBookmarks.toggle",                    "when": "editorTextFocus" },
+  { "key": "ctrl+alt+l",  "command": "agenticBookmarks.jumpNext",                  "when": "editorTextFocus" },
+  { "key": "ctrl+alt+j",  "command": "agenticBookmarks.jumpPrevious",              "when": "editorTextFocus" },
+  { "key": "shift+alt+l", "command": "agenticBookmarks.expandSelectionToNext",     "when": "editorTextFocus" },
+  { "key": "shift+alt+j", "command": "agenticBookmarks.expandSelectionToPrevious", "when": "editorTextFocus" },
+  { "key": "shift+alt+k", "command": "agenticBookmarks.shrinkSelection",           "when": "editorTextFocus" }
 ]
 ```
 
-On macOS, replace `ctrl+alt` with `cmd+alt`.
+On macOS, replace the `ctrl+alt` entries with `cmd+alt`; the `shift+alt`
+entries are the same on both platforms.
 
 ---
 

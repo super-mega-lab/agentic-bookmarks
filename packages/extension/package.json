@@ -1263,6 +1263,24 @@
         "key": "ctrl+alt+j",
         "mac": "cmd+alt+j",
         "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle == 'basic'"
+      },
+      {
+        "command": "agenticBookmarks.expandSelectionToNext",
+        "key": "shift+alt+l",
+        "mac": "shift+alt+l",
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle == 'basic'"
+      },
+      {
+        "command": "agenticBookmarks.expandSelectionToPrevious",
+        "key": "shift+alt+j",
+        "mac": "shift+alt+j",
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle == 'basic'"
+      },
+      {
+        "command": "agenticBookmarks.shrinkSelection",
+        "key": "shift+alt+k",
+        "mac": "shift+alt+k",
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle == 'basic'"
       }
     ]
   },
