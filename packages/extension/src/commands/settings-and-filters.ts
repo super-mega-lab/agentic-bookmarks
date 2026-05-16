@@ -16,6 +16,7 @@
  *   agenticBookmarks.toggleSearchRegex
  *   agenticBookmarks.removeSearchFilter
  *   agenticBookmarks.openExtensionSettings
+ *   agenticBookmarks.customizeKeybindings
  *   agenticBookmarks.selectSettingsWorkspace
  */
 
@@ -116,6 +117,15 @@ export function registerSettingsAndFilterCommands(deps: SettingsAndFilterDeps): 
         await vscode.commands.executeCommand('workbench.action.openSettings', '@ext:supermegalab.agentic-bookmarks');
       } catch (err) {
         log.error(`Failed to open extension settings: ${err}`);
+      }
+    }),
+
+    // Open VS Code Keyboard Shortcuts filtered to our extension
+    vscode.commands.registerCommand('agenticBookmarks.customizeKeybindings', async () => {
+      try {
+        await vscode.commands.executeCommand('workbench.action.openGlobalKeybindings', '@ext:supermegalab.agentic-bookmarks');
+      } catch (err) {
+        log.error(`Failed to open keyboard shortcuts: ${err}`);
       }
     }),
 

@@ -48,6 +48,7 @@
     "onCommand:agenticBookmarks.addNote",
     "onCommand:agenticBookmarks.editNote",
     "onCommand:agenticBookmarks.changeGroup",
+    "onCommand:agenticBookmarks.customizeKeybindings",
     "onCommand:agenticBookmarks.toggleFiltering",
     "onCommand:agenticBookmarks.toggleFilteringFilled",
     "onCommand:agenticBookmarks.clearGroupFilter",
@@ -194,6 +195,16 @@
           "type": "boolean",
           "default": false,
           "description": "Show bookmark commands (Toggle, Toggle Labeled, Jump to Next/Previous, List in file) in the editor body right-click context menu. Off by default to avoid menu clutter; the line-number gutter menu is unaffected."
+        },
+        "agenticBookmarks.hotkeyStyle": {
+          "type": "string",
+          "enum": [
+            "chorded",
+            "basic",
+            "custom"
+          ],
+          "default": "chorded",
+          "description": "Built-in keybinding preset. 'chorded' uses Ctrl+K Ctrl+B-style chord shortcuts (default). 'basic' uses single-press shortcuts like Ctrl+Alt+K / Ctrl+Alt+L / Ctrl+Alt+J (closer to other bookmark extensions). 'custom' keeps the chorded defaults active and surfaces a 'Customize Keybindings…' command that opens VS Code's Keyboard Shortcuts UI pre-filtered to this extension's commands."
         },
         "agenticBookmarks.logLevel": {
           "type": "string",
@@ -655,6 +666,12 @@
         "command": "agenticBookmarks.openExtensionSettings",
         "title": "Open Extension Settings",
         "icon": "$(gear)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.customizeKeybindings",
+        "title": "Customize Keybindings…",
+        "icon": "$(keyboard)",
         "category": "Agentic Bookmarks"
       },
       {
@@ -1191,43 +1208,79 @@
         "command": "agenticBookmarks.toggle",
         "key": "ctrl+k ctrl+b",
         "mac": "cmd+k cmd+b",
-        "when": "editorTextFocus"
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle != 'basic'"
       },
       {
         "command": "agenticBookmarks.toggleLabeled",
         "key": "ctrl+k ctrl+shift+b",
         "mac": "cmd+k cmd+shift+b",
-        "when": "editorTextFocus"
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle != 'basic'"
       },
       {
         "command": "agenticBookmarks.jumpNext",
         "key": "ctrl+k ctrl+n",
         "mac": "cmd+k cmd+n",
-        "when": "editorTextFocus"
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle != 'basic'"
       },
       {
         "command": "agenticBookmarks.jumpPrevious",
         "key": "ctrl+k ctrl+p",
         "mac": "cmd+k cmd+p",
-        "when": "editorTextFocus"
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle != 'basic'"
       },
       {
         "command": "agenticBookmarks.listInFile",
         "key": "ctrl+k l",
         "mac": "cmd+k l",
-        "when": "editorTextFocus"
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle != 'basic'"
       },
       {
         "command": "agenticBookmarks.listAll",
         "key": "ctrl+k ctrl+shift+l",
         "mac": "cmd+k cmd+shift+l",
-        "when": "editorTextFocus"
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle != 'basic'"
       },
       {
         "command": "agenticBookmarks.editNote",
         "key": "ctrl+k ctrl+n",
         "mac": "cmd+k cmd+n",
         "when": "view == agenticBookmarks.view && listFocus"
+      },
+      {
+        "command": "agenticBookmarks.toggle",
+        "key": "ctrl+alt+k",
+        "mac": "cmd+alt+k",
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle == 'basic'"
+      },
+      {
+        "command": "agenticBookmarks.jumpNext",
+        "key": "ctrl+alt+l",
+        "mac": "cmd+alt+l",
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle == 'basic'"
+      },
+      {
+        "command": "agenticBookmarks.jumpPrevious",
+        "key": "ctrl+alt+j",
+        "mac": "cmd+alt+j",
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle == 'basic'"
+      },
+      {
+        "command": "agenticBookmarks.expandSelectionToNext",
+        "key": "shift+alt+l",
+        "mac": "shift+alt+l",
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle == 'basic'"
+      },
+      {
+        "command": "agenticBookmarks.expandSelectionToPrevious",
+        "key": "shift+alt+j",
+        "mac": "shift+alt+j",
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle == 'basic'"
+      },
+      {
+        "command": "agenticBookmarks.shrinkSelection",
+        "key": "shift+alt+k",
+        "mac": "shift+alt+k",
+        "when": "editorTextFocus && config.agenticBookmarks.hotkeyStyle == 'basic'"
       }
     ]
   },
