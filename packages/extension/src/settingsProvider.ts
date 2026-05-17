@@ -137,6 +137,11 @@ export class SettingsProvider implements vscode.TreeDataProvider<vscode.TreeItem
       const ctx = this._extensionContext;
       items.push(this.toggleItem('Show files in All Bookmarks', getViewPref(ctx, 'showFilesInAllBookmarks'), 'agenticBookmarks.toggleShowFilesInAllBookmarks'));
       items.push(this.toggleItem('Show bookmarks in Files & Groups', getViewPref(ctx, 'showBookmarksInFilesAndGroups'), 'agenticBookmarks.toggleShowBookmarksInFilesAndGroups'));
+      const cfg = vscode.workspace.getConfiguration('agenticBookmarks');
+      const sortAll = cfg.get<string>('sortMode.allBookmarks', 'user');
+      const sortFG  = cfg.get<string>('sortMode.filesAndGroups', 'user');
+      items.push(this.commandItem(`Sort: All Bookmarks · ${formatSortMode(sortAll)}`, 'agenticBookmarks.setSortModeAllBookmarks'));
+      items.push(this.commandItem(`Sort: Files & Groups · ${formatSortMode(sortFG)}`, 'agenticBookmarks.setSortModeFilesAndGroups'));
       return items;
     }
     if ((e as any).label === 'Processing') {
@@ -226,4 +231,10 @@ export class SettingsProvider implements vscode.TreeDataProvider<vscode.TreeItem
     await fs.writeFile(file, svg, 'utf8');
     return vscode.Uri.file(file);
   }
+}
+
+function formatSortMode(m: string): string {
+  if (m === 'user') return 'User sorting';
+  if (m === 'recent') return 'Recently updated';
+  return 'Default';
 }

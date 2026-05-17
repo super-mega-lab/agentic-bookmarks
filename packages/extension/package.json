@@ -17,7 +17,7 @@
   },
   "license": "LicenseRef-PolyForm-Shield-1.0.0",
   "icon": "icon512.png",
-  "version": "0.7.5",
+  "version": "0.7.6",
   "engines": {
     "vscode": "^1.92.0"
   },
@@ -206,6 +206,31 @@
           "type": "string",
           "default": "- [`${file}:${line}`](${file}#L${line}) ${label}",
           "markdownDescription": "Template used to render each bookmark line in `Agentic Bookmarks: Export to Markdown…`. Supported variables: `${file}` (workspace-relative path), `${line}` (1-based line number), `${endLine}` (1-based end line for ranges, equals `${line}` otherwise), `${label}`, `${group}`, `${note}`. Unknown placeholders are left verbatim. Trailing whitespace is trimmed automatically."
+        },
+        "agenticBookmarks.sortMode.allBookmarks": {
+          "type": "string",
+          "enum": [
+            "default",
+            "user",
+            "recent"
+          ],
+          "default": "user",
+          "description": "Sort mode for the All Bookmarks tree. 'user' enables drag-to-reorder; 'default' uses path/line ordering; 'recent' sorts by last-updated descending."
+        },
+        "agenticBookmarks.sortMode.filesAndGroups": {
+          "type": "string",
+          "enum": [
+            "default",
+            "user",
+            "recent"
+          ],
+          "default": "user",
+          "description": "Sort mode for the Files & Groups tree. 'user' enables drag-to-reorder; 'default' uses name/line ordering; 'recent' sorts by last-updated descending."
+        },
+        "agenticBookmarks.dev.enableMultiSelectDrag": {
+          "type": "boolean",
+          "default": false,
+          "description": "[Dev only] Enable multi-select drag in the bookmark trees. Right-click / context-menu commands are not yet multi-select aware — leave off in production."
         }
       }
     },
@@ -524,6 +549,16 @@
       {
         "command": "agenticBookmarks.toggleShowBookmarksInFilesAndGroups",
         "title": "Toggle Show Bookmarks in Files & Groups",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.setSortModeAllBookmarks",
+        "title": "Set Sort Mode (All Bookmarks)…",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.setSortModeFilesAndGroups",
+        "title": "Set Sort Mode (Files & Groups)…",
         "category": "Agentic Bookmarks"
       },
       {

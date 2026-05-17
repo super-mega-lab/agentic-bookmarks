@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, readRegistry, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath } from '@agentic-bookmarks/core';
+import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, getCacheDir, readRegistry, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath } from '@agentic-bookmarks/core';
 import { BookmarksProvider } from './treeProvider';
 import { FilesGroupsProvider } from './filesGroupsProvider';
 import { SettingsProvider } from './settingsProvider';
@@ -51,6 +51,7 @@ import { getBuiltinCatalog, clearCatalogCache, getCatalogCache } from './catalog
 import { createAnchorResolution } from './anchor-resolution';
 import { migrateLocalLayout } from './migrate-local-layout';
 import { maybeShowGitignoreNudge } from './gitignore-nudge';
+import { OrderingService } from './ordering/service';
 
 // ---------------------------------------------------------------------------
 // activate
@@ -143,7 +144,18 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const defaultIconPath = context.asAbsolutePath('media/styles/icons/bookmark-white.svg');
   const getCatalog = () => getBuiltinCatalog(context);
-  const provider = new BookmarksProvider(paths, workspaceRoot, defaultIconPath, getUIState, isFileHidden, context);
+
+  // One ordering cache per primary workspace, shared by both trees. With
+  // multi-root workspaces, ranks are still stored in the primary workspace's
+  // cache file — bookmark/file/group IDs are workspace-unique short ids so
+  // collisions across workspaces are improbable in practice.
+  // TODO: pass `knownIds` (collected from each workspace registry) to prune
+  // stale entries at load time.
+  const orderingCacheDir = getCacheDir(workspaceRoot);
+  const orderingService = await OrderingService.load(orderingCacheDir);
+  context.subscriptions.push({ dispose: () => { void orderingService.dispose(); } });
+
+  const provider = new BookmarksProvider(paths, workspaceRoot, defaultIconPath, getUIState, isFileHidden, context, orderingService);
 
   async function updateFilterContext() {
     try {
@@ -157,12 +169,24 @@ export async function activate(context: vscode.ExtensionContext) {
   await updateFilterContext();
   log.info('Tree provider created');
 
-  const treeView = vscode.window.createTreeView('agenticBookmarks.view', { treeDataProvider: provider, showCollapseAll: true });
+  const enableMultiSelectDrag = vscode.workspace.getConfiguration('agenticBookmarks').get<boolean>('dev.enableMultiSelectDrag', false);
+
+  const treeView = vscode.window.createTreeView('agenticBookmarks.view', {
+    treeDataProvider: provider,
+    showCollapseAll: true,
+    dragAndDropController: provider.dnd,
+    canSelectMany: enableMultiSelectDrag,
+  });
   context.subscriptions.push(treeView);
   log.info('Tree view registered');
 
-  const filesGroups = new FilesGroupsProvider(workspaceRoot, getUIState, defaultIconPath, isFileHidden, context);
-  const filesGroupsView = vscode.window.createTreeView('agenticBookmarks.filesGroups', { treeDataProvider: filesGroups, showCollapseAll: true });
+  const filesGroups = new FilesGroupsProvider(workspaceRoot, getUIState, defaultIconPath, isFileHidden, context, orderingService);
+  const filesGroupsView = vscode.window.createTreeView('agenticBookmarks.filesGroups', {
+    treeDataProvider: filesGroups,
+    showCollapseAll: true,
+    dragAndDropController: filesGroups.dnd,
+    canSelectMany: enableMultiSelectDrag,
+  });
   context.subscriptions.push(filesGroupsView);
 
   // --- Licensing (SML-1302 Phase 1, repo detection wired in SML-1338, trial timer in SML-1333) ---
@@ -205,6 +229,8 @@ export async function activate(context: vscode.ExtensionContext) {
       if (e.affectsConfiguration('agenticBookmarks.licensing.devCommandsEnabled')) {
         refreshIsDevelopment();
       }
+      if (e.affectsConfiguration('agenticBookmarks.sortMode.allBookmarks')) provider.refresh();
+      if (e.affectsConfiguration('agenticBookmarks.sortMode.filesAndGroups')) filesGroups.refresh();
     }),
   );
   registerTestLicenseCommands(context, licensing, outputChannel);

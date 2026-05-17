@@ -1,6 +1,20 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { readFileV2, readRegistry, pathsForDataFile, type Paths, type BookmarksFileV2, matchesTextQuery, COMMON_SEARCH_SCOPE, getBookmarksDataRoot, workspaceRelativeToUri } from '@agentic-bookmarks/core';
+import type { OrderingService } from './ordering/service';
+import { applySort } from './ordering/applySort';
+import type { SortMode } from './ordering/types';
+import { makeDnDController, type RankedSibling } from './ordering/dnd-controller';
+import type { DragSpec } from './ordering/dnd-validation';
+
+const ALL_BOOKMARKS_DND_MIME = 'application/vnd.agenticBookmarks.allBookmarks+json';
+
+/** Earliest line referenced by a bookmark anchor, for default ordering. */
+function startLineOf(b: BookmarksFileV2['bookmarks'][number]): number {
+  if (b.anchor.kind === 'point') return b.anchor.line;
+  if (b.anchor.kind === 'range') return b.anchor.start.line;
+  return b.anchor.lastUpdatedLine;
+}
 import { loadBuiltinCatalog, resolveGroupIconPath, resolveEffectiveStyleAndColor, ensureOverlayIconWithFallback, tokenToHex, type AppearanceOverrides, type EffectiveCatalog } from './appearance';
 import { getStatus, getErrorDetails, getScore, getResolvedLine, type AnchorStatus } from './anchorState';
 import { getViewPref } from './commands/views';
@@ -31,9 +45,11 @@ export class BookmarkNode extends vscode.TreeItem {
   public readonly status?: AnchorStatus;
   public readonly score?: number;
   public readonly errorDetails?: string;
-  // Set by BookmarksProvider when this node is returned as a child of a
-  // FileNode — needed so TreeView.reveal() can walk up via getParent().
-  public parent?: FileNode;
+  // Set by the producing provider when this node is returned as a child of
+  // another node — needed so TreeView.reveal() and the drag/drop sibling
+  // resolver can walk up via getParent(). May be a FileNode (BookmarksProvider)
+  // or a GroupNode (FilesGroupsProvider).
+  public parent?: vscode.TreeItem;
 
   constructor(
     public readonly id: string,
@@ -186,14 +202,64 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
   private _onDidChangeTreeData = new vscode.EventEmitter<vscode.TreeItem | undefined | null | void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+  public readonly dnd: vscode.TreeDragAndDropController<vscode.TreeItem>;
+
   constructor(
     private readonly paths: Paths,
     private readonly workspaceRoot: string,  // Primary workspace (for backward compat)
     private readonly defaultIconPath: string,
     private readonly getUIState: () => UIState,
     private readonly isFileHidden: (fileId: string, reg: any) => boolean,
-    private readonly extensionContext: vscode.ExtensionContext
-  ) {}
+    private readonly extensionContext: vscode.ExtensionContext,
+    private readonly orderingService: OrderingService
+  ) {
+    this.dnd = makeDnDController({
+      mimeType: ALL_BOOKMARKS_DND_MIME,
+      service: orderingService,
+      onChanged: () => this._onDidChangeTreeData.fire(),
+      specOf: (item) => this.specOf(item),
+      resolveSiblings: (target) => this.resolveSiblings(target),
+    });
+  }
+
+  private specOf(item: vscode.TreeItem): DragSpec | null {
+    if (item instanceof BookmarkNode) {
+      const parent = item.parent;
+      if (parent instanceof FileNode) {
+        return { kind: 'bookmark', id: item.id, ctx: 'f', parentId: parent.resourceUri!.toString() };
+      }
+      // Flat list (showFiles=false)
+      return { kind: 'bookmark', id: item.id, ctx: 'a', parentId: null };
+    }
+    if (item instanceof FileNode) {
+      return { kind: 'file', id: item.resourceUri!.toString(), ctx: 'a', parentId: null };
+    }
+    return null;
+  }
+
+  private async resolveSiblings(target: vscode.TreeItem): Promise<{ siblings: RankedSibling[]; insertIdx: number } | null> {
+    let parent: vscode.TreeItem | undefined;
+    if (target instanceof BookmarkNode) parent = target.parent;     // FileNode or undefined (flat)
+    else if (target instanceof FileNode) parent = undefined;        // FileNodes live at root
+    else return null;
+
+    const raw = await this.getChildren(parent);
+    // Filter the sibling list to items of the same kind as target (excludes
+    // root-level filterInfo, plus mixed-kind items in scopes that allow them).
+    const siblings: RankedSibling[] = [];
+    for (const item of raw) {
+      const s = this.specOf(item);
+      if (!s) continue;
+      // Only items in the same scope as the target are real siblings.
+      const t = this.specOf(target);
+      if (!t || s.kind !== t.kind || s.ctx !== t.ctx || s.parentId !== t.parentId) continue;
+      siblings.push({ spec: s, rank: this.orderingService.get(s.kind, s.id, s.ctx) ?? null });
+    }
+    const targetId = (target instanceof FileNode) ? target.resourceUri!.toString() : (target as BookmarkNode).id;
+    const insertIdx = siblings.findIndex(s => s.spec.id === targetId);
+    if (insertIdx < 0) return null;
+    return { siblings, insertIdx };
+  }
 
   refresh(): void {
     this._onDidChangeTreeData.fire();
@@ -212,6 +278,7 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
   }
 
   async getChildren(element?: vscode.TreeItem): Promise<vscode.TreeItem[]> {
+    const sortMode = vscode.workspace.getConfiguration('agenticBookmarks').get<SortMode>('sortMode.allBookmarks', 'user');
     if (!element) {
       // Root level: show all bookmarks across ALL workspace folders, grouped by document URI
       const folders = vscode.workspace.workspaceFolders || [];
@@ -334,17 +401,21 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
         for (const [absoluteUri, entries] of fileMap) {
           for (const entry of entries) flatEntries.push({ uri: absoluteUri, entry });
         }
-        flatEntries.sort((a, b) => {
-          const uriCmp = a.uri.localeCompare(b.uri);
+        // Apply per-view sort mode in flat (no-files) All Bookmarks. ctx='a'.
+        const flatSortable = flatEntries.map(fe => ({
+          id: (fe.entry.bookmark as any).id as string,
+          kind: 'bookmark' as const,
+          updatedAt: (fe.entry.bookmark as any).updatedAt as number | undefined,
+          _orig: fe,
+        }));
+        const flatDefaultCmp = (a: typeof flatSortable[number], b: typeof flatSortable[number]) => {
+          const uriCmp = a._orig.uri.localeCompare(b._orig.uri);
           if (uriCmp !== 0) return uriCmp;
-          const startA = a.entry.bookmark.anchor.kind === 'point' ? a.entry.bookmark.anchor.line
-            : a.entry.bookmark.anchor.kind === 'range' ? a.entry.bookmark.anchor.start.line
-            : a.entry.bookmark.anchor.lastUpdatedLine;
-          const startB = b.entry.bookmark.anchor.kind === 'point' ? b.entry.bookmark.anchor.line
-            : b.entry.bookmark.anchor.kind === 'range' ? b.entry.bookmark.anchor.start.line
-            : b.entry.bookmark.anchor.lastUpdatedLine;
-          return startA - startB;
-        });
+          return startLineOf(a._orig.entry.bookmark) - startLineOf(b._orig.entry.bookmark);
+        };
+        const sortedFlat = applySort(flatSortable, sortMode, 'a', this.orderingService, flatDefaultCmp);
+        flatEntries.length = 0;
+        for (const s of sortedFlat) flatEntries.push(s._orig);
         // Cache per-workspace registry lookups to avoid re-reading on every entry.
         const regCache = new Map<string, { dataRoot: string; appearance: AppearanceOverrides | undefined }>();
         for (const { entry } of flatEntries) {
@@ -377,8 +448,19 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
           console.error(`[BookmarkTreeProvider] Error creating FileNode for URI ${absoluteUri}:`, err);
         }
       }
-      fileNodes.sort((a, b) => a.label!.toString().localeCompare(b.label!.toString()));
-      return nodes.concat(fileNodes);
+      // Apply per-view sort mode to file nodes. ctx='a'. updatedAt for a file
+      // is derived as the max of its child bookmark updatedAts.
+      const fileSortable = fileNodes.map(fn => ({
+        id: fn.resourceUri!.toString(),
+        kind: 'file' as const,
+        updatedAt: fn.entries.reduce((m, e) => Math.max(m, (e.bookmark as any).updatedAt ?? 0), 0),
+        _node: fn,
+      }));
+      const fileDefaultCmp = (a: typeof fileSortable[number], b: typeof fileSortable[number]) =>
+        a._node.label!.toString().localeCompare(b._node.label!.toString());
+      const sortedFiles = applySort(fileSortable, sortMode, 'a', this.orderingService, fileDefaultCmp)
+        .map(s => s._node);
+      return nodes.concat(sortedFiles);
     }
 
     if (element instanceof FileNode) {
@@ -388,16 +470,17 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
       const reg = await readRegistry(wsRoot);
       const dataRoot = getBookmarksDataRoot(reg);
       const appearance: AppearanceOverrides | undefined = reg.settings?.appearance;
-      const entries = element.entries
-        .sort((a, b) => {
-          const startA = a.bookmark.anchor.kind === 'point' ? a.bookmark.anchor.line
-            : a.bookmark.anchor.kind === 'range' ? a.bookmark.anchor.start.line
-            : a.bookmark.anchor.lastUpdatedLine;
-          const startB = b.bookmark.anchor.kind === 'point' ? b.bookmark.anchor.line
-            : b.bookmark.anchor.kind === 'range' ? b.bookmark.anchor.start.line
-            : b.bookmark.anchor.lastUpdatedLine;
-          return startA - startB;
-        });
+      // Apply per-view sort mode within the file. ctx='f', parentId=file URI.
+      const fileSortable = element.entries.map(e => ({
+        id: (e.bookmark as any).id as string,
+        kind: 'bookmark' as const,
+        updatedAt: (e.bookmark as any).updatedAt as number | undefined,
+        _entry: e,
+      }));
+      const cmp = (a: typeof fileSortable[number], b: typeof fileSortable[number]) =>
+        startLineOf(a._entry.bookmark) - startLineOf(b._entry.bookmark);
+      const entries = applySort(fileSortable, sortMode, 'f', this.orderingService, cmp)
+        .map(s => s._entry);
       const nodes: vscode.TreeItem[] = [];
       for (const entry of entries) {
         // Use entry's wsRoot if available (multi-workspace support)

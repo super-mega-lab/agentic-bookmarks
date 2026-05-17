@@ -144,3 +144,15 @@ describe('view-structure toggle commands', () => {
     expect(linesMatching(/"command":\s*"agenticBookmarks\.toggleShowBookmarksInFilesAndGroups"/)).not.toEqual([]);
   });
 });
+
+describe('local sorting feature', () => {
+  it('declares sortMode settings, dev multi-select drag flag, and sort-mode commands', () => {
+    // Settings
+    expect(linesMatching(/"agenticBookmarks\.sortMode\.allBookmarks"/)).not.toEqual([]);
+    expect(linesMatching(/"agenticBookmarks\.sortMode\.filesAndGroups"/)).not.toEqual([]);
+    expect(linesMatching(/"agenticBookmarks\.dev\.enableMultiSelectDrag"/)).not.toEqual([]);
+    // Commands
+    expect(linesMatching(/"command":\s*"agenticBookmarks\.setSortModeAllBookmarks"/)).not.toEqual([]);
+    expect(linesMatching(/"command":\s*"agenticBookmarks\.setSortModeFilesAndGroups"/)).not.toEqual([]);
+  });
+});

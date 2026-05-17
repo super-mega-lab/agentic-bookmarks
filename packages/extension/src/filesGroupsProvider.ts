@@ -1,6 +1,14 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import { readRegistry, readFileV2, pathsForDataFile, resolveIsLocal, isLocalPath, resolveTargetAnchorType, type WorkspaceRegistryV1, type BookmarksFileV2, getBookmarksDataRoot } from '@agentic-bookmarks/core';
+import type { OrderingService } from './ordering/service';
+import { applySort } from './ordering/applySort';
+import type { SortMode } from './ordering/types';
+import { makeDnDController, type RankedSibling } from './ordering/dnd-controller';
+import type { DragSpec } from './ordering/dnd-validation';
+import { BookmarkNode } from './treeProvider';
+
+const FILES_GROUPS_DND_MIME = 'application/vnd.agenticBookmarks.filesGroups+json';
 import { loadBuiltinCatalog, resolveGroupIconPath, type AppearanceOverrides } from './appearance';
 import { buildBookmarkNode } from './treeProvider';
 import { computeFileChildrenVisibility, computeGroupVisualHidden } from './filesGroupsProvider-helpers';
@@ -23,6 +31,7 @@ export class WorkspaceFolderNode extends vscode.TreeItem {
 export class RegFileNode extends vscode.TreeItem {
   public readonly fileId: string;
   public readonly workspaceRoot: string;
+  public parent?: vscode.TreeItem;       // WorkspaceFolderNode in multi-root, undefined otherwise
   constructor(public readonly reg: WorkspaceRegistryV1['files'][number], workspaceRoot: string, private isHidden: boolean) {
     const fileName = path.basename(reg.path);
     const label = reg.title || fileName;
@@ -54,6 +63,7 @@ export class GroupNode extends vscode.TreeItem {
   public readonly workspaceRoot: string;
   public readonly isLocal: boolean;
   public readonly isFileUiHidden: boolean;
+  public parent?: vscode.TreeItem;       // RegFileNode
   constructor(public readonly group: BookmarksFileV2['groups'][number], public readonly dataFilePath: string, workspaceRoot: string, isLocal: boolean, isFileUiHidden: boolean = false) {
     super(group.name, vscode.TreeItemCollapsibleState.Collapsed);
     this.groupId = (group as any).id;
@@ -72,13 +82,64 @@ export class FilesGroupsProvider implements vscode.TreeDataProvider<vscode.TreeI
   private _onDidChangeTreeData = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+  public readonly dnd: vscode.TreeDragAndDropController<vscode.TreeItem>;
+
   constructor(
     private workspaceRoot: string,  // Primary workspace (for backward compat)
     private getUIState: () => UIState,
     private defaultIconPath: string,
     private isFileHidden: (fileId: string, reg: WorkspaceRegistryV1) => boolean,
-    private extensionContext: vscode.ExtensionContext
-  ) {}
+    private extensionContext: vscode.ExtensionContext,
+    private orderingService: OrderingService
+  ) {
+    this.dnd = makeDnDController({
+      mimeType: FILES_GROUPS_DND_MIME,
+      service: orderingService,
+      onChanged: () => this._onDidChangeTreeData.fire(),
+      specOf: (item) => this.specOf(item),
+      resolveSiblings: (target) => this.resolveSiblings(target),
+    });
+  }
+
+  private specOf(item: vscode.TreeItem): DragSpec | null {
+    if (item instanceof BookmarkNode) {
+      const groupId = (item.bookmark as any).groupId as string;
+      return { kind: 'bookmark', id: item.id, ctx: 'g', parentId: groupId };
+    }
+    if (item instanceof GroupNode) {
+      // parentId scopes "same file" — using dataFilePath keeps it stable per workspace.
+      // TODO(future): move-group across files would land here.
+      return { kind: 'group', id: item.groupId, ctx: 'f', parentId: `${item.workspaceRoot}|${item.dataFilePath}` };
+    }
+    if (item instanceof RegFileNode) {
+      // parentId scopes "same workspace". TODO(future): cross-workspace move.
+      return { kind: 'bookmarkFile', id: item.fileId, ctx: 'f', parentId: item.workspaceRoot };
+    }
+    return null;
+  }
+
+  private async resolveSiblings(target: vscode.TreeItem): Promise<{ siblings: RankedSibling[]; insertIdx: number } | null> {
+    let parent: vscode.TreeItem | undefined;
+    if (target instanceof BookmarkNode) parent = target.parent;     // GroupNode
+    else if (target instanceof GroupNode) parent = target.parent;   // RegFileNode
+    else if (target instanceof RegFileNode) parent = target.parent; // WorkspaceFolderNode in multi-root, else root
+    else return null;
+
+    const raw = await this.getChildren(parent);
+    const t = this.specOf(target);
+    if (!t) return null;
+    const siblings: RankedSibling[] = [];
+    for (const item of raw) {
+      const s = this.specOf(item);
+      if (!s) continue;
+      if (s.kind !== t.kind || s.ctx !== t.ctx || s.parentId !== t.parentId) continue;
+      siblings.push({ spec: s, rank: this.orderingService.get(s.kind, s.id, s.ctx) ?? null });
+    }
+    const targetId = t.id;
+    const insertIdx = siblings.findIndex(s => s.spec.id === targetId);
+    if (insertIdx < 0) return null;
+    return { siblings, insertIdx };
+  }
 
   refresh() { this._onDidChangeTreeData.fire(); }
 
@@ -160,11 +221,24 @@ export class FilesGroupsProvider implements vscode.TreeDataProvider<vscode.TreeI
   private async getFilesForWorkspace(wsRoot: string): Promise<RegFileNode[]> {
     try {
       const reg = await readRegistry(wsRoot);
-      return reg.files.map(f => {
+      const nodes = reg.files.map(f => {
         const fileId = (f as any).fileId as string;
         const isHidden = this.isFileHidden(fileId, reg);
         return new RegFileNode(f, wsRoot, isHidden);
       });
+      const sortMode = vscode.workspace.getConfiguration('agenticBookmarks').get<SortMode>('sortMode.filesAndGroups', 'user');
+      // updatedAt for bookmark-files is derived as max(child.updatedAt) only
+      // when needed (mode==='recent') to avoid reading every data file otherwise.
+      const sortable = nodes.map(n => ({
+        id: n.fileId,
+        kind: 'bookmarkFile' as const,
+        // TODO: derive max-bookmark-updatedAt when mode==='recent'; using 0 for v1.
+        updatedAt: 0,
+        _node: n,
+      }));
+      const defaultCmp = (a: typeof sortable[number], b: typeof sortable[number]) =>
+        a._node.label!.toString().localeCompare(b._node.label!.toString());
+      return applySort(sortable, sortMode, 'f', this.orderingService, defaultCmp).map(s => s._node);
     } catch {
       return [];
     }
@@ -187,7 +261,9 @@ export class FilesGroupsProvider implements vscode.TreeDataProvider<vscode.TreeI
 
     // Expand workspace folder node to show its files
     if (e instanceof WorkspaceFolderNode) {
-      return this.getFilesForWorkspace(e.folder.uri.fsPath);
+      const files = await this.getFilesForWorkspace(e.folder.uri.fsPath);
+      for (const f of files) f.parent = e;       // for getParent / drag sibling resolution
+      return files;
     }
 
     if (e instanceof RegFileNode) {
@@ -215,9 +291,23 @@ export class FilesGroupsProvider implements vscode.TreeDataProvider<vscode.TreeI
 
         const fileIsLocal = resolveIsLocal(file, p.data, wsRoot);
         const showBookmarks = getViewPref(this.extensionContext, 'showBookmarksInFilesAndGroups');
+        const sortMode = vscode.workspace.getConfiguration('agenticBookmarks').get<SortMode>('sortMode.filesAndGroups', 'user');
         const nodes: GroupNode[] = [];
-        for (const g of file.groups) {
+        // Sort groups within this file. ctx='f', parentId=fileId.
+        const groupSortable = file.groups.map(g => ({
+          id: (g as any).id as string,
+          kind: 'group' as const,
+          updatedAt: file.bookmarks
+            .filter(b => (b as any).groupId === (g as any).id)
+            .reduce((m, b) => Math.max(m, (b as any).updatedAt ?? 0), 0),
+          _g: g,
+        }));
+        const groupDefaultCmp = (a: typeof groupSortable[number], b: typeof groupSortable[number]) =>
+          a._g.name.localeCompare(b._g.name);
+        const sortedGroups = applySort(groupSortable, sortMode, 'f', this.orderingService, groupDefaultCmp).map(s => s._g);
+        for (const g of sortedGroups) {
           const node = new GroupNode(g, e.reg.path, wsRoot, fileIsLocal, childrenForcedHidden);
+          node.parent = e;
           if (!showBookmarks) node.collapsibleState = vscode.TreeItemCollapsibleState.None;
             const gid = (g as any).id as string;
             // File-forced hidden wins over the canonical focus/hidden precedence
@@ -264,21 +354,29 @@ export class FilesGroupsProvider implements vscode.TreeDataProvider<vscode.TreeI
         const catalog = await loadBuiltinCatalog(this.extensionContext);
         const appearance: AppearanceOverrides | undefined = reg.settings?.appearance;
 
-        const bookmarks = file.bookmarks.filter(b => (b as any).groupId === e.groupId);
-        bookmarks.sort((a, b) => {
-          const startA = a.anchor.kind === 'point' ? a.anchor.line
-            : a.anchor.kind === 'range' ? a.anchor.start.line
-            : a.anchor.lastUpdatedLine;
-          const startB = b.anchor.kind === 'point' ? b.anchor.line
+        const sortMode = vscode.workspace.getConfiguration('agenticBookmarks').get<SortMode>('sortMode.filesAndGroups', 'user');
+        const raw = file.bookmarks.filter(b => (b as any).groupId === e.groupId);
+        // Sort bookmarks within the group. ctx='g', parentId=groupId.
+        const bmSortable = raw.map(b => ({
+          id: (b as any).id as string,
+          kind: 'bookmark' as const,
+          updatedAt: (b as any).updatedAt as number | undefined,
+          _b: b,
+        }));
+        const startLine = (b: typeof raw[number]) =>
+          b.anchor.kind === 'point' ? b.anchor.line
             : b.anchor.kind === 'range' ? b.anchor.start.line
             : b.anchor.lastUpdatedLine;
-          return startA - startB;
-        });
+        const bmDefaultCmp = (a: typeof bmSortable[number], b: typeof bmSortable[number]) =>
+          startLine(a._b) - startLine(b._b);
+        const bookmarks = applySort(bmSortable, sortMode, 'g', this.orderingService, bmDefaultCmp).map(s => s._b);
 
         const nodes: vscode.TreeItem[] = [];
         for (const bookmark of bookmarks) {
           try {
-            nodes.push(await buildBookmarkNode(bookmark, e.group, e.dataFilePath, wsRoot, catalog, this.defaultIconPath, dataRoot, appearance, e.isFileUiHidden));
+            const bn = await buildBookmarkNode(bookmark, e.group, e.dataFilePath, wsRoot, catalog, this.defaultIconPath, dataRoot, appearance, e.isFileUiHidden);
+            bn.parent = e;     // for drag sibling resolution
+            nodes.push(bn);
           } catch (err) {
             console.error(`[FilesGroupsProvider] Error building bookmark node for ${bookmark.id}:`, err);
           }

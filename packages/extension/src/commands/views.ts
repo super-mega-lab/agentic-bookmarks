@@ -17,6 +17,18 @@ import { SETTINGS_DEFAULTS, withDefault } from '../settings-defaults';
 
 export const VIEW_PREFS_KEY = 'agenticBookmarks.viewPrefs';
 
+async function pickSortMode(): Promise<string | undefined> {
+  const pick = await vscode.window.showQuickPick(
+    [
+      { label: 'Default',          description: 'Path / line-number order',   value: 'default' },
+      { label: 'User sorting',     description: 'Drag-to-reorder, persisted', value: 'user' },
+      { label: 'Recently updated', description: 'Last-updated first',         value: 'recent' },
+    ],
+    { placeHolder: 'Choose a sort mode' },
+  );
+  return pick?.value;
+}
+
 export interface ViewPrefs {
   showFilesInAllBookmarks?: boolean;
   showBookmarksInFilesAndGroups?: boolean;
@@ -59,6 +71,24 @@ export function registerViewsCommands(deps: ViewsDeps): vscode.Disposable[] {
 
     vscode.commands.registerCommand('agenticBookmarks.toggleShowBookmarksInFilesAndGroups', async () => {
       await flipViewToggle(context, 'showBookmarksInFilesAndGroups');
+      settingsProvider.refresh();
+      filesGroups.refresh();
+    }),
+
+    vscode.commands.registerCommand('agenticBookmarks.setSortModeAllBookmarks', async (mode?: string) => {
+      const chosen = mode ?? await pickSortMode();
+      if (!chosen) return;
+      await vscode.workspace.getConfiguration('agenticBookmarks')
+        .update('sortMode.allBookmarks', chosen, vscode.ConfigurationTarget.Global);
+      settingsProvider.refresh();
+      provider.refresh();
+    }),
+
+    vscode.commands.registerCommand('agenticBookmarks.setSortModeFilesAndGroups', async (mode?: string) => {
+      const chosen = mode ?? await pickSortMode();
+      if (!chosen) return;
+      await vscode.workspace.getConfiguration('agenticBookmarks')
+        .update('sortMode.filesAndGroups', chosen, vscode.ConfigurationTarget.Global);
       settingsProvider.refresh();
       filesGroups.refresh();
     }),
