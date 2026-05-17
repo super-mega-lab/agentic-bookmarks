@@ -2,7 +2,7 @@
 // ABOUTME: kinds, sorting, fragment stripping, and workspace-relative path resolution.
 
 import { describe, it, expect } from 'vitest';
-import type { BookmarksFileV2, WorkspaceRegistryV1 } from '@agentic-bookmarks/core';
+import type { BookmarksFileV2 } from '@agentic-bookmarks/core';
 import { buildBookmarkPickItems, type Visibility } from './bookmark-quickpick-items';
 
 const WS = '/ws';
@@ -51,20 +51,6 @@ function file(
   } as any;
 }
 
-function registry(files: Array<{ fileId: string; path: string; enabled?: boolean }> = []): WorkspaceRegistryV1 {
-  return {
-    version: 1,
-    files,
-    nameIndex: {},
-    settings: {
-      watchersEnabled: true,
-      sortByGroup: false,
-      sortByFile: false,
-      appearance: { showDifferentColors: true, showDifferentStyles: true },
-    },
-  } as any;
-}
-
 const visibilityOff: Visibility = { hidden: [], focus: null, filterEnabled: false };
 const visibilityOn: Visibility = { hidden: [], focus: null, filterEnabled: true };
 
@@ -78,7 +64,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [],
-      registry: registry(),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -90,7 +75,6 @@ describe('buildBookmarkPickItems', () => {
       scope: 'all',
       visibility: visibilityOff,
       filesData: [],
-      registry: registry(),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -106,7 +90,6 @@ describe('buildBookmarkPickItems', () => {
       // activeFileFsPath omitted
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: '.bookmarks/shared/foo.bookmarks.json', data }],
-      registry: registry([{ fileId: 'f1', path: '.bookmarks/shared/foo.bookmarks.json' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -125,7 +108,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -143,7 +125,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -161,7 +142,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -188,10 +168,6 @@ describe('buildBookmarkPickItems', () => {
         { wsRoot: WS, regPath: 'pA', data: dataA },
         { wsRoot: WS, regPath: 'pB', data: dataB },
       ],
-      registry: registry([
-        { fileId: 'f1', path: 'pA' },
-        { fileId: 'f2', path: 'pB' },
-      ]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -219,10 +195,6 @@ describe('buildBookmarkPickItems', () => {
         { wsRoot: WS, regPath: 'pA', data: dataA },
         { wsRoot: WS, regPath: 'pB', data: dataB },
       ],
-      registry: registry([
-        { fileId: 'f1', path: 'pA' },
-        { fileId: 'f2', path: 'pB' },
-      ]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -242,7 +214,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -262,7 +233,6 @@ describe('buildBookmarkPickItems', () => {
         activeFileFsPath: '/ws/src/foo.ts',
         visibility: { hidden: ['gA'], focus: null, filterEnabled: true },
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -281,7 +251,6 @@ describe('buildBookmarkPickItems', () => {
         activeFileFsPath: '/ws/src/foo.ts',
         visibility: { hidden: ['gA', 'gB'], focus: null, filterEnabled: false },
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -297,7 +266,6 @@ describe('buildBookmarkPickItems', () => {
         activeFileFsPath: '/ws/src/foo.ts',
         visibility: { hidden: [], focus: 'gA', filterEnabled: true },
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -316,7 +284,6 @@ describe('buildBookmarkPickItems', () => {
         activeFileFsPath: '/ws/src/foo.ts',
         visibility: { hidden: [], focus: 'gA', filterEnabled: true },
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -335,7 +302,6 @@ describe('buildBookmarkPickItems', () => {
         activeFileFsPath: '/ws/src/foo.ts',
         visibility: { hidden: [], focus: 'gA', filterEnabled: false },
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -354,7 +320,6 @@ describe('buildBookmarkPickItems', () => {
         activeFileFsPath: '/ws/src/foo.ts',
         visibility: { hidden: ['gA'], focus: 'gA', filterEnabled: true },
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -382,10 +347,6 @@ describe('buildBookmarkPickItems', () => {
         { wsRoot: WS, regPath: 'pA', data: dataA },
         { wsRoot: WS, regPath: 'pB', data: dataB },
       ],
-      registry: registry([
-        { fileId: 'f1', path: 'pA' },
-        { fileId: 'f2', path: 'pB' },
-      ]),
       isFileHidden: (id: string) => id === 'f1',
       resolveLine: passthroughResolveLine,
     });
@@ -402,7 +363,6 @@ describe('buildBookmarkPickItems', () => {
         activeFileFsPath: '/ws/src/foo.ts',
         visibility: visibilityOff,
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -424,7 +384,6 @@ describe('buildBookmarkPickItems', () => {
         activeFileFsPath: '/ws/src/foo.ts',
         visibility: visibilityOff,
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -453,7 +412,6 @@ describe('buildBookmarkPickItems', () => {
         activeFileFsPath: '/ws/src/foo.ts',
         visibility: visibilityOff,
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -475,7 +433,6 @@ describe('buildBookmarkPickItems', () => {
         activeFileFsPath: '/ws/src/foo.ts',
         visibility: visibilityOff,
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -505,7 +462,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: (_id, _uri, _fb) => 42,
     });
@@ -527,7 +483,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: (_id, _uri, _fb) => 99,
     });
@@ -544,7 +499,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -561,7 +515,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -578,7 +531,6 @@ describe('buildBookmarkPickItems', () => {
       scope: 'all',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -595,7 +547,6 @@ describe('buildBookmarkPickItems', () => {
       scope: 'all',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -612,7 +563,6 @@ describe('buildBookmarkPickItems', () => {
       scope: 'all',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -630,7 +580,6 @@ describe('buildBookmarkPickItems', () => {
       scope: 'all',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -657,7 +606,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data }],
-      registry: registry([{ fileId: 'fileX', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -687,7 +635,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data: dataWithNote }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -703,7 +650,6 @@ describe('buildBookmarkPickItems', () => {
       activeFileFsPath: '/ws/src/foo.ts',
       visibility: visibilityOff,
       filesData: [{ wsRoot: WS, regPath: 'p', data: dataNoNote }],
-      registry: registry([{ fileId: 'f1', path: 'p' }]),
       isFileHidden: noFileHidden,
       resolveLine: passthroughResolveLine,
     });
@@ -724,7 +670,6 @@ describe('buildBookmarkPickItems', () => {
         activeFileFsPath: '/ws/src/foo.ts',
         visibility,
         filesData: [{ wsRoot: WS, regPath: 'p', data: dataAll() }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -828,7 +773,6 @@ describe('buildBookmarkPickItems', () => {
           searches: [{ id: 's1', text: 'hello\\s+world', regex: true, op: 'AND' }],
         },
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -865,10 +809,6 @@ describe('buildBookmarkPickItems', () => {
           { wsRoot: '/folderA', regPath: 'pA', data: dataA },
           { wsRoot: '/folderB', regPath: 'pB', data: dataB },
         ],
-        registry: registry([
-          { fileId: 'fA', path: 'pA' },
-          { fileId: 'fB', path: 'pB' },
-        ]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -902,10 +842,6 @@ describe('buildBookmarkPickItems', () => {
           { wsRoot: '/folderA', regPath: 'pA', data: dataA },
           { wsRoot: '/folderB', regPath: 'pB', data: dataB },
         ],
-        registry: registry([
-          { fileId: 'fA', path: 'pA' },
-          { fileId: 'fB', path: 'pB' },
-        ]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
@@ -920,11 +856,24 @@ describe('buildBookmarkPickItems', () => {
         scope: 'all',
         visibility: visibilityOff,
         filesData: [{ wsRoot: WS, regPath: 'p', data }],
-        registry: registry([{ fileId: 'f1', path: 'p' }]),
         isFileHidden: noFileHidden,
         resolveLine: passthroughResolveLine,
       });
       expect(items).toEqual([]);
     });
+  });
+
+  it('resolveLine defaults to identity (fallback) when omitted', () => {
+    const data = file({
+      bookmarks: [bookmark({ id: 'b1', anchor: { kind: 'point', line: 7 } })],
+    });
+    const items = buildBookmarkPickItems({
+      scope: 'inFile',
+      activeFileFsPath: '/ws/src/foo.ts',
+      visibility: visibilityOff,
+      filesData: [{ wsRoot: WS, regPath: 'p', data }],
+      isFileHidden: noFileHidden,
+    });
+    expect(items[0].line).toBe(7);
   });
 });

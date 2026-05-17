@@ -117,9 +117,7 @@ const VISIBILITY_FILTER_OFF: Visibility = {
 
 describe('collectVisibleBookmarkedFiles', () => {
   it('returns empty array when filesData is empty', () => {
-    const folders: LoadedFolder[] = [makeLoadedFolder({ files: [] })];
     const result = collectVisibleBookmarkedFiles({
-      folders,
       filesData: [],
       visibility: VISIBILITY_FILTER_OFF,
       composedIsFileHidden: () => false,
@@ -128,7 +126,6 @@ describe('collectVisibleBookmarkedFiles', () => {
   });
 
   it('returns single target when one file has one bookmark', () => {
-    const folders = [makeLoadedFolder({ files: [{ fileId: 'f1', path: 'meta1.json' }] })];
     const filesData = [
       makeLoadedFile({
         fileId: 'f1',
@@ -137,7 +134,6 @@ describe('collectVisibleBookmarkedFiles', () => {
       }),
     ];
     const result = collectVisibleBookmarkedFiles({
-      folders,
       filesData,
       visibility: VISIBILITY_FILTER_OFF,
       composedIsFileHidden: () => false,
@@ -148,7 +144,6 @@ describe('collectVisibleBookmarkedFiles', () => {
   });
 
   it('dedupes multiple bookmarks in the same file to a single target', () => {
-    const folders = [makeLoadedFolder({ files: [{ fileId: 'f1', path: 'meta1.json' }] })];
     const filesData = [
       makeLoadedFile({
         fileId: 'f1',
@@ -161,7 +156,6 @@ describe('collectVisibleBookmarkedFiles', () => {
       }),
     ];
     const result = collectVisibleBookmarkedFiles({
-      folders,
       filesData,
       visibility: VISIBILITY_FILTER_OFF,
       composedIsFileHidden: () => false,
@@ -172,15 +166,6 @@ describe('collectVisibleBookmarkedFiles', () => {
   });
 
   it('sorts results by relativePath when bookmarks come from multiple files', () => {
-    const folders = [
-      makeLoadedFolder({
-        files: [
-          { fileId: 'f1', path: 'meta1.json' },
-          { fileId: 'f2', path: 'meta2.json' },
-          { fileId: 'f3', path: 'meta3.json' },
-        ],
-      }),
-    ];
     const filesData = [
       makeLoadedFile({
         fileId: 'f1',
@@ -199,7 +184,6 @@ describe('collectVisibleBookmarkedFiles', () => {
       }),
     ];
     const result = collectVisibleBookmarkedFiles({
-      folders,
       filesData,
       visibility: VISIBILITY_FILTER_OFF,
       composedIsFileHidden: () => false,
@@ -212,14 +196,6 @@ describe('collectVisibleBookmarkedFiles', () => {
   });
 
   it('excludes files reported as hidden by composedIsFileHidden', () => {
-    const folders = [
-      makeLoadedFolder({
-        files: [
-          { fileId: 'fVisible', path: 'm1.json' },
-          { fileId: 'fHidden', path: 'm2.json' },
-        ],
-      }),
-    ];
     const filesData = [
       makeLoadedFile({
         fileId: 'fVisible',
@@ -233,7 +209,6 @@ describe('collectVisibleBookmarkedFiles', () => {
       }),
     ];
     const result = collectVisibleBookmarkedFiles({
-      folders,
       filesData,
       visibility: VISIBILITY_FILTER_OFF,
       composedIsFileHidden: (fileId) => fileId === 'fHidden',
@@ -242,7 +217,6 @@ describe('collectVisibleBookmarkedFiles', () => {
   });
 
   it('excludes bookmarks in hidden groups when filterEnabled is true', () => {
-    const folders = [makeLoadedFolder({ files: [{ fileId: 'f1', path: 'meta1.json' }] })];
     const filesData = [
       makeLoadedFile({
         fileId: 'f1',
@@ -257,7 +231,6 @@ describe('collectVisibleBookmarkedFiles', () => {
       }),
     ];
     const result = collectVisibleBookmarkedFiles({
-      folders,
       filesData,
       visibility: { hidden: ['gB'], focus: null, filterEnabled: true, searches: [] },
       composedIsFileHidden: () => false,
@@ -267,7 +240,6 @@ describe('collectVisibleBookmarkedFiles', () => {
   });
 
   it('still includes files with hidden-group-only bookmarks when filterEnabled is false', () => {
-    const folders = [makeLoadedFolder({ files: [{ fileId: 'f1', path: 'meta1.json' }] })];
     const filesData = [
       makeLoadedFile({
         fileId: 'f1',
@@ -280,7 +252,6 @@ describe('collectVisibleBookmarkedFiles', () => {
       }),
     ];
     const result = collectVisibleBookmarkedFiles({
-      folders,
       filesData,
       // filterEnabled: false → group-hide list is ignored
       visibility: { hidden: ['gB'], focus: null, filterEnabled: false, searches: [] },
@@ -292,7 +263,6 @@ describe('collectVisibleBookmarkedFiles', () => {
   });
 
   it('partial-visibility file (mix of visible and hidden group bookmarks) → file included once', () => {
-    const folders = [makeLoadedFolder({ files: [{ fileId: 'f1', path: 'meta1.json' }] })];
     const filesData = [
       makeLoadedFile({
         fileId: 'f1',
@@ -308,7 +278,6 @@ describe('collectVisibleBookmarkedFiles', () => {
       }),
     ];
     const result = collectVisibleBookmarkedFiles({
-      folders,
       filesData,
       visibility: { hidden: ['gB'], focus: null, filterEnabled: true, searches: [] },
       composedIsFileHidden: () => false,
@@ -319,7 +288,6 @@ describe('collectVisibleBookmarkedFiles', () => {
   });
 
   it('resolves file:// URIs to absolute fsPath and computes relativePath', () => {
-    const folders = [makeLoadedFolder({ files: [{ fileId: 'f1', path: 'meta1.json' }] })];
     const filesData = [
       makeLoadedFile({
         fileId: 'f1',
@@ -328,7 +296,6 @@ describe('collectVisibleBookmarkedFiles', () => {
       }),
     ];
     const result = collectVisibleBookmarkedFiles({
-      folders,
       filesData,
       visibility: VISIBILITY_FILTER_OFF,
       composedIsFileHidden: () => false,
@@ -339,16 +306,6 @@ describe('collectVisibleBookmarkedFiles', () => {
   });
 
   it('multi-root: bookmarked files from different workspace roots are all included, sorted globally', () => {
-    const folders = [
-      makeLoadedFolder({
-        wsRoot: '/ws/a',
-        files: [{ fileId: 'fA', path: 'meta.json' }],
-      }),
-      makeLoadedFolder({
-        wsRoot: '/ws/b',
-        files: [{ fileId: 'fB', path: 'meta.json' }],
-      }),
-    ];
     const filesData = [
       makeLoadedFile({
         wsRoot: '/ws/a',
@@ -364,7 +321,6 @@ describe('collectVisibleBookmarkedFiles', () => {
       }),
     ];
     const result = collectVisibleBookmarkedFiles({
-      folders,
       filesData,
       visibility: VISIBILITY_FILTER_OFF,
       composedIsFileHidden: () => false,

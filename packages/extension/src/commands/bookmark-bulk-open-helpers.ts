@@ -2,7 +2,6 @@
 // ABOUTME: Open/Scan all-files commands. Visible vs including-hidden scopes both
 // ABOUTME: funnel through buildBookmarkPickItems for consistent dedupe and sort.
 
-import type { WorkspaceRegistryV1 } from '@agentic-bookmarks/core';
 import {
   buildBookmarkPickItems,
   type Visibility,
@@ -20,12 +19,6 @@ export type BulkOpenTarget = {
   /** Workspace-relative path (POSIX separators) for sort + display. */
   relativePath: string;
 };
-
-// Tests inspect fsPath + relativePath only; the line value never reaches the
-// runner. Returning the fallback line keeps buildBookmarkPickItems happy
-// without pulling in anchorState.
-const noopResolveLine = (_id: string, _fsPath: string, fallback: number): number =>
-  fallback;
 
 function dedupeAndSort(
   items: Array<{ fsPath: string; relativePath: string }>
@@ -51,21 +44,16 @@ function dedupeAndSort(
  * inert and every bookmarked file is included.
  */
 export function collectVisibleBookmarkedFiles(opts: {
-  folders: LoadedFolder[];
   filesData: LoadedFile[];
   visibility: Visibility;
   composedIsFileHidden: (fileId: string) => boolean;
 }): BulkOpenTarget[] {
-  const { folders, filesData, visibility, composedIsFileHidden } = opts;
+  const { filesData, visibility, composedIsFileHidden } = opts;
   const items = buildBookmarkPickItems({
     scope: 'all',
     visibility,
     filesData,
-    // registry is unused by the helper (see bookmark-quickpick-items.ts:65);
-    // pass any folder's registry to satisfy the type.
-    registry: folders[0]?.reg ?? ({ files: [] } as unknown as WorkspaceRegistryV1),
     isFileHidden: composedIsFileHidden,
-    resolveLine: noopResolveLine,
   });
   return dedupeAndSort(items);
 }
@@ -108,9 +96,7 @@ export function collectAllRegisteredBookmarkedFiles(opts: {
     scope: 'all',
     visibility,
     filesData,
-    registry: folders[0]?.reg ?? ({ files: [] } as unknown as WorkspaceRegistryV1),
     isFileHidden,
-    resolveLine: noopResolveLine,
   });
   return dedupeAndSort(items);
 }
