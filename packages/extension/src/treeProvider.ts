@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { readFileV2, readRegistry, pathsForDataFile, type Paths, type BookmarksFileV2, matchesTextQuery, COMMON_SEARCH_SCOPE, getBookmarksDataRoot, workspaceRelativeToUri } from '@agentic-bookmarks/core';
 import { loadBuiltinCatalog, resolveGroupIconPath, resolveEffectiveStyleAndColor, ensureOverlayIconWithFallback, tokenToHex, type AppearanceOverrides, type EffectiveCatalog } from './appearance';
 import { getStatus, getErrorDetails, getScore, getResolvedLine, type AnchorStatus } from './anchorState';
-import { getViewPrefs } from './commands/views';
+import { getViewPref } from './commands/views';
 
 export class FileNode extends vscode.TreeItem {
   public readonly workspaceRoot: string;
@@ -326,7 +326,7 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
       }
       // Determine whether to group bookmarks under file parents. Stored in
       // workspaceState because the registry schema strips unknown keys.
-      const showFiles = getViewPrefs(this.extensionContext).showFilesInAllBookmarks !== false;
+      const showFiles = getViewPref(this.extensionContext, 'showFilesInAllBookmarks');
 
       if (!showFiles) {
         const catalog = await loadBuiltinCatalog(this.extensionContext);

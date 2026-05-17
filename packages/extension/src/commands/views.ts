@@ -13,6 +13,7 @@ import * as vscode from 'vscode';
 import type { BookmarksProvider } from '../treeProvider';
 import type { FilesGroupsProvider } from '../filesGroupsProvider';
 import type { SettingsProvider } from '../settingsProvider';
+import { SETTINGS_DEFAULTS, withDefault } from '../settings-defaults';
 
 export const VIEW_PREFS_KEY = 'agenticBookmarks.viewPrefs';
 
@@ -25,6 +26,14 @@ export function getViewPrefs(context: vscode.ExtensionContext): ViewPrefs {
   return context.workspaceState.get<ViewPrefs>(VIEW_PREFS_KEY, {});
 }
 
+export function getViewPref<K extends keyof ViewPrefs>(
+  context: vscode.ExtensionContext,
+  key: K,
+): NonNullable<ViewPrefs[K]> {
+  const stored = getViewPrefs(context)[key];
+  return withDefault(stored, SETTINGS_DEFAULTS.viewPrefs[key]) as NonNullable<ViewPrefs[K]>;
+}
+
 export interface ViewsDeps {
   context: vscode.ExtensionContext;
   provider: BookmarksProvider;
@@ -34,7 +43,7 @@ export interface ViewsDeps {
 
 async function flipViewToggle(context: vscode.ExtensionContext, key: keyof ViewPrefs): Promise<void> {
   const prefs = getViewPrefs(context);
-  const cur = prefs[key] !== false;
+  const cur = withDefault(prefs[key], SETTINGS_DEFAULTS.viewPrefs[key]);
   await context.workspaceState.update(VIEW_PREFS_KEY, { ...prefs, [key]: !cur });
 }
 

@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { readRegistry, setWatchersEnabled, setFileWatch, rebuildNameIndex, getBookmarksDataRoot, ensureIconCacheDir } from '@agentic-bookmarks/core';
 import { loadBuiltinCatalog, resolveGroupIconPath, tokenToHex } from './appearance';
-import { getViewPrefs } from './commands/views';
+import { getViewPref } from './commands/views';
 import { computeWorkspaceStats } from './settingsStats';
 import type { LicensingService } from './licensingService';
 
@@ -134,9 +134,9 @@ export class SettingsProvider implements vscode.TreeDataProvider<vscode.TreeItem
     }
     if ((e as any).label === 'Views') {
       const items: vscode.TreeItem[] = [];
-      const v = getViewPrefs(this._extensionContext);
-      items.push(this.toggleItem('Show files in All Bookmarks', v.showFilesInAllBookmarks !== false, 'agenticBookmarks.toggleShowFilesInAllBookmarks'));
-      items.push(this.toggleItem('Show bookmarks in Files & Groups', v.showBookmarksInFilesAndGroups !== false, 'agenticBookmarks.toggleShowBookmarksInFilesAndGroups'));
+      const ctx = this._extensionContext;
+      items.push(this.toggleItem('Show files in All Bookmarks', getViewPref(ctx, 'showFilesInAllBookmarks'), 'agenticBookmarks.toggleShowFilesInAllBookmarks'));
+      items.push(this.toggleItem('Show bookmarks in Files & Groups', getViewPref(ctx, 'showBookmarksInFilesAndGroups'), 'agenticBookmarks.toggleShowBookmarksInFilesAndGroups'));
       return items;
     }
     if ((e as any).label === 'Processing') {
