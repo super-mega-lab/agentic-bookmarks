@@ -107,7 +107,6 @@ async function collectTargets(
   };
 
   return collectVisibleBookmarkedFiles({
-    folders,
     filesData,
     visibility,
     composedIsFileHidden,

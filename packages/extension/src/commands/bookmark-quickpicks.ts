@@ -149,10 +149,6 @@ export function registerBookmarkQuickpicksCommands(
         activeFileFsPath,
         visibility,
         filesData,
-        // `registry` is unused by the helper; pass any folder's registry to
-        // satisfy the type. Multi-root file-hidden semantics are handled by
-        // composedIsFileHidden above.
-        registry: folders[0]?.reg ?? ({ files: [] } as unknown as WorkspaceRegistryV1),
         isFileHidden: composedIsFileHidden,
         resolveLine: makeResolveLine(),
       });
@@ -259,7 +255,6 @@ export function registerBookmarkQuickpicksCommands(
         scope: 'all',
         visibility,
         filesData,
-        registry: folders[0]?.reg ?? ({ files: [] } as unknown as WorkspaceRegistryV1),
         isFileHidden: composedIsFileHidden,
         resolveLine: makeResolveLine(),
       });

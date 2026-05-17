@@ -75,7 +75,6 @@ export function registerBookmarkExportCommand(
         scope: 'all',
         visibility,
         filesData,
-        registry: folders[0]?.reg ?? ({ files: [] } as unknown as WorkspaceRegistryV1),
         isFileHidden: composedIsFileHidden,
         resolveLine: makeResolveLine(),
       });

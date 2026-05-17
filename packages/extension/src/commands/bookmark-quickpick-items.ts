@@ -7,7 +7,6 @@ import {
   matchesTextQuery,
   COMMON_SEARCH_SCOPE,
   type BookmarksFileV2,
-  type WorkspaceRegistryV1,
 } from '@agentic-bookmarks/core';
 
 /** Sub-search filter (mirrors the shape stored in `ui.searches`). */
@@ -62,16 +61,15 @@ export type BuildBookmarkPickItemsOpts = {
    */
   filesData: Array<{ wsRoot: string; regPath: string; data: BookmarksFileV2 }>;
   visibility: Visibility;
-  /** Registry — supplied for downstream callers; not consumed by this helper. */
-  registry: WorkspaceRegistryV1;
   /** Callback so the caller controls file-hidden semantics. Pure-helper-friendly. */
   isFileHidden: (fileId: string) => boolean;
   /**
    * Resolve a bookmark's current display line. Receives the bookmarked file's
    * absolute fs path so the caller can canonicalize to the form used by their
    * line-state cache (e.g. `vscode.Uri.file(fsPath).toString()`).
+   * Defaults to returning the stored fallback line unchanged.
    */
-  resolveLine: (bookmarkId: string, fsPath: string, fallback: number) => number;
+  resolveLine?: (bookmarkId: string, fsPath: string, fallback: number) => number;
 };
 
 function stripFragment(uri: string): string {
@@ -177,6 +175,7 @@ export function buildBookmarkPickItems(opts: BuildBookmarkPickItemsOpts): Bookma
   // Defensive: scope=inFile without an active file means "no items".
   if (opts.scope === 'inFile' && !opts.activeFileFsPath) return [];
 
+  const resolveLine = opts.resolveLine ?? ((_id: string, _fsPath: string, fallback: number) => fallback);
   const items: BookmarkPickItem[] = [];
 
   for (const { wsRoot, data } of opts.filesData) {
@@ -199,7 +198,7 @@ export function buildBookmarkPickItems(opts: BuildBookmarkPickItemsOpts): Bookma
       const isRange = b.anchor?.kind === 'range';
       const { endLine: rawEndLine, fallback } = anchorLines(b.anchor);
 
-      const line = opts.resolveLine(b.id, fsPath, fallback);
+      const line = resolveLine(b.id, fsPath, fallback);
       // For non-range anchors, line and endLine agree. Range anchors keep their
       // original end.line so consumers retain the span.
       const endLine = isRange ? rawEndLine : line;
