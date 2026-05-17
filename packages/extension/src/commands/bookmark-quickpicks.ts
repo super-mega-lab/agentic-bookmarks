@@ -32,6 +32,7 @@ import {
   type LoadedFile,
   type LoadedFolder,
 } from './bookmark-loaders';
+import { composeFileHiddenPredicate } from './bookmark-loaders-helpers';
 
 export interface BookmarkQuickpicksDeps {
   workspaceRoot: string;
@@ -127,22 +128,7 @@ export function registerBookmarkQuickpicksCommands(
 
       // Bookmarks may belong to any workspace folder's registry; consult the
       // owning folder's registry for the per-file isFileHidden check.
-      const fileFolderById = new Map<string, LoadedFolder>();
-      for (const f of filesData) {
-        const fileId = (f.data as any).fileId as string;
-        const folder = foldersByRoot.get(f.wsRoot);
-        if (folder) fileFolderById.set(fileId, folder);
-      }
-      const composedIsFileHidden = (fileId: string): boolean => {
-        const folder = fileFolderById.get(fileId);
-        if (!folder) return false;
-        if (!isFileHidden(fileId, folder.reg)) return false;
-        // Bullseye trumps file-level UI-hide (extends SML-1380's focus-wins
-        // precedence to the file boundary). Registry-disable still wins.
-        const file = folder.reg.files.find((x: any) => x.fileId === fileId);
-        if ((file as any)?.enabled === false) return true;
-        return !(visibility.filterEnabled && visibility.focus !== null);
-      };
+      const composedIsFileHidden = composeFileHiddenPredicate(folders, filesData, visibility, isFileHidden);
 
       const items = buildBookmarkPickItems({
         scope: 'inFile',
@@ -238,22 +224,7 @@ export function registerBookmarkQuickpicksCommands(
         searches: ui.searches,
       };
 
-      const fileFolderById = new Map<string, LoadedFolder>();
-      for (const f of filesData) {
-        const fileId = (f.data as any).fileId as string;
-        const folder = foldersByRoot.get(f.wsRoot);
-        if (folder) fileFolderById.set(fileId, folder);
-      }
-      const composedIsFileHidden = (fileId: string): boolean => {
-        const folder = fileFolderById.get(fileId);
-        if (!folder) return false;
-        if (!isFileHidden(fileId, folder.reg)) return false;
-        // Bullseye trumps file-level UI-hide (extends SML-1380's focus-wins
-        // precedence to the file boundary). Registry-disable still wins.
-        const file = folder.reg.files.find((x: any) => x.fileId === fileId);
-        if ((file as any)?.enabled === false) return true;
-        return !(visibility.filterEnabled && visibility.focus !== null);
-      };
+      const composedIsFileHidden = composeFileHiddenPredicate(folders, filesData, visibility, isFileHidden);
 
       const items = buildBookmarkPickItems({
         scope: 'all',

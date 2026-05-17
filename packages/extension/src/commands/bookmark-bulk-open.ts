@@ -32,10 +32,8 @@
 import * as vscode from 'vscode';
 import { type WorkspaceRegistryV1 } from '@agentic-bookmarks/core';
 import type { Logger } from '../logger';
-import {
-  loadAllFolders,
-  type LoadedFolder,
-} from './bookmark-loaders';
+import { loadAllFolders } from './bookmark-loaders';
+import { composeFileHiddenPredicate } from './bookmark-loaders-helpers';
 import { type SearchFilter, type Visibility } from './bookmark-quickpick-items';
 import {
   collectAllRegisteredBookmarkedFiles,
@@ -78,9 +76,6 @@ async function collectTargets(
     return collectAllRegisteredBookmarkedFiles({ folders, filesData });
   }
 
-  // scope === 'visible' — build composedIsFileHidden + visibility the same way
-  // bookmark-quickpicks.ts and bookmark-export.ts do.
-  const foldersByRoot = new Map(folders.map((f) => [f.wsRoot, f]));
   const ui = getUIState();
   const visibility: Visibility = {
     hidden: ui.hidden,
@@ -89,22 +84,7 @@ async function collectTargets(
     searches: ui.searches,
   };
 
-  const fileFolderById = new Map<string, LoadedFolder>();
-  for (const f of filesData) {
-    const fileId = (f.data as { fileId: string }).fileId;
-    const folder = foldersByRoot.get(f.wsRoot);
-    if (folder) fileFolderById.set(fileId, folder);
-  }
-  const composedIsFileHidden = (fileId: string): boolean => {
-    const folder = fileFolderById.get(fileId);
-    if (!folder) return false;
-    if (!isFileHidden(fileId, folder.reg)) return false;
-    // Bullseye trumps file-level UI-hide (extends SML-1380's focus-wins
-    // precedence to the file boundary). Registry-disable still wins.
-    const file = folder.reg.files.find((x) => x.fileId === fileId);
-    if ((file as { enabled?: boolean })?.enabled === false) return true;
-    return !(visibility.filterEnabled && visibility.focus !== null);
-  };
+  const composedIsFileHidden = composeFileHiddenPredicate(folders, filesData, visibility, isFileHidden);
 
   return collectVisibleBookmarkedFiles({
     folders,
