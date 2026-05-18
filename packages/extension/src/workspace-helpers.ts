@@ -264,7 +264,9 @@ export async function removeTagComment(
   }
 
   const currentLine = document.lineAt(line).text;
-  const tagPattern = new RegExp(`\\s*//\\s*@bookmark:${tagId}\\b|\\s*#\\s*@bookmark:${tagId}\\b|\\s*/\\*\\s*@bookmark:${tagId}\\s*\\*/`, 'g');
+  const escapedTagId = tagId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const TAG_TAIL = '(?![A-Za-z0-9_-])';
+  const tagPattern = new RegExp(`\\s*//\\s*@bookmark:${escapedTagId}${TAG_TAIL}|\\s*#\\s*@bookmark:${escapedTagId}${TAG_TAIL}|\\s*/\\*\\s*@bookmark:${escapedTagId}\\s*\\*/`, 'g');
 
   const newLine = currentLine.replace(tagPattern, '');
 

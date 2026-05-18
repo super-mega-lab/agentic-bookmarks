@@ -298,7 +298,9 @@ export function registerGroupManagementCommands(deps: GroupManagementDeps): vsco
 
             for (let i = 0; i < lines.length; i++) {
               if (lines[i].includes(removal.pattern)) {
-                const tagPattern = new RegExp(`\\s*//\\s*@bookmark:${tagId}\\b|\\s*#\\s*@bookmark:${tagId}\\b|\\s*/\\*\\s*@bookmark:${tagId}\\s*\\*/`, 'g');
+                const escapedTagId = tagId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const TAG_TAIL = '(?![A-Za-z0-9_-])';
+                const tagPattern = new RegExp(`\\s*//\\s*@bookmark:${escapedTagId}${TAG_TAIL}|\\s*#\\s*@bookmark:${escapedTagId}${TAG_TAIL}|\\s*/\\*\\s*@bookmark:${escapedTagId}\\s*\\*/`, 'g');
                 const newLine = lines[i].replace(tagPattern, '');
                 const lineRange = doc.lineAt(i).range;
 
