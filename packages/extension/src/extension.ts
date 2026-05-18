@@ -52,6 +52,7 @@ import { createAnchorResolution } from './anchor-resolution';
 import { migrateLocalLayout } from './migrate-local-layout';
 import { maybeShowGitignoreNudge } from './gitignore-nudge';
 import { OrderingService } from './ordering/service';
+import { WelcomeViewProvider } from './views/welcome/welcomeView';
 
 // ---------------------------------------------------------------------------
 // activate
@@ -238,6 +239,16 @@ export async function activate(context: vscode.ExtensionContext) {
   const settingsProvider = new SettingsProvider(workspaceRoot, context, licensing);
   const settingsView = vscode.window.createTreeView('agenticBookmarks.settings', { treeDataProvider: settingsProvider, showCollapseAll: true });
   context.subscriptions.push(settingsView);
+
+  // --- Welcome webview ---
+  const welcomeProvider = new WelcomeViewProvider(context.extensionUri);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      WelcomeViewProvider.viewId,
+      welcomeProvider,
+      { webviewOptions: { retainContextWhenHidden: false } },
+    ),
+  );
 
   // --- Multi-workspace context ---
   const updateHasMultipleWorkspacesContext = () => {

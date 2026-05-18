@@ -17,7 +17,7 @@
   },
   "license": "LicenseRef-PolyForm-Shield-1.0.0",
   "icon": "icon512.png",
-  "version": "0.7.7",
+  "version": "0.7.8",
   "engines": {
     "vscode": "^1.92.0"
   },
@@ -245,6 +245,12 @@
     },
     "views": {
       "agenticBookmarks-container": [
+        {
+          "id": "agenticBookmarks.welcome",
+          "type": "webview",
+          "name": "Welcome",
+          "visibility": "visible"
+        },
         {
           "id": "agenticBookmarks.view",
           "name": "All Bookmarks",
