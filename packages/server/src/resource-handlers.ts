@@ -16,6 +16,13 @@ import {
   SKILL_MAP_CODEBASE,
 } from './skills/index.js';
 
+const SKILL_RESOURCES: Record<string, string> = {
+  'bookmarks://skill/add-to-system': SKILL_ADD_TO_SYSTEM,
+  'bookmarks://skill/add-to-files': SKILL_ADD_TO_FILES,
+  'bookmarks://skill/analyze': SKILL_ANALYZE,
+  'bookmarks://skill/map-codebase': SKILL_MAP_CODEBASE,
+};
+
 // ============================================================================
 // ListResources handler
 // ============================================================================
@@ -134,15 +141,9 @@ export async function handleReadResource(ctx: ServerContext, uri: string) {
   }
 
   // Skill guides
-  const skillMap: Record<string, string> = {
-    'bookmarks://skill/add-to-system': SKILL_ADD_TO_SYSTEM,
-    'bookmarks://skill/add-to-files': SKILL_ADD_TO_FILES,
-    'bookmarks://skill/analyze': SKILL_ANALYZE,
-    'bookmarks://skill/map-codebase': SKILL_MAP_CODEBASE,
-  };
-  if (uri in skillMap) {
+  if (uri in SKILL_RESOURCES) {
     return {
-      contents: [{ uri, mimeType: 'text/markdown', text: skillMap[uri] }]
+      contents: [{ uri, mimeType: 'text/markdown', text: SKILL_RESOURCES[uri] }]
     };
   }
 
