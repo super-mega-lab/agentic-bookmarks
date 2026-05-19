@@ -64,6 +64,7 @@ import type { SettingsProvider } from '../settingsProvider';
 import type { BookmarkCodeLensProvider } from '../bookmarkCodeLensProvider';
 import { buildAgentRepairPrompt, getConfiguredDataRoot } from '../workspace-helpers';
 import { buildClaudeMcpSetupCommand } from './mcp-setup-helpers';
+import { recordMcpInstall, getOutdatedMcpInstalls, type McpInstallEntry } from './mcp-install-state';
 
 type UIState = { hidden: string[]; focus: string | null; filterEnabled?: boolean; hiddenFiles?: string[] };
 type SearchFilter = { id: string; text: string; regex: boolean; op: 'AND' | 'OR' };
@@ -102,6 +103,118 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     setUIState,
     getCatalogCache,
   } = deps;
+
+  const currentVersion = ((context as any).extension?.packageJSON?.version as string) ?? '';
+
+  async function applyClaudeSetup(scope: 'local' | 'user'): Promise<void> {
+    const serverPath = context.asAbsolutePath('server-bundle/index.js');
+    const cmd = buildClaudeMcpSetupCommand(scope, serverPath, getLocalDir(workspaceRoot));
+    const terminal = vscode.window.createTerminal('Setup Claude MCP');
+    terminal.show();
+    terminal.sendText(cmd, true);
+    vscode.window.showInformationMessage(
+      `Running 'claude mcp add' (${scope} scope). Watch the terminal for output.`,
+    );
+    await recordMcpInstall(context, 'claude', scope, currentVersion);
+  }
+
+  async function applyCursorSetup(scope: 'project' | 'global'): Promise<void> {
+    const fs = require('fs').promises as typeof import('node:fs/promises');
+    const os = require('os') as typeof import('node:os');
+    const cursorDir =
+      scope === 'project'
+        ? path.join(workspaceRoot, '.cursor')
+        : path.join(os.homedir(), '.cursor');
+    const configPath = path.join(cursorDir, 'mcp.json');
+
+    await fs.mkdir(cursorDir, { recursive: true });
+
+    try { await fs.access(context.asAbsolutePath('server-bundle/index.js')); }
+    catch { vscode.window.showWarningMessage('Agentic Bookmarks: server bundle not found. Run "pnpm build" to generate server-bundle/index.js.'); }
+
+    let existing: any = {};
+    try {
+      existing = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    } catch { existing = {}; }
+
+    // Drop legacy server names if present
+    if (existing?.mcpServers && typeof existing.mcpServers === 'object') {
+      for (const legacyKey of ['mcp.bookmarks', 'mcp_bookmarks']) {
+        if (legacyKey in existing.mcpServers) {
+          delete (existing.mcpServers as any)[legacyKey];
+        }
+      }
+    }
+
+    const serverAbs = context.asAbsolutePath('server-bundle/index.js');
+    const env: Record<string, string> =
+      scope === 'project'
+        ? { BOOKMARKS_DIR: '${workspaceFolder}/.bookmarks/local' }
+        : { BOOKMARKS_DIR: '', BOOKMARKS_UPWARD_DISCOVERY: 'true' };
+
+    const next = {
+      ...existing,
+      mcpServers: {
+        ...(existing?.mcpServers ?? {}),
+        'agentic_bookmarks': { type: 'stdio', command: 'node', args: [serverAbs], env },
+      },
+    };
+
+    await fs.writeFile(configPath, JSON.stringify(next, null, 2));
+    vscode.window.showInformationMessage(`Cursor MCP config updated at ${configPath}`);
+    await recordMcpInstall(context, 'cursor', scope, currentVersion);
+  }
+
+  async function applyCodexSetup(scope: 'project' | 'global'): Promise<void> {
+    const fs = require('fs').promises as typeof import('node:fs/promises');
+    const os = require('os') as typeof import('node:os');
+    const serverAbs = context.asAbsolutePath('server-bundle/index.js');
+    const codexDir =
+      scope === 'project'
+        ? path.join(workspaceRoot, '.codex')
+        : path.join(os.homedir(), '.codex');
+    const configPath = path.join(codexDir, 'config.toml');
+
+    await fs.mkdir(codexDir, { recursive: true });
+
+    try { await fs.access(serverAbs); }
+    catch { vscode.window.showWarningMessage('Agentic Bookmarks: server bundle not found. Run "pnpm build" to generate server-bundle/index.js.'); }
+
+    let text = '';
+    try { text = await fs.readFile(configPath, 'utf8'); } catch { text = ''; }
+
+    const argsPath = serverAbs.replace(/\\/g, '/');
+    const blockHeader = '[mcp_servers."agentic_bookmarks"]';
+    const newBlock = [
+      blockHeader,
+      'command = "node"',
+      'args = [',
+      `  "${argsPath}",`,
+      ']',
+      'env = { BOOKMARKS_DIR = "", BOOKMARKS_UPWARD_DISCOVERY = "true" }',
+      'startup_timeout_sec = 20',
+      '',
+    ].join('\n');
+
+    // Strip legacy server blocks if present
+    for (const legacyKey of ['mcp.bookmarks', 'mcp_bookmarks']) {
+      const escapedKey = legacyKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const legacyRe = new RegExp(`^\\[mcp_servers\\."${escapedKey}"\\][\\s\\S]*?(?=^\\[|(?![\\s\\S]))`, 'm');
+      text = text.replace(legacyRe, '');
+    }
+
+    const re = /^\[mcp_servers\.\"agentic_bookmarks\"\][\s\S]*?(?=^\[|(?![\s\S]))/m;
+    if (re.test(text)) {
+      text = text.replace(re, newBlock);
+    } else {
+      if (text.length && !text.endsWith('\n')) text += '\n';
+      text += (text.length ? '\n' : '') + newBlock;
+    }
+
+    await fs.writeFile(configPath, text);
+    vscode.window.showInformationMessage(`Codex MCP config updated at ${configPath}`);
+    await recordMcpInstall(context, 'codex', scope, currentVersion);
+  }
 
   return [
     // Debug: place a test gutter icon at the current line
@@ -341,8 +454,6 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
 
     // Setup Claude Code MCP via `claude mcp add` (modern CLI syntax)
     vscode.commands.registerCommand('agenticBookmarks.setupClaude', async () => {
-      const serverPath = context.asAbsolutePath('server-bundle/index.js');
-
       const scopeChoice = await vscode.window.showQuickPick(
         [
           {
@@ -359,26 +470,11 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
         { placeHolder: 'Select Claude Code MCP install scope' },
       );
       if (!scopeChoice) return;
-
-      const cmd = buildClaudeMcpSetupCommand(
-        scopeChoice.scope,
-        serverPath,
-        getLocalDir(workspaceRoot),
-      );
-
-      const terminal = vscode.window.createTerminal('Setup Claude MCP');
-      terminal.show();
-      terminal.sendText(cmd, /*addNewLine*/ true);
-
-      vscode.window.showInformationMessage(
-        `Running 'claude mcp add' (${scopeChoice.scope} scope). Watch the terminal for output.`,
-      );
+      await applyClaudeSetup(scopeChoice.scope);
     }),
 
     // Setup Cursor MCP — writes mcp.json at project or global scope
     vscode.commands.registerCommand('agenticBookmarks.setupCursor', async () => {
-      const serverAbs = context.asAbsolutePath('server-bundle/index.js');
-
       const scopeChoice = await vscode.window.showQuickPick(
         [
           {
@@ -395,55 +491,8 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
         { placeHolder: 'Select Cursor MCP install scope' },
       );
       if (!scopeChoice) return;
-
-      const fs = require('fs').promises as typeof import('node:fs/promises');
-      const os = require('os') as typeof import('node:os');
-      const cursorDir =
-        scopeChoice.scope === 'project'
-          ? path.join(workspaceRoot, '.cursor')
-          : path.join(os.homedir(), '.cursor');
-      const configPath = path.join(cursorDir, 'mcp.json');
-
       try {
-        await fs.mkdir(cursorDir, { recursive: true });
-
-        try { await fs.access(serverAbs); }
-        catch { vscode.window.showWarningMessage('Agentic Bookmarks: server bundle not found. Run "pnpm build" to generate server-bundle/index.js.'); }
-
-        let existing: any = {};
-        try {
-          existing = JSON.parse(await fs.readFile(configPath, 'utf8'));
-        } catch { existing = {}; }
-
-        // Drop legacy server names if present
-        if (existing?.mcpServers && typeof existing.mcpServers === 'object') {
-          for (const legacyKey of ['mcp.bookmarks', 'mcp_bookmarks']) {
-            if (legacyKey in existing.mcpServers) {
-              delete (existing.mcpServers as any)[legacyKey];
-            }
-          }
-        }
-
-        const env: Record<string, string> =
-          scopeChoice.scope === 'project'
-            ? { BOOKMARKS_DIR: '${workspaceFolder}/.bookmarks/local' }
-            : { BOOKMARKS_DIR: '', BOOKMARKS_UPWARD_DISCOVERY: 'true' };
-
-        const next = {
-          ...existing,
-          mcpServers: {
-            ...(existing?.mcpServers ?? {}),
-            'agentic_bookmarks': {
-              type: 'stdio',
-              command: 'node',
-              args: [serverAbs],
-              env,
-            },
-          },
-        };
-
-        await fs.writeFile(configPath, JSON.stringify(next, null, 2));
-        vscode.window.showInformationMessage(`Cursor MCP config updated at ${configPath}`);
+        await applyCursorSetup(scopeChoice.scope);
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to write Cursor MCP config: ${error}`);
       }
@@ -451,8 +500,6 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
 
     // Setup Codex MCP — writes config.toml at project or global scope
     vscode.commands.registerCommand('agenticBookmarks.setupCodex', async () => {
-      const serverAbs = context.asAbsolutePath('server-bundle/index.js');
-
       const scopeChoice = await vscode.window.showQuickPick(
         [
           {
@@ -469,54 +516,8 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
         { placeHolder: 'Select Codex MCP install scope' },
       );
       if (!scopeChoice) return;
-
-      const fs = require('fs').promises as typeof import('node:fs/promises');
-      const os = require('os') as typeof import('node:os');
-      const codexDir =
-        scopeChoice.scope === 'project'
-          ? path.join(workspaceRoot, '.codex')
-          : path.join(os.homedir(), '.codex');
-      const configPath = path.join(codexDir, 'config.toml');
-
       try {
-        await fs.mkdir(codexDir, { recursive: true });
-
-        try { await fs.access(serverAbs); }
-        catch { vscode.window.showWarningMessage('Agentic Bookmarks: server bundle not found. Run "pnpm build" to generate server-bundle/index.js.'); }
-
-        let text = '';
-        try { text = await fs.readFile(configPath, 'utf8'); } catch { text = ''; }
-
-        const argsPath = serverAbs.replace(/\\/g, '/');
-        const blockHeader = '[mcp_servers."agentic_bookmarks"]';
-        const newBlock = [
-          blockHeader,
-          'command = "node"',
-          'args = [',
-          `  "${argsPath}",`,
-          ']',
-          'env = { BOOKMARKS_DIR = "", BOOKMARKS_UPWARD_DISCOVERY = "true" }',
-          'startup_timeout_sec = 20',
-          '',
-        ].join('\n');
-
-        // Strip legacy server blocks if present
-        for (const legacyKey of ['mcp.bookmarks', 'mcp_bookmarks']) {
-          const escapedKey = legacyKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const legacyRe = new RegExp(`^\\[mcp_servers\\."${escapedKey}"\\][\\s\\S]*?(?=^\\[|(?![\\s\\S]))`, 'm');
-          text = text.replace(legacyRe, '');
-        }
-
-        const re = /^\[mcp_servers\.\"agentic_bookmarks\"\][\s\S]*?(?=^\[|(?![\s\S]))/m;
-        if (re.test(text)) {
-          text = text.replace(re, newBlock);
-        } else {
-          if (text.length && !text.endsWith('\n')) text += '\n';
-          text += (text.length ? '\n' : '') + newBlock;
-        }
-
-        await fs.writeFile(configPath, text);
-        vscode.window.showInformationMessage(`Codex MCP config updated at ${configPath}`);
+        await applyCodexSetup(scopeChoice.scope);
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to write Codex MCP config: ${error}`);
       }
