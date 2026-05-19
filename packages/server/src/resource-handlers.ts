@@ -9,6 +9,20 @@ import {
 import * as path from 'node:path';
 import { getRegistryForWorkspace } from './workspace.js';
 import { anchorToWire } from './tools/line-basis.js';
+import {
+  SKILL_ADD_TO_SYSTEM,
+  SKILL_ADD_TO_FILES,
+  SKILL_ANALYZE,
+  SKILL_MAP_CODEBASE,
+} from './skills/index.js';
+
+// When adding a skill, update handleListResources entries below as well.
+export const SKILL_RESOURCES: Record<string, string> = {
+  'bookmarks://skill/add-to-system': SKILL_ADD_TO_SYSTEM,
+  'bookmarks://skill/add-to-files': SKILL_ADD_TO_FILES,
+  'bookmarks://skill/analyze': SKILL_ANALYZE,
+  'bookmarks://skill/map-codebase': SKILL_MAP_CODEBASE,
+};
 
 // ============================================================================
 // ListResources handler
@@ -28,7 +42,31 @@ export async function handleListResources() {
         name: 'Bookmarks Files and Groups',
         description: 'Lightweight summary of bookmark files and their groups',
         mimeType: 'application/json'
-      }
+      },
+      {
+        uri: 'bookmarks://skill/add-to-system',
+        name: 'Skill: Bookmark a subsystem',
+        description: 'Workflow guide for bookmarking key locations in a named subsystem',
+        mimeType: 'text/markdown'
+      },
+      {
+        uri: 'bookmarks://skill/add-to-files',
+        name: 'Skill: Bookmark specific files',
+        description: 'Workflow guide for directly annotating one or more files with bookmarks',
+        mimeType: 'text/markdown'
+      },
+      {
+        uri: 'bookmarks://skill/analyze',
+        name: 'Skill: Analyze bookmark coverage',
+        description: 'Workflow guide for deriving insights from the existing bookmark set',
+        mimeType: 'text/markdown'
+      },
+      {
+        uri: 'bookmarks://skill/map-codebase',
+        name: 'Skill: Map the full codebase',
+        description: 'Workflow guide for building a complete organized bookmark map of the codebase',
+        mimeType: 'text/markdown'
+      },
     ]
   };
 }
@@ -100,6 +138,13 @@ export async function handleReadResource(ctx: ServerContext, uri: string) {
         mimeType: 'application/json',
         text: JSON.stringify({ files: allFiles }),
       }],
+    };
+  }
+
+  // Skill guides
+  if (uri in SKILL_RESOURCES) {
+    return {
+      contents: [{ uri, mimeType: 'text/markdown', text: SKILL_RESOURCES[uri] }]
     };
   }
 
