@@ -18,6 +18,12 @@ export interface McpInstallEntry {
 
 const AGENTS: McpAgent[] = ['claude', 'cursor', 'codex'];
 
+export const AGENT_DISPLAY_NAMES: Record<McpAgent, string> = {
+  claude: 'Claude Code',
+  cursor: 'Cursor',
+  codex: 'Codex',
+};
+
 function stateKey(agent: McpAgent): string {
   return `agenticBookmarks.mcp.${agent}`;
 }
