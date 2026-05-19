@@ -16,7 +16,8 @@ import {
   SKILL_MAP_CODEBASE,
 } from './skills/index.js';
 
-const SKILL_RESOURCES: Record<string, string> = {
+// When adding a skill, update handleListResources entries below as well.
+export const SKILL_RESOURCES: Record<string, string> = {
   'bookmarks://skill/add-to-system': SKILL_ADD_TO_SYSTEM,
   'bookmarks://skill/add-to-files': SKILL_ADD_TO_FILES,
   'bookmarks://skill/analyze': SKILL_ANALYZE,

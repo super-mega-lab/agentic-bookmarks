@@ -2,7 +2,7 @@
 // ABOUTME: Exercises handleListResources and handleReadResource for bookmarks://skill/* URIs.
 
 import { describe, it, expect } from 'vitest';
-import { handleListResources, handleReadResource } from './resource-handlers.js';
+import { handleListResources, handleReadResource, SKILL_RESOURCES } from './resource-handlers.js';
 import { toolDefinitions } from './tools/definitions.js';
 
 describe('handleListResources', () => {
@@ -19,6 +19,14 @@ describe('handleListResources', () => {
     const result = await handleListResources();
     const uris = result.resources.map(r => r.uri);
     expect(uris).not.toContain('bookmarks://skill/repair');
+  });
+
+  it('listed skill URIs match SKILL_RESOURCES keys exactly', async () => {
+    const listed = (await handleListResources()).resources
+      .filter(r => r.uri.startsWith('bookmarks://skill/'))
+      .map(r => r.uri)
+      .sort();
+    expect(listed).toEqual(Object.keys(SKILL_RESOURCES).sort());
   });
 
   it('skill resources have text/markdown mimeType', async () => {
