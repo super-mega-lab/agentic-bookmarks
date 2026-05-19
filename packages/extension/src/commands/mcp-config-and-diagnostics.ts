@@ -64,7 +64,7 @@ import type { SettingsProvider } from '../settingsProvider';
 import type { BookmarkCodeLensProvider } from '../bookmarkCodeLensProvider';
 import { buildAgentRepairPrompt, getConfiguredDataRoot } from '../workspace-helpers';
 import { buildClaudeMcpSetupCommand } from './mcp-setup-helpers';
-import { recordMcpInstall } from './mcp-install-state';
+import { recordMcpInstall, getOutdatedMcpInstalls, type McpInstallEntry } from './mcp-install-state';
 
 type UIState = { hidden: string[]; focus: string | null; filterEnabled?: boolean; hiddenFiles?: string[] };
 type SearchFilter = { id: string; text: string; regex: boolean; op: 'AND' | 'OR' };
@@ -519,6 +519,24 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
         await applyCodexSetup(scopeChoice.scope);
       } catch (error) {
         vscode.window.showErrorMessage(`Failed to write Codex MCP config: ${error}`);
+      }
+    }),
+
+    // Re-run MCP setup for all previously installed agents that are outdated
+    vscode.commands.registerCommand('agenticBookmarks.updateMcpRegistrations', async () => {
+      const outdated = getOutdatedMcpInstalls(context, currentVersion);
+      for (const entry of outdated) {
+        try {
+          if (entry.agent === 'claude') {
+            await applyClaudeSetup(entry.record.scope as 'local' | 'user');
+          } else if (entry.agent === 'cursor') {
+            await applyCursorSetup(entry.record.scope as 'project' | 'global');
+          } else if (entry.agent === 'codex') {
+            await applyCodexSetup(entry.record.scope as 'project' | 'global');
+          }
+        } catch (e) {
+          log.error(`[updateMcpRegistrations] Failed to update ${entry.agent}: ${e}`);
+        }
       }
     }),
 
