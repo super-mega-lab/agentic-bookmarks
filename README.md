@@ -4,7 +4,9 @@
 
 **Public beta:** all Pro features are free for everyone. Beta end date: **to be announced**.
 
-**Agentic Bookmarks** — durable code bookmarks for you and your AI agents. Bookmarks survive refactors, merge cleanly when checked into git, and LLM agents can read, place, and repair them through MCP. Implemented in pure JavaScript with atomic JSON storage (no native dependencies).
+Most code bookmarks are local to your machine and break the moment you rename a file or move a function. **Agentic Bookmarks** fixes both: self-healing bookmarks that survive refactors, check into git so your whole team shares them, and are usable by LLM agents through a bundled MCP server. Implemented in pure JavaScript with atomic JSON storage (no native dependencies).
+
+The extension collects no usage telemetry.
 
 > **Source-available repository.** The code in this repository is published under [PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/) — see [`LICENSE`](LICENSE). The proprietary core that implements Agentic Bookmarks' Pro features is maintained in a separate private repository and is distributed only as a compiled artifact bundled with the Marketplace release.
 
