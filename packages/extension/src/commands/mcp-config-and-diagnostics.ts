@@ -64,7 +64,7 @@ import type { SettingsProvider } from '../settingsProvider';
 import type { BookmarkCodeLensProvider } from '../bookmarkCodeLensProvider';
 import { buildAgentRepairPrompt, getConfiguredDataRoot } from '../workspace-helpers';
 import { buildClaudeMcpSetupCommand } from './mcp-setup-helpers';
-import { recordMcpInstall, getOutdatedMcpInstalls, type McpInstallEntry } from './mcp-install-state';
+import { recordMcpInstall } from './mcp-install-state';
 
 type UIState = { hidden: string[]; focus: string | null; filterEnabled?: boolean; hiddenFiles?: string[] };
 type SearchFilter = { id: string; text: string; regex: boolean; op: 'AND' | 'OR' };
@@ -121,6 +121,7 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
   async function applyCursorSetup(scope: 'project' | 'global'): Promise<void> {
     const fs = require('fs').promises as typeof import('node:fs/promises');
     const os = require('os') as typeof import('node:os');
+    const serverAbs = context.asAbsolutePath('server-bundle/index.js');
     const cursorDir =
       scope === 'project'
         ? path.join(workspaceRoot, '.cursor')
@@ -129,7 +130,7 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
 
     await fs.mkdir(cursorDir, { recursive: true });
 
-    try { await fs.access(context.asAbsolutePath('server-bundle/index.js')); }
+    try { await fs.access(serverAbs); }
     catch { vscode.window.showWarningMessage('Agentic Bookmarks: server bundle not found. Run "pnpm build" to generate server-bundle/index.js.'); }
 
     let existing: any = {};
@@ -145,8 +146,6 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
         }
       }
     }
-
-    const serverAbs = context.asAbsolutePath('server-bundle/index.js');
     const env: Record<string, string> =
       scope === 'project'
         ? { BOOKMARKS_DIR: '${workspaceFolder}/.bookmarks/local' }
