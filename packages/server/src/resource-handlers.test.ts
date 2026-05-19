@@ -3,6 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { handleListResources, handleReadResource } from './resource-handlers.js';
+import { toolDefinitions } from './tools/definitions.js';
 
 describe('handleListResources', () => {
   it('includes all four skill resources', async () => {
@@ -67,8 +68,6 @@ describe('handleReadResource — skill URIs', () => {
       .rejects.toThrow('Invalid resource URI');
   });
 });
-
-import { toolDefinitions } from './tools/definitions.js';
 
 describe('tool description discovery hints', () => {
   function getDesc(name: string) {
