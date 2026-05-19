@@ -7,7 +7,7 @@ export type McpAgent = 'claude' | 'cursor' | 'codex';
 
 export interface AgentMcpRecord {
   scope: 'local' | 'user' | 'project' | 'global';
-  installedVersion: string;
+  installedVersion?: string;
 }
 
 export interface McpInstallEntry {
