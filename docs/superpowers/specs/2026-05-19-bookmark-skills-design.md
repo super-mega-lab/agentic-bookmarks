@@ -2,7 +2,7 @@
 
 **Ticket:** SML-1382  
 **Date:** 2026-05-19  
-**Status:** Approved
+**Status:** Approved (revised: removed repair skill and anchor_getRepairSkillGuide changes per Andrew's feedback)
 
 ## Problem
 
@@ -22,11 +22,10 @@ This is consistent with the existing `anchor_getRepairSkillGuide` tool, which al
 
 ### Resources
 
-Five skill resources, each a structured markdown playbook:
+Four skill resources, each a structured markdown playbook:
 
 | Resource URI | Skill |
 |---|---|
-| `bookmarks://skill/repair` | Fix broken/low-confidence anchors |
 | `bookmarks://skill/add-to-system` | Bookmark key locations in a named subsystem |
 | `bookmarks://skill/add-to-files` | Bookmark key locations in specific files |
 | `bookmarks://skill/analyze` | Derive insights from existing bookmarks |
@@ -36,21 +35,7 @@ Five skill resources, each a structured markdown playbook:
 
 Skill markdown lives as string constants or static `.md` files in `packages/server/src/skills/`. The existing resource handler in `resource-handlers.ts` serves them.
 
-### Migration of `anchor_getRepairSkillGuide`
-
-The tool is kept (no breaking change). Its content moves to `bookmarks://skill/repair` as the canonical home. The tool response appends: *"This guide is also available as the resource `bookmarks://skill/repair`."*
-
 ## Skill Workflows
-
-### `bookmarks://skill/repair`
-
-Foundation is the existing `anchor_getRepairSkillGuide` waterfall. The resource version adds:
-
-1. Always start with `anchor_listBroken` for awareness before touching specific files.
-2. Run the full waterfall for each broken anchor.
-3. "Done" is defined: all broken anchors either resolved or documented as unresolvable with a reason.
-
-No behavioral change from the existing guide — this is a migration to a better home plus an explicit entry point.
 
 ### `bookmarks://skill/add-to-system`
 
@@ -102,9 +87,7 @@ Tool descriptions get a one-line hint at the entry points agents naturally reach
 
 | Tool(s) | Appended hint |
 |---|---|
-| `anchor_listBroken`, `anchor_validate` | `"Read bookmarks://skill/repair for the repair workflow."` |
-| `anchor_getRepairSkillGuide` (response) | `"This guide is also available as the resource bookmarks://skill/repair."` |
 | `bookmark_add` | `"For guidance on bookmarking a system or set of files, read bookmarks://skill/add-to-system or bookmarks://skill/add-to-files."` |
 | `bookmark_list`, `bookmark_search` | `"To derive insights from existing bookmarks, read bookmarks://skill/analyze. If no bookmarks exist yet, consider bookmarks://skill/map-codebase to build an initial map."` |
 
-No other tools need hints — these five entry points cover the natural start of each workflow.
+No other tools need hints — these three entry points cover the natural start of each workflow.
