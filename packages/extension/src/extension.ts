@@ -39,6 +39,7 @@ import { registerAppearanceCommands } from './commands/appearance';
 import { registerViewsCommands } from './commands/views';
 import { registerSettingsAndFilterCommands } from './commands/settings-and-filters';
 import { registerMcpConfigAndDiagnosticsCommands } from './commands/mcp-config-and-diagnostics';
+import { getOutdatedMcpInstalls, type McpInstallEntry } from './commands/mcp-install-state';
 import {
   type RepairDeps,
   getBookmarkAnchorForRepair,
@@ -606,6 +607,32 @@ export async function activate(context: vscode.ExtensionContext) {
       getCatalogCache,
     }),
   );
+
+  // Fire-and-forget: show update notification if any MCP registrations are outdated.
+  // Runs after commands are registered so updateMcpRegistrations is callable.
+  void (async () => {
+    const currentVersion = ((context as any).extension?.packageJSON?.version as string) ?? '';
+    const outdated = getOutdatedMcpInstalls(context, currentVersion);
+    if (outdated.length === 0) return;
+
+    const entryLabel = (e: McpInstallEntry) => {
+      const name = e.agent.charAt(0).toUpperCase() + e.agent.slice(1);
+      return `${name} (${e.record.scope})`;
+    };
+
+    const buttonLabel = outdated.length === 1
+      ? `Update ${entryLabel(outdated[0])}`
+      : 'Update All';
+    const agentList = outdated.map(entryLabel).join(', ');
+    const noun = outdated.length === 1 ? 'registration' : 'registrations';
+    const message = `Agentic Bookmarks updated to v${currentVersion} — ${agentList} MCP ${noun} need updating.`;
+
+    const choice = await vscode.window.showInformationMessage(message, buttonLabel);
+    if (choice === buttonLabel) {
+      await vscode.commands.executeCommand('agenticBookmarks.updateMcpRegistrations');
+    }
+  })();
+
   log.info('Commands registered');
 
   // --- Initialize anchor state for already-open documents ---
