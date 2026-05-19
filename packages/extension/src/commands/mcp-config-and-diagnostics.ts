@@ -64,7 +64,7 @@ import type { SettingsProvider } from '../settingsProvider';
 import type { BookmarkCodeLensProvider } from '../bookmarkCodeLensProvider';
 import { buildAgentRepairPrompt, getConfiguredDataRoot } from '../workspace-helpers';
 import { buildClaudeMcpSetupCommand } from './mcp-setup-helpers';
-import { recordMcpInstall, getOutdatedMcpInstalls, type McpInstallEntry } from './mcp-install-state';
+import { recordMcpInstall, getOutdatedMcpInstalls } from './mcp-install-state';
 
 type UIState = { hidden: string[]; focus: string | null; filterEnabled?: boolean; hiddenFiles?: string[] };
 type SearchFilter = { id: string; text: string; regex: boolean; op: 'AND' | 'OR' };
