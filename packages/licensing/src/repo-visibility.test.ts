@@ -26,12 +26,12 @@ describe('createStubRepoVisibility', () => {
 });
 
 describe('BETA_CUTOFF constants', () => {
-  it('BETA_CUTOFF_ISO is the agreed beta cutoff (2026-07-01T00:00:00Z)', () => {
-    expect(BETA_CUTOFF_ISO).toBe('2026-07-01T00:00:00Z');
+  it('BETA_CUTOFF_ISO is the agreed beta cutoff (2027-01-01T00:00:00Z)', () => {
+    expect(BETA_CUTOFF_ISO).toBe('2027-01-01T00:00:00Z');
   });
 
   it('BETA_CUTOFF_MS parses BETA_CUTOFF_ISO', () => {
-    expect(BETA_CUTOFF_MS).toBe(Date.parse('2026-07-01T00:00:00Z'));
+    expect(BETA_CUTOFF_MS).toBe(Date.parse('2027-01-01T00:00:00Z'));
   });
 });
 
