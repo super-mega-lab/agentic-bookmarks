@@ -67,3 +67,43 @@ describe('handleReadResource — skill URIs', () => {
       .rejects.toThrow('Invalid resource URI');
   });
 });
+
+import { toolDefinitions } from './tools/definitions.js';
+
+describe('tool description discovery hints', () => {
+  function getDesc(name: string) {
+    return toolDefinitions.find(t => t.name === name)?.description ?? '';
+  }
+
+  it('bookmark_add includes add-to-system hint', () => {
+    expect(getDesc('bookmark_add')).toContain('bookmarks://skill/add-to-system');
+  });
+
+  it('bookmark_add includes add-to-files hint', () => {
+    expect(getDesc('bookmark_add')).toContain('bookmarks://skill/add-to-files');
+  });
+
+  it('bookmark_list includes analyze hint', () => {
+    expect(getDesc('bookmark_list')).toContain('bookmarks://skill/analyze');
+  });
+
+  it('bookmark_list includes map-codebase hint', () => {
+    expect(getDesc('bookmark_list')).toContain('bookmarks://skill/map-codebase');
+  });
+
+  it('bookmark_search includes analyze hint', () => {
+    expect(getDesc('bookmark_search')).toContain('bookmarks://skill/analyze');
+  });
+
+  it('bookmark_search includes map-codebase hint', () => {
+    expect(getDesc('bookmark_search')).toContain('bookmarks://skill/map-codebase');
+  });
+
+  it('anchor_listBroken does NOT include a skill hint', () => {
+    expect(getDesc('anchor_listBroken')).not.toContain('bookmarks://skill/');
+  });
+
+  it('anchor_validate does NOT include a skill hint', () => {
+    expect(getDesc('anchor_validate')).not.toContain('bookmarks://skill/');
+  });
+});

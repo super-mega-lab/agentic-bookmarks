@@ -24,7 +24,9 @@ Example:
   "groupName": "User Authentication",
   "anchor": {"kind": "point", "line": 42},
   "label": "Login endpoint handler"
-}`,
+}
+
+For guidance on bookmarking a system or set of files, read bookmarks://skill/add-to-system or bookmarks://skill/add-to-files.`,
     inputSchema: {
       type: 'object',
       properties: {
@@ -109,7 +111,7 @@ Example:
   },
   {
     name: 'bookmark_list',
-    description: 'List bookmarks with optional filters (query, groupId, fileId). Query matches bookmark ID, label, note, lineCache, URI, or tags. Fetch "bookmarks://files" for list of available groups/files to filter by. Anchor lines in the response are 1-based.',
+    description: 'List bookmarks with optional filters (query, groupId, fileId). Query matches bookmark ID, label, note, lineCache, URI, or tags. Fetch "bookmarks://files" for list of available groups/files to filter by. Anchor lines in the response are 1-based.\n\nTo derive insights from existing bookmarks, read bookmarks://skill/analyze. If no bookmarks exist yet, consider bookmarks://skill/map-codebase to build an initial map.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -171,7 +173,7 @@ Example:
   { name: 'group_delete', description: 'Delete or clear a group from a file', inputSchema: { type: 'object', properties: { filePath: { type: 'string' }, groupId: { type: 'string' } }, required: ['filePath', 'groupId'] } },
   {
     name: 'bookmark_search',
-    description: 'Search bookmarks across all enabled files by text/tags/group/file/createdAt with configurable output format. Check resource "bookmarks://mode" for user preference on search proactivity. Fetch "bookmarks://files" for list of available groups/files. Lines in the response are 1-based.',
+    description: 'Search bookmarks across all enabled files by text/tags/group/file/createdAt with configurable output format. Check resource "bookmarks://mode" for user preference on search proactivity. Fetch "bookmarks://files" for list of available groups/files. Lines in the response are 1-based.\n\nTo derive insights from existing bookmarks, read bookmarks://skill/analyze. If no bookmarks exist yet, consider bookmarks://skill/map-codebase to build an initial map.',
     inputSchema: {
       type: 'object',
       properties: {
