@@ -63,18 +63,10 @@ import type { BookmarksProvider } from '../treeProvider';
 import type { SettingsProvider } from '../settingsProvider';
 import type { BookmarkCodeLensProvider } from '../bookmarkCodeLensProvider';
 import { buildAgentRepairPrompt, getConfiguredDataRoot } from '../workspace-helpers';
+import { buildClaudeMcpSetupCommand } from './mcp-setup-helpers';
 
 type UIState = { hidden: string[]; focus: string | null; filterEnabled?: boolean; hiddenFiles?: string[] };
 type SearchFilter = { id: string; text: string; regex: boolean; op: 'AND' | 'OR' };
-
-// Quote a value so it can be safely passed as a single argv element when sent
-// to a terminal. Uses POSIX-style single quotes (the dominant case for VS Code
-// terminals on macOS/Linux); embedded single quotes are closed-escaped-reopened.
-// On Windows shells (PowerShell/cmd) single quotes are still tolerated for the
-// values we emit (paths, KEY=VALUE pairs without literal single quotes).
-function shellQuote(value: string): string {
-  return `'${value.replace(/'/g, `'\\''`)}'`;
-}
 
 export interface McpConfigAndDiagnosticsDeps {
   workspaceRoot: string;
@@ -368,21 +360,11 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
       );
       if (!scopeChoice) return;
 
-      // Local scope: pin BOOKMARKS_DIR to the current workspace's .bookmarks/local
-      // (Claude config is keyed by project path so this is correct).
-      // User scope: BOOKMARKS_DIR cannot resolve to a single workspace; rely on
-      // the bundled server's upward-discovery to find .bookmarks/ from cwd.
-      const envFlags: string[] = [];
-      if (scopeChoice.scope === 'local') {
-        envFlags.push(`--env ${shellQuote(`BOOKMARKS_DIR=${getLocalDir(workspaceRoot)}`)}`);
-      } else {
-        envFlags.push('--env BOOKMARKS_DIR=');
-        envFlags.push('--env BOOKMARKS_UPWARD_DISCOVERY=true');
-      }
-      const scopeFlag = scopeChoice.scope === 'user' ? '--scope user ' : '';
-      const cmd =
-        `claude mcp add --transport stdio ${envFlags.join(' ')} ${scopeFlag}` +
-        `agentic_bookmarks -- node ${shellQuote(serverPath)}`;
+      const cmd = buildClaudeMcpSetupCommand(
+        scopeChoice.scope,
+        serverPath,
+        getLocalDir(workspaceRoot),
+      );
 
       const terminal = vscode.window.createTerminal('Setup Claude MCP');
       terminal.show();

@@ -23,7 +23,7 @@ The extension stores machine-local runtime state (registry, lock/pulse cache, ge
 - install "Agentic Bookmarks" by supermegalab extension from VS Code extension browser
 - Optional, but awesome: setup the MCP to work with the agent of your choise
   - ctrl-shift-p / cmd-shift-p and type "Agentic Bookmarks: setup" to see options for setting up the MCP server
-  - for claude, please select user instead of local level install of MCP for now
+  - for claude, select Local (this project only) or User (all your projects) based on your preference
 
 Thats all.  See marketplace page for more details.  Will post some videos soon.
 
@@ -62,16 +62,10 @@ First of all, for the mcp updates to work well the version will need to be bumpe
 
 If YOU made the MCP changes, you will need to bump the patch version (see below)
 
-For MCP update in claude code run this first:
+For MCP update in claude code, run (ctrl-shift-p  /  command-shift-p):
+"MCP Bookmarks: setup for claude"
 
-```bash
-# uninstall the MCP server
-claude mcp remove agentic_bookmarks
-```
-then run. (ctrl-shift-p  /  command-shift-p)
-"MCP Bookmarks: setup for claude" 
-
-Please select user (instead of local) for now.  Local option is not functioning.
+The setup command removes any existing registration and re-installs the latest automatically.
 
 This will re-intsall the latest. 
 This will be different with other agents and could have some variablity.
