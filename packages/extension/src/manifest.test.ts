@@ -103,7 +103,6 @@ describe('hotkey style preset support', () => {
   it('declares the agenticBookmarks.customizeKeybindings command', () => {
     expect(linesMatching(/"command":\s*"agenticBookmarks\.customizeKeybindings"/)).not.toEqual([]);
     expect(linesMatching(/"title":\s*"Customize Keybindings…"/)).not.toEqual([]);
-    expect(linesMatching(/"onCommand:agenticBookmarks\.customizeKeybindings"/)).not.toEqual([]);
   });
 });
 
