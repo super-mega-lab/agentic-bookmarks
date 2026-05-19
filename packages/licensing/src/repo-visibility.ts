@@ -27,7 +27,7 @@ export function createStubRepoVisibility(
  * If you change this date, also update the badge and opening paragraph in
  * the repo root README.md.
  */
-export const BETA_CUTOFF_ISO = '2026-07-01T00:00:00Z';
+export const BETA_CUTOFF_ISO = '2027-01-01T00:00:00Z';
 export const BETA_CUTOFF_MS = Date.parse(BETA_CUTOFF_ISO);
 
 /**
