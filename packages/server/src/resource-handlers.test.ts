@@ -36,25 +36,25 @@ describe('handleReadResource — skill URIs', () => {
     const result = await handleReadResource(fakeCtx, 'bookmarks://skill/add-to-system');
     expect(result.contents).toHaveLength(1);
     expect(result.contents[0].mimeType).toBe('text/markdown');
-    expect(result.contents[0].text).toContain('bookmark');
+    expect(result.contents[0].text).toContain('Add Bookmarks to a System');
   });
 
   it('returns markdown content for bookmarks://skill/add-to-files', async () => {
     const result = await handleReadResource(fakeCtx, 'bookmarks://skill/add-to-files');
     expect(result.contents[0].mimeType).toBe('text/markdown');
-    expect(result.contents[0].text).toContain('bookmark');
+    expect(result.contents[0].text).toContain('Add Bookmarks to Files');
   });
 
   it('returns markdown content for bookmarks://skill/analyze', async () => {
     const result = await handleReadResource(fakeCtx, 'bookmarks://skill/analyze');
     expect(result.contents[0].mimeType).toBe('text/markdown');
-    expect(result.contents[0].text).toContain('bookmark');
+    expect(result.contents[0].text).toContain('Analyze Bookmarks');
   });
 
   it('returns markdown content for bookmarks://skill/map-codebase', async () => {
     const result = await handleReadResource(fakeCtx, 'bookmarks://skill/map-codebase');
     expect(result.contents[0].mimeType).toBe('text/markdown');
-    expect(result.contents[0].text).toContain('bookmark');
+    expect(result.contents[0].text).toContain('Map Codebase');
   });
 
   it('throws for unknown skill URI', async () => {
