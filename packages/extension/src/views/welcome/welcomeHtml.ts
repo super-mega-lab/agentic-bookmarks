@@ -1,3 +1,5 @@
+// ABOUTME: Renders the HTML for the Agentic Bookmarks welcome panel webview.
+// ABOUTME: Exports renderWelcomeHtml(), which generates full HTML based on workspace state.
 export interface WelcomeHtmlOptions {
   /** Whether at least one workspace folder is open. */
   hasFolder: boolean;
@@ -18,6 +20,9 @@ const LOCAL_VS_SHARED_URL = 'https://agenticbookmarks.com/local-vs-shared';
 const ANCHORS_URL = 'https://agenticbookmarks.com/anchors';
 const AGENTIC_ACCELERATION_URL = 'https://agenticbookmarks.com/agentic-acceleration';
 const SKILLS_URL = 'https://agenticbookmarks.com/skills';
+const DISCORD_URL = 'https://agenticbookmarks.com/discord';
+const GITHUB_ISSUES_URL = 'https://github.com/super-mega-lab/agentic-bookmarks/issues';
+const TWITTER_X_URL = 'https://agenticbookmarks.com/x';
 
 const openUrlCmd = (url: string) =>
   `command:vscode.open?${encodeURIComponent(JSON.stringify([url]))}`;
@@ -72,6 +77,22 @@ function activeBody(needsGitignore: boolean): string {
       <a class="button secondary" href="${runCmd('agenticBookmarks.setupCursor')}">Set up for Cursor</a>
       <a class="button secondary" href="${runCmd('agenticBookmarks.setupCodex')}">Set up for Codex</a>
     </div>
+  </section>
+
+  <section>
+    <h2>Community &amp; Support</h2>
+    <a class="card" href="${openUrlCmd(DISCORD_URL)}">
+      <span class="card-title">Join our Discord</span>
+      <span class="card-sub">Get help, share feedback, and connect with other users.</span>
+    </a>
+    <a class="card" href="${openUrlCmd(GITHUB_ISSUES_URL)}">
+      <span class="card-title">Report an Issue</span>
+      <span class="card-sub">Found a bug or have a feature request? Open an issue on GitHub.</span>
+    </a>
+    <a class="card" href="${openUrlCmd(TWITTER_X_URL)}">
+      <span class="card-title">Follow on X</span>
+      <span class="card-sub">Stay up to date with news and updates.</span>
+    </a>
   </section>`;
 }
 
