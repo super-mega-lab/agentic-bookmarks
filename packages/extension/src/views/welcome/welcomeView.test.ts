@@ -1,5 +1,26 @@
 import { describe, it, expect } from 'vitest';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { renderWelcomeHtml } from './welcomeHtml';
+
+const pkgPath = path.join(__dirname, '../../..', 'package.json');
+const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+const containerViews: Array<{ id: string; visibility?: string }> =
+  pkg.contributes.views['agenticBookmarks-container'];
+
+describe('package.json view visibility', () => {
+  it('welcome view starts visible', () => {
+    const welcome = containerViews.find(v => v.id === 'agenticBookmarks.welcome');
+    expect(welcome?.visibility).toBe('visible');
+  });
+
+  it('non-welcome views start collapsed so welcome is prominent on first install', () => {
+    const nonWelcome = containerViews.filter(v => v.id !== 'agenticBookmarks.welcome');
+    for (const view of nonWelcome) {
+      expect(view.visibility, `view "${view.id}" must be "collapsed"`).toBe('collapsed');
+    }
+  });
+});
 
 const baseOpts = {
   iconUri: 'https://example/icon512.png',
