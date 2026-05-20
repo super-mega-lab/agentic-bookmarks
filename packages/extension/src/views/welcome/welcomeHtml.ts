@@ -21,7 +21,7 @@ const ANCHORS_URL = 'https://agenticbookmarks.com/anchors';
 const AGENTIC_ACCELERATION_URL = 'https://agenticbookmarks.com/agentic-acceleration';
 const SKILLS_URL = 'https://agenticbookmarks.com/skills';
 const DISCORD_URL = 'https://discord.gg/zukZdvqf8q';
-const GITHUB_ISSUES_URL = 'https://github.com/super-mega-lab/agentic-bookmarks/issues';
+const GITHUB_ISSUES_URL = 'https://github.com/super-mega-lab/agentic-bookmarks/issues/new';
 const TWITTER_X_URL = 'https://agenticbookmarks.com/x';
 
 const openUrlCmd = (url: string) =>
