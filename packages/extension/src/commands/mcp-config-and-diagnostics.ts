@@ -67,7 +67,7 @@ import type { BookmarksProvider } from '../treeProvider';
 import type { SettingsProvider } from '../settingsProvider';
 import type { BookmarkCodeLensProvider } from '../bookmarkCodeLensProvider';
 import { buildAgentRepairPrompt, getConfiguredDataRoot } from '../workspace-helpers';
-import { buildClaudeMcpSetupCommand } from './mcp-setup-helpers';
+import { buildClaudeMcpSetupCommand, applyGitignoreSetup } from './mcp-setup-helpers';
 import { recordMcpInstall, getOutdatedMcpInstalls } from './mcp-install-state';
 
 type UIState = { hidden: string[]; focus: string | null; filterEnabled?: boolean; hiddenFiles?: string[] };
@@ -88,6 +88,7 @@ export interface McpConfigAndDiagnosticsDeps {
   getUIState: () => UIState & { searches?: SearchFilter[] };
   setUIState: (next: UIState & { searches?: SearchFilter[] }) => Promise<void>;
   getCatalogCache: () => { path: string; baseDir: string } | null;
+  refreshWelcomeView?: () => void;
 }
 
 export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagnosticsDeps): vscode.Disposable[] {
@@ -106,6 +107,7 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     getUIState,
     setUIState,
     getCatalogCache,
+    refreshWelcomeView,
   } = deps;
 
   const currentVersion = ((context as any).extension?.packageJSON?.version as string) ?? '';
@@ -120,6 +122,8 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
       `Running 'claude mcp add' (${scope} scope). Watch the terminal for output.`,
     );
     await recordMcpInstall(context, 'claude', scope, currentVersion);
+    await applyGitignoreSetup({ workspaceRoot, workspaceState: context.workspaceState, log });
+    refreshWelcomeView?.();
   }
 
   async function applyCursorSetup(scope: 'project' | 'global'): Promise<void> {
@@ -166,6 +170,8 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     await fs.writeFile(configPath, JSON.stringify(next, null, 2));
     vscode.window.showInformationMessage(`Cursor MCP config updated at ${configPath}`);
     await recordMcpInstall(context, 'cursor', scope, currentVersion);
+    await applyGitignoreSetup({ workspaceRoot, workspaceState: context.workspaceState, log });
+    refreshWelcomeView?.();
   }
 
   async function applyCodexSetup(scope: 'project' | 'global'): Promise<void> {
@@ -217,6 +223,8 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     await fs.writeFile(configPath, text);
     vscode.window.showInformationMessage(`Codex MCP config updated at ${configPath}`);
     await recordMcpInstall(context, 'codex', scope, currentVersion);
+    await applyGitignoreSetup({ workspaceRoot, workspaceState: context.workspaceState, log });
+    refreshWelcomeView?.();
   }
 
   return [
