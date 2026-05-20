@@ -1,5 +1,5 @@
-// ABOUTME: Tests for the Agentic Bookmarks welcome panel webview HTML rendering.
-// ABOUTME: Covers view visibility config, HTML structure, and content across all states.
+// ABOUTME: Tests for the welcome panel HTML renderer and VS Code view configuration.
+// ABOUTME: Covers empty/active/gitignore-banner modes and LEARN section link structure.
 import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -63,6 +63,18 @@ describe('renderWelcomeHtml', () => {
 
     it('does not show the open-folder CTA', () => {
       expect(html).not.toContain('command:vscode.openFolder');
+    });
+
+    it('learn items show an explicit "Learn more" link', () => {
+      expect(html).toContain('Learn more');
+    });
+
+    it('learn items do not use the card style', () => {
+      expect(html).not.toContain('class="card"');
+    });
+
+    it('learn items have browser-navigation link text', () => {
+      expect(html).toContain('Learn more →');
     });
   });
 
