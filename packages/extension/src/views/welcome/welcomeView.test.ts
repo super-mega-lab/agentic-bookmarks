@@ -1,3 +1,5 @@
+// ABOUTME: Tests for the Agentic Bookmarks welcome panel webview HTML rendering.
+// ABOUTME: Covers view visibility config, HTML structure, and content across all states.
 import { describe, it, expect } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -61,6 +63,28 @@ describe('renderWelcomeHtml', () => {
 
     it('does not show the open-folder CTA', () => {
       expect(html).not.toContain('command:vscode.openFolder');
+    });
+  });
+
+  describe('community section', () => {
+    const activeHtml = renderWelcomeHtml({ ...baseOpts, hasFolder: true });
+    const emptyHtml = renderWelcomeHtml({ ...baseOpts, hasFolder: false });
+
+    it('shows Discord card in active mode', () => {
+      expect(activeHtml).toContain('Join our Discord');
+    });
+
+    it('shows GitHub issues card in active mode', () => {
+      expect(activeHtml).toContain('Report an Issue');
+    });
+
+    it('community cards use the vscode.open command', () => {
+      expect(activeHtml).toContain('command:vscode.open');
+    });
+
+    it('omits community section in empty mode', () => {
+      expect(emptyHtml).not.toContain('Join our Discord');
+      expect(emptyHtml).not.toContain('Report an Issue');
     });
   });
 
