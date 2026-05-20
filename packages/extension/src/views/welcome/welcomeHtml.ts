@@ -1,5 +1,6 @@
-// ABOUTME: Renders the HTML for the Agentic Bookmarks welcome panel webview.
-// ABOUTME: Exports renderWelcomeHtml(), which generates full HTML based on workspace state.
+// ABOUTME: Renders the welcome panel webview HTML for the Agentic Bookmarks VS Code extension.
+// ABOUTME: Produces a static HTML string with embedded CSS; no scripts are used.
+
 export interface WelcomeHtmlOptions {
   /** Whether at least one workspace folder is open. */
   hasFolder: boolean;
@@ -51,22 +52,26 @@ function activeBody(needsGitignore: boolean): string {
   return /* html */ `${needsGitignore ? gitignoreBanner() : ''}
   <section>
     <h2>Learn</h2>
-    <a class="card" href="${openUrlCmd(LOCAL_VS_SHARED_URL)}">
-      <span class="card-title">Local vs. Shared Bookmarks</span>
-      <span class="card-sub">Workspace-only vs. Git-friendly groups that travel with the repo.</span>
-    </a>
-    <a class="card" href="${openUrlCmd(ANCHORS_URL)}">
-      <span class="card-title">Smart &amp; Tag Anchors</span>
-      <span class="card-sub">How anchors survive refactors and code movement.</span>
-    </a>
-    <a class="card" href="${openUrlCmd(AGENTIC_ACCELERATION_URL)}">
-      <span class="card-title">Agentic Acceleration with the MCP</span>
-      <span class="card-sub">Let your AI assistant create and navigate bookmarks for you.</span>
-    </a>
-    <a class="card" href="${openUrlCmd(SKILLS_URL)}">
-      <span class="card-title">Powerful Support Skills</span>
-      <span class="card-sub">Built-in MCP playbooks that teach agents to map, analyze, and bookmark code.</span>
-    </a>
+    <div class="learn-item">
+      <div class="learn-title">Local vs. Shared Bookmarks</div>
+      <div class="learn-sub">Workspace-only vs. Git-friendly groups that travel with the repo.</div>
+      <a class="learn-link" href="${openUrlCmd(LOCAL_VS_SHARED_URL)}">Learn more →</a>
+    </div>
+    <div class="learn-item">
+      <div class="learn-title">Smart &amp; Tag Anchors</div>
+      <div class="learn-sub">How anchors survive refactors and code movement.</div>
+      <a class="learn-link" href="${openUrlCmd(ANCHORS_URL)}">Learn more →</a>
+    </div>
+    <div class="learn-item">
+      <div class="learn-title">Agentic Acceleration with the MCP</div>
+      <div class="learn-sub">Let your AI assistant create and navigate bookmarks for you.</div>
+      <a class="learn-link" href="${openUrlCmd(AGENTIC_ACCELERATION_URL)}">Learn more →</a>
+    </div>
+    <div class="learn-item">
+      <div class="learn-title">Powerful Support Skills</div>
+      <div class="learn-sub">Built-in MCP playbooks that teach agents to map, analyze, and bookmark code.</div>
+      <a class="learn-link" href="${openUrlCmd(SKILLS_URL)}">Learn more →</a>
+    </div>
   </section>
 
   <section>
@@ -165,28 +170,26 @@ export function renderWelcomeHtml(opts: WelcomeHtmlOptions): string {
       font-family: var(--vscode-editor-font-family, monospace);
       font-size: 0.95em;
     }
-    .card {
-      display: block;
-      padding: 8px 10px;
-      margin: 4px 0;
-      background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
-      border: 1px solid var(--vscode-panel-border);
-      border-radius: 4px;
-      color: var(--vscode-foreground);
-      text-decoration: none;
+    .learn-item {
+      margin: 6px 0;
     }
-    .card:hover {
-      background: var(--vscode-list-hoverBackground);
-      cursor: pointer;
-    }
-    .card-title {
+    .learn-title {
       font-weight: 500;
     }
-    .card-sub {
-      display: block;
+    .learn-sub {
       margin-top: 2px;
       color: var(--vscode-descriptionForeground);
       font-size: 0.85em;
+    }
+    .learn-link {
+      display: inline-block;
+      margin-top: 2px;
+      color: var(--vscode-textLink-foreground);
+      text-decoration: underline;
+      font-size: 0.9em;
+    }
+    .learn-link:hover {
+      color: var(--vscode-textLink-activeForeground);
     }
     .button-row {
       display: flex;
