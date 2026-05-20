@@ -1,3 +1,5 @@
+// ABOUTME: MCP tool handler for bookmark_add and bookmark_delete operations.
+// ABOUTME: Resolves workspace, group, and file context before writing bookmark data.
 import type { ServerContext } from '../server-context.js';
 import type {
   BookmarkAnchor,
@@ -8,6 +10,7 @@ import type {
 import {
   readFileAt,
   writeFileAt,
+  pathsForDataFile,
   editFileV2WithContext,
   resolveWorkspacePath,
   uriToWorkspaceRelative,
@@ -190,7 +193,8 @@ export async function handleBookmarkAdd(ctx: ServerContext, args: Record<string,
           isUnsorted: true,
         };
         data.groups.push(unsortedGroup);
-        await writeFileAt(filePath, data);
+        const p = pathsForDataFile(filePath, workspace.workspaceRoot, workspace.bookmarksDataRoot);
+        await writeFileAt(p, data);
       }
 
       targetGroupId = unsortedGroup.id;
