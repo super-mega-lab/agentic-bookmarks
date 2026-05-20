@@ -17,7 +17,7 @@
   },
   "license": "LicenseRef-PolyForm-Shield-1.0.0",
   "icon": "icon512.png",
-  "version": "0.7.15",
+  "version": "0.7.16",
   "engines": {
     "vscode": "^1.92.0"
   },
@@ -798,6 +798,24 @@
         "command": "agenticBookmarks.scanAllFilesIncludingHidden",
         "title": "Scan All Files With Bookmarks (Including Hidden Groups)",
         "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.scanAll",
+        "title": "Scan All Bookmarked Files",
+        "category": "Agentic Bookmarks",
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "agenticBookmarks.repairAll",
+        "title": "Repair All Broken Bookmarks",
+        "category": "Agentic Bookmarks",
+        "icon": "$(wrench)"
+      },
+      {
+        "command": "agenticBookmarks.repairAllSettings",
+        "title": "Repair All: Settings",
+        "category": "Agentic Bookmarks",
+        "icon": "$(gear)"
       }
     ],
     "menus": {
@@ -907,6 +925,11 @@
           "command": "agenticBookmarks.addSearchFilter",
           "when": "view == agenticBookmarks.view && viewItem == filterInfo",
           "group": "inline@1"
+        },
+        {
+          "command": "agenticBookmarks.repairAllSettings",
+          "when": "view == agenticBookmarks.view && viewItem == repairAllRow",
+          "group": "inline@0"
         },
         {
           "command": "agenticBookmarks.editSearchFilter",

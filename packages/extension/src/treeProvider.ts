@@ -18,6 +18,19 @@ function startLineOf(b: BookmarksFileV2['bookmarks'][number]): number {
 import { loadBuiltinCatalog, resolveGroupIconPath, resolveEffectiveStyleAndColor, ensureOverlayIconWithFallback, tokenToHex, type AppearanceOverrides, type EffectiveCatalog } from './appearance';
 import { getStatus, getErrorDetails, getScore, getResolvedLine, type AnchorStatus } from './anchorState';
 import { getViewPref } from './commands/views';
+import { scanRowDescriptor, repairRowDescriptor, type ScanPhase } from './views/action-rows';
+
+/** Dynamic counts the action rows display that the provider can't derive alone. */
+export interface ActionRowState {
+  /** Current scan phase; 'idle' uses coverage counts, otherwise live progress. */
+  scanPhase: ScanPhase;
+  /** Files validated so far in the running scan (used when phase !== 'idle'). */
+  scanRunningScanned: number;
+  /** Total files in the running scan (used when phase !== 'idle'). */
+  scanRunningTotal: number;
+  /** Genuinely-broken anchors; frozen by the caller while auto-repair is busy. */
+  brokenCount: number;
+}
 
 export class FileNode extends vscode.TreeItem {
   public readonly workspaceRoot: string;
@@ -211,7 +224,9 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
     private readonly getUIState: () => UIState,
     private readonly isFileHidden: (fileId: string, reg: any) => boolean,
     private readonly extensionContext: vscode.ExtensionContext,
-    private readonly orderingService: OrderingService
+    private readonly orderingService: OrderingService,
+    private readonly getActionRowState: () => ActionRowState = () => ({ scanPhase: 'idle', scanRunningScanned: 0, scanRunningTotal: 0, brokenCount: 0 }),
+    private readonly isFileValidated: (fsPath: string) => boolean = () => false
   ) {
     this.dnd = makeDnDController({
       mimeType: ALL_BOOKMARKS_DND_MIME,
@@ -293,6 +308,8 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
       let visibleBookmarks = 0;
       const totalGroupIds = new Set<string>();
       const visibleGroupIds = new Set<string>();
+      // Distinct fsPaths of every bookmarked file (unfiltered) — drives Scan coverage total.
+      const bookmarkedFsPaths = new Set<string>();
 
       // Iterate over all workspace folders
       for (const folder of folders) {
@@ -333,6 +350,7 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
                 }
 
                 if (!fileMap.has(absoluteUri)) fileMap.set(absoluteUri, []);
+                try { bookmarkedFsPaths.add(vscode.Uri.parse(absoluteUri).fsPath); } catch { /* ignore unparseable URIs */ }
                 const group = file.groups.find(g => (g as any).id === (bookmark as any).groupId);
                 const gid = (bookmark as any).groupId as string;
                 const isHidden = ui.focus ? ui.focus !== gid : ui.hidden.includes(gid);
@@ -390,6 +408,39 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
         info.iconPath = new vscode.ThemeIcon('filter-filled');
         (info as any).contextValue = 'filterInfo';
         nodes.push(info);
+      }
+
+      // Action rows — rendered directly below filterInfo (or at the very top when
+      // filtering is off). Independent of filtering; counts cover all bookmarks.
+      {
+        const st = this.getActionRowState();
+        // At rest, show coverage (validated / all bookmarked files); during a scan,
+        // show the live progress reported by the scan queue.
+        let scanned: number;
+        let total: number;
+        if (st.scanPhase === 'idle') {
+          total = bookmarkedFsPaths.size;
+          scanned = 0;
+          for (const p of bookmarkedFsPaths) if (this.isFileValidated(p)) scanned++;
+        } else {
+          total = st.scanRunningTotal;
+          scanned = st.scanRunningScanned;
+        }
+
+        const scan = scanRowDescriptor({ scanned, total, phase: st.scanPhase });
+        const scanRow = new vscode.TreeItem(scan.label, vscode.TreeItemCollapsibleState.None);
+        scanRow.iconPath = new vscode.ThemeIcon(scan.spin ? `${scan.icon}~spin` : scan.icon);
+        (scanRow as any).contextValue = scan.contextValue;
+        scanRow.command = { command: 'agenticBookmarks.scanAll', title: 'Scan All' };
+        nodes.push(scanRow);
+
+        const repair = repairRowDescriptor({ broken: st.brokenCount, total: totalBookmarks });
+        const repairRow = new vscode.TreeItem(repair.label, vscode.TreeItemCollapsibleState.None);
+        repairRow.iconPath = new vscode.ThemeIcon(repair.icon, new vscode.ThemeColor(repair.themeColor));
+        (repairRow as any).contextValue = repair.contextValue;
+        // Always wire the click; the handler no-ops when nothing is broken.
+        repairRow.command = { command: 'agenticBookmarks.repairAll', title: 'Repair All' };
+        nodes.push(repairRow);
       }
       // Determine whether to group bookmarks under file parents. Stored in
       // workspaceState because the registry schema strips unknown keys.

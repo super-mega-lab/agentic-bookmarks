@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, getCacheDir, readRegistry, readFileV2, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath, appendGitignoreLine, BOOKMARKS_LOCAL_GITIGNORE_LINE } from '@agentic-bookmarks/core';
+import * as fsp from 'node:fs/promises';
+import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, getCacheDir, readRegistry, readFileV2, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath, appendGitignoreLine, BOOKMARKS_LOCAL_GITIGNORE_LINE, brokenAnchorsCache, workspaceRelativeToUri } from '@agentic-bookmarks/core';
 import { BookmarksProvider } from './treeProvider';
 import { FilesGroupsProvider } from './filesGroupsProvider';
 import { SettingsProvider } from './settingsProvider';
@@ -16,6 +17,7 @@ import {
   updateDeepFlexState,
   clearStateForFile,
   hasStateForFile,
+  classifyAnchorStatus,
 } from './anchorState';
 import { AnchorRepairQueue } from './repairQueue';
 import { syncBrokenAnchorsCache, clearRegisteredUris } from './brokenAnchorsSync';
@@ -33,6 +35,11 @@ import { registerBookmarkSelectionCommands } from './commands/bookmark-selection
 import { registerBookmarkNavigationCommands, cleanupPickMode } from './commands/bookmark-navigation';
 import { registerBookmarkQuickpicksCommands } from './commands/bookmark-quickpicks';
 import { registerBookmarkBulkOpenCommands } from './commands/bookmark-bulk-open';
+import { registerAgentRepairCommands } from './commands/agent-repair-launch';
+import { ScanQueue, type ScanTarget, type ScanFileValidation } from './scanQueue';
+import { markFileValidated, isFileValidated } from './scanCoverage';
+import { countBroken } from './brokenCount';
+import { missingFileEntries, buildAuthoritativeCache, type ScanResultEntry } from './scanValidate';
 import { registerBookmarkExportCommand } from './commands/bookmark-export';
 import { registerGroupManagementCommands, executeGroupMove } from './commands/group-management';
 import { registerAppearanceCommands } from './commands/appearance';
@@ -49,7 +56,7 @@ import { createDecorationManager } from './decorations';
 import { registerStickyHandler } from './sticky';
 import { createWatcherManager } from './watchers';
 import { getBuiltinCatalog, clearCatalogCache, getCatalogCache } from './catalog-cache';
-import { createAnchorResolution } from './anchor-resolution';
+import { createAnchorResolution, resolveUriAnchors } from './anchor-resolution';
 import { migrateLocalLayout } from './migrate-local-layout';
 import { maybeShowGitignoreNudge } from './gitignore-nudge';
 import { OrderingService } from './ordering/service';
@@ -227,7 +234,38 @@ async function activateForWorkspace(
   const orderingService = await OrderingService.load(orderingCacheDir);
   context.subscriptions.push({ dispose: () => { void orderingService.dispose(); } });
 
-  const provider = new BookmarksProvider(paths, workspaceRoot, defaultIconPath, getUIState, isFileHidden, context, orderingService);
+  // Action-row state. `scanQueueRef` and `lastBrokenCount` are assigned later (the
+  // queues are built after the provider); the provider reads them lazily via thunks.
+  let scanQueueRef: ScanQueue | null = null;
+  let lastBrokenCount = 0;
+
+  const provider = new BookmarksProvider(
+    paths, workspaceRoot, defaultIconPath, getUIState, isFileHidden, context, orderingService,
+    () => ({
+      scanPhase: scanQueueRef?.phase() ?? 'idle',
+      scanRunningScanned: scanQueueRef?.scannedThisRun() ?? 0,
+      scanRunningTotal: scanQueueRef?.totalThisRun() ?? 0,
+      brokenCount: lastBrokenCount,
+    }),
+    (fsPath: string) => isFileValidated(fsPath),
+  );
+
+  // Recompute the Repair All broken count from the persisted cache across folders.
+  // Only updates while the repair queue is idle, so the number doesn't flicker
+  // while auto-repair is mid-flight (it leaves the last value in place until then).
+  async function recomputeBrokenCount(): Promise<void> {
+    if (repairQueue && !repairQueue.isIdle()) return;
+    let total = 0;
+    for (const folder of vscode.workspace.workspaceFolders ?? []) {
+      try {
+        const reg = await readRegistry(folder.uri.fsPath);
+        const cacheDir = getCacheDir(folder.uri.fsPath, getBookmarksDataRoot(reg));
+        const cache = await brokenAnchorsCache.readBrokenAnchorsCache(cacheDir);
+        total += countBroken(cache.entries);
+      } catch { /* ignore folders without a cache */ }
+    }
+    lastBrokenCount = total;
+  }
 
   async function updateFilterContext() {
     try {
@@ -380,22 +418,25 @@ async function activateForWorkspace(
   // --- Repair queue (created later, referenced by anchor resolution) ---
   let repairQueue: AnchorRepairQueue | null = null;
 
+  // Resolution options from registry settings — shared by the open path and scan.
+  const getResolutionOptions = async () => {
+    const reg = await readRegistry(workspaceRoot);
+    const anchorSettings = (reg.settings?.anchors as any) ?? {};
+    return {
+      enableFlexContext: anchorSettings.enableFlexContext ?? true,
+      enableFlexContextShared: anchorSettings.enableFlexContextShared ?? true,
+      isLocal: true, // default safe — per-bookmark isLocal is now threaded via getAllBookmarksForUri
+      showWarningOnShared: anchorSettings.showWarningOnShared ?? false,
+      enableLocalContextRefresh: anchorSettings.enableLocalContextRefresh ?? true,
+    };
+  };
+
   // --- Anchor resolution (onFileOpened + revalidateOpenDocuments) ---
-  const { onFileOpened, revalidateOpenDocuments } = createAnchorResolution({
+  const { onFileOpened: rawOnFileOpened, revalidateOpenDocuments } = createAnchorResolution({
     workspaceRoot,
     log,
     getAllBookmarksForUri,
-    getResolutionOptions: async () => {
-      const reg = await readRegistry(workspaceRoot);
-      const anchorSettings = (reg.settings?.anchors as any) ?? {};
-      return {
-        enableFlexContext: anchorSettings.enableFlexContext ?? true,
-        enableFlexContextShared: anchorSettings.enableFlexContextShared ?? true,
-        isLocal: true, // default safe — per-bookmark isLocal is now threaded via getAllBookmarksForUri
-        showWarningOnShared: anchorSettings.showWarningOnShared ?? false,
-        enableLocalContextRefresh: anchorSettings.enableLocalContextRefresh ?? true,
-      };
-    },
+    getResolutionOptions,
     writeRefreshedAnchors: async (updates) => {
       const reg = await readRegistry(workspaceRoot);
       const dataRoot = getBookmarksDataRoot(reg);
@@ -419,6 +460,13 @@ async function activateForWorkspace(
     getRepairQueue: () => repairQueue,
     debouncedCacheSync,
   });
+
+  // Wrap resolution so every opened/scanned file-scheme doc counts toward Scan
+  // coverage, regardless of which call site (editor open, scan, rename) triggered it.
+  const onFileOpened = async (document: vscode.TextDocument) => {
+    await rawOnFileOpened(document);
+    if (document.uri.scheme === 'file') markFileValidated(document.uri.fsPath);
+  };
 
   // --- CodeLens ---
   const codeLensProvider = new BookmarkCodeLensProvider(
@@ -734,11 +782,120 @@ async function activateForWorkspace(
       applyAutoRepairCandidate(bookmarkId, candidateLine, workspaceRoot, getLineCacheLength),
     updateAnchorState,
     updateDeepFlexState,
-    refreshUI: () => { provider.refresh(); debouncedCacheSync(); },
+    refreshUI: () => { void recomputeBrokenCount().then(() => provider.refresh()); debouncedCacheSync(); },
     getFileLines: getOpenDocumentLines,
     log: (msg: string) => log.debug(msg),
   });
   context.subscriptions.push(repairQueue);
+
+  // Convert a bookmark target URI (workspace-relative or file://) to an fsPath.
+  function targetUriToFsPath(uri: string): string {
+    const base = uri.split('#')[0];
+    if (base.startsWith('file://')) return vscode.Uri.parse(base).fsPath;
+    return vscode.Uri.parse(workspaceRelativeToUri(base, workspaceRoot)).fsPath;
+  }
+
+  // Enumerate every enabled registered file's distinct target files (independent of
+  // the open-files cache and UI visibility) so a scan can validate them all.
+  async function collectAllBookmarkedTargets(): Promise<ScanTarget[]> {
+    const reg = await readRegistry(workspaceRoot);
+    const dataRoot = getBookmarksDataRoot(reg);
+    const seen = new Map<string, ScanTarget>();
+    for (const rf of reg.files.filter((f) => f.enabled !== false)) {
+      try {
+        const file = await readFileV2(pathsForDataFile(rf.path, workspaceRoot, dataRoot));
+        for (const b of file.bookmarks) {
+          const uri = b.target.uri.split('#')[0];
+          const fsPath = targetUriToFsPath(uri);
+          if (!seen.has(fsPath)) seen.set(fsPath, { fsPath, uri });
+        }
+      } catch (err: any) {
+        log.error(`[scan] failed to read ${rf.path}: ${err?.message || err}`);
+      }
+    }
+    return [...seen.values()];
+  }
+
+  // Validate one file from disk. Missing file → file_missing broken entries;
+  // otherwise resolve via the shared resolver and classify via the shared classifier.
+  async function validateScanFile(target: ScanTarget): Promise<ScanFileValidation> {
+    // getAllBookmarksForUri keys off a file:// document URI (its other caller passes
+    // document.uri.toString()), so look up by the canonical file:// URI built from the
+    // absolute path — NOT the workspace-relative target.uri. Cache entries still record
+    // the relative target.uri (the form registerBookmarkUri / anchor_listBroken use).
+    const lookupUri = vscode.Uri.file(target.fsPath).toString();
+    let fileLines: string[];
+    try {
+      const content = await fsp.readFile(target.fsPath, 'utf-8');
+      fileLines = content.split('\n');
+    } catch {
+      const all = await getAllBookmarksForUri(lookupUri, workspaceRoot);
+      return { missing: true, entries: missingFileEntries(all.map((b) => b.bookmark.id), target.uri) };
+    }
+    const { allBookmarks, results, isLocalMap, showWarningOnShared } = await resolveUriAnchors(
+      lookupUri, fileLines, { workspaceRoot, getAllBookmarksForUri, getResolutionOptions },
+    );
+    // Every scan target is known to have at least one bookmark (it came from
+    // collectAllBookmarkedTargets). A zero match here means a URI-key mismatch,
+    // not a clean file — surface it instead of silently reporting "no breakage".
+    if (allBookmarks.length === 0) {
+      log.error(`[scan] no bookmarks matched for ${target.uri} (lookup ${lookupUri}) — URI key mismatch?`);
+    }
+    const entries: ScanResultEntry[] = results.map((r) => ({
+      bookmarkId: r.anchorId,
+      uri: target.uri,
+      status: classifyAnchorStatus(r, { isLocal: isLocalMap.get(r.anchorId), showWarningOnShared }),
+      errorCode: r.errorCode ?? null,
+      errorDetails: r.errorDetails ?? null,
+      score: r.score ?? null,
+    }));
+    return { missing: false, entries };
+  }
+
+  // Write the authoritative broken-anchor cache for the files a scan validated.
+  async function writeAuthoritativeScanCache(scannedUris: Set<string>, entries: ScanResultEntry[]): Promise<void> {
+    const reg = await readRegistry(workspaceRoot);
+    const cacheDir = getCacheDir(workspaceRoot, getBookmarksDataRoot(reg));
+    const existing = await brokenAnchorsCache.readBrokenAnchorsCache(cacheDir);
+    const merged = buildAuthoritativeCache(existing.entries, scannedUris, entries, Date.now());
+    await brokenAnchorsCache.writeBrokenAnchorsCache(cacheDir, merged);
+  }
+
+  // --- Background scan queue (validates from disk; reuses repair queue to finalize) ---
+  const scanQueue = new ScanQueue({
+    validateFile: validateScanFile,
+    writeAuthoritativeCache: writeAuthoritativeScanCache,
+    markValidated: (fsPath: string) => markFileValidated(fsPath),
+    autoRepairEnabled: () => vscode.workspace.getConfiguration('agenticBookmarks').get('autoRepair', true),
+    triggerRepair: async (target: ScanTarget) => {
+      // Open (no tab) to drive the existing auto-repair queue for this file.
+      await vscode.workspace.openTextDocument(vscode.Uri.file(target.fsPath));
+    },
+    isRepairIdle: () => repairQueue?.isIdle() ?? true,
+    onPhaseChange: () => provider.refresh(),
+    delay: (ms: number) => new Promise((r) => setTimeout(r, ms)),
+    log: (m: string) => log.debug(m),
+  });
+  scanQueueRef = scanQueue;
+
+  // Seed the broken-count badge from the persisted cache on activation.
+  void recomputeBrokenCount().then(() => provider.refresh());
+
+  // --- Scan All + agent-driven Repair All commands ---
+  context.subscriptions.push(
+    vscode.commands.registerCommand('agenticBookmarks.scanAll', async () => {
+      if (!vscode.workspace.workspaceFolders?.length) {
+        vscode.window.showWarningMessage('No workspace folder open');
+        return;
+      }
+      if (scanQueue.isRunning()) { scanQueue.cancel(); return; } // click again = cancel
+      const targets = await collectAllBookmarkedTargets();
+      await scanQueue.run(targets);
+      await recomputeBrokenCount();
+      provider.refresh();
+    }),
+    ...registerAgentRepairCommands({ context, workspaceRoot, log }),
+  );
 
   // --- Active editor change ---
   setTimeout(() => { log.info('Initial decoration update'); updateDecorations(); }, 100);

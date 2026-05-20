@@ -128,6 +128,20 @@ export class AnchorRepairQueue implements vscode.Disposable {
     this.pendingDeepFlex.delete(docUri);
   }
 
+  /**
+   * True when both queues are drained and no processing/debounce is in flight.
+   * Used by the action rows to avoid refreshing counts mid-repair.
+   */
+  isIdle(): boolean {
+    return (
+      !this.processing &&
+      this.pending.size === 0 &&
+      this.pendingDeepFlex.size === 0 &&
+      this.debounceTimer === null &&
+      this.deepFlexDebounceTimer === null
+    );
+  }
+
   dispose(): void {
     this.disposed = true;
     if (this.debounceTimer) {

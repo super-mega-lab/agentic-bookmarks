@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { initStateForFile, getStatus, clearStateForFile } from './anchorState';
+import { initStateForFile, getStatus, clearStateForFile, classifyAnchorStatus } from './anchorState';
 import type { AnchorResolutionResult } from '@agentic-bookmarks/core';
 
 const DOC_URI = 'file:///test/file.ts';
@@ -11,6 +11,29 @@ function makeResult(overrides: Partial<AnchorResolutionResult> & { anchorId: str
     ...overrides,
   };
 }
+
+describe('classifyAnchorStatus (shared by open path + scan)', () => {
+  const r = (over: Partial<AnchorResolutionResult> & { anchorId: string }): AnchorResolutionResult =>
+    ({ resolved: true, ...over });
+
+  it('valid when resolved with no/high score', () => {
+    expect(classifyAnchorStatus(r({ anchorId: 'a' }))).toBe('valid');
+    expect(classifyAnchorStatus(r({ anchorId: 'a', score: 0.95 }))).toBe('valid');
+  });
+  it('warning when resolved with low score (local)', () => {
+    expect(classifyAnchorStatus(r({ anchorId: 'a', score: 0.5 }), { isLocal: true })).toBe('warning');
+  });
+  it('suppresses low-score warning on shared bookmarks unless enabled', () => {
+    expect(classifyAnchorStatus(r({ anchorId: 'a', score: 0.5 }), { isLocal: false, showWarningOnShared: false })).toBe('valid');
+    expect(classifyAnchorStatus(r({ anchorId: 'a', score: 0.5 }), { isLocal: false, showWarningOnShared: true })).toBe('warning');
+  });
+  it('warning when lineCacheOnly (deep-flex pending)', () => {
+    expect(classifyAnchorStatus(r({ anchorId: 'a', resolved: false, lineCacheOnly: true }))).toBe('warning');
+  });
+  it('broken when unresolved and not lineCacheOnly', () => {
+    expect(classifyAnchorStatus(r({ anchorId: 'a', resolved: false, errorCode: 'not_found' }))).toBe('broken');
+  });
+});
 
 describe('initStateForFile warning suppression on shared bookmarks', () => {
   beforeEach(() => {

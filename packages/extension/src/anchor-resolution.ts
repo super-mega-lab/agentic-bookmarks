@@ -7,7 +7,7 @@
 
 import * as vscode from 'vscode';
 import { resolveAnchors, refreshSmartAnchorContext } from '@agentic-bookmarks/core';
-import type { AnchorResolutionOptions } from '@agentic-bookmarks/core';
+import type { AnchorResolutionOptions, AnchorResolutionResult } from '@agentic-bookmarks/core';
 import {
   initStateForFile,
   clearStateForFile,
@@ -45,6 +45,48 @@ export interface AnchorResolution {
   revalidateOpenDocuments: () => Promise<void>;
 }
 
+/** Bookmark + resolution outcome for one target URI. */
+export interface ResolvedUriAnchors {
+  allBookmarks: Array<{ bookmark: { id: string; anchor: any; targetUri: string }; isLocal: boolean }>;
+  results: AnchorResolutionResult[];
+  isLocalMap: Map<string, boolean>;
+  showWarningOnShared: boolean;
+  enableLocalContextRefresh: boolean;
+}
+
+export interface ResolveUriDeps {
+  workspaceRoot: string;
+  getAllBookmarksForUri: AnchorResolutionDeps['getAllBookmarksForUri'];
+  getResolutionOptions: AnchorResolutionDeps['getResolutionOptions'];
+}
+
+/**
+ * Resolve every bookmark targeting `uri` against the supplied `fileLines`.
+ * Single source of truth for "resolve a URI's anchors": used by the open-document
+ * path (onFileOpened) and the scan path (validateFile, against disk-read lines).
+ * Pure of any open-editor assumptions — the caller supplies the lines.
+ */
+export async function resolveUriAnchors(
+  uri: string,
+  fileLines: string[],
+  deps: ResolveUriDeps,
+): Promise<ResolvedUriAnchors> {
+  const allBookmarks = await deps.getAllBookmarksForUri(uri, deps.workspaceRoot);
+  const anchorsToResolve = allBookmarks.map(({ bookmark }) => ({ id: bookmark.id, anchor: bookmark.anchor }));
+  const resolutionOptions = await deps.getResolutionOptions();
+  const { showWarningOnShared, enableLocalContextRefresh, ...coreResolutionOptions } = resolutionOptions;
+  const results = resolveAnchors(anchorsToResolve, fileLines, coreResolutionOptions);
+  const isLocalMap = new Map<string, boolean>();
+  for (const { bookmark, isLocal } of allBookmarks) isLocalMap.set(bookmark.id, isLocal);
+  return {
+    allBookmarks,
+    results,
+    isLocalMap,
+    showWarningOnShared: showWarningOnShared ?? false,
+    enableLocalContextRefresh: enableLocalContextRefresh ?? true,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
@@ -67,34 +109,20 @@ export function createAnchorResolution(deps: AnchorResolutionDeps): AnchorResolu
     const docUri = document.uri.toString();
     log.debug(`[anchorState] onFileOpened: ${docUri}`);
 
-    // Get all bookmarks that target this file
-    const allBookmarks = await getAllBookmarksForUri(docUri, workspaceRoot);
+    const fileLines = document.getText().split('\n');
+
+    // Resolve via the shared resolver (single source of truth — see resolveUriAnchors).
+    const { allBookmarks, results, isLocalMap, showWarningOnShared, enableLocalContextRefresh } =
+      await resolveUriAnchors(docUri, fileLines, { workspaceRoot, getAllBookmarksForUri, getResolutionOptions });
     log.debug(`[anchorState] found ${allBookmarks.length} bookmarks for file`);
     if (allBookmarks.length === 0) {
       clearStateForFile(docUri);
       return;
     }
-
-    const fileLines = document.getText().split('\n');
-    const anchorsToResolve = allBookmarks.map(({ bookmark }) => ({
-      id: bookmark.id,
-      anchor: bookmark.anchor,
-    }));
-
-    // Resolve all anchors in batch (with flex context options from registry)
-    const resolutionOptions = await getResolutionOptions();
-    const { showWarningOnShared, enableLocalContextRefresh, ...coreResolutionOptions } = resolutionOptions;
-    const results = resolveAnchors(anchorsToResolve, fileLines, coreResolutionOptions);
     log.trace(() => `[anchorState] resolved ${results.length} anchors: ${JSON.stringify(results.map(r => ({ id: r.anchorId, resolved: r.resolved, line: r.line })))}`);
 
-    // Build bookmarkId → isLocal map for warning suppression on shared bookmarks
-    const isLocalMap = new Map<string, boolean>();
-    for (const { bookmark, isLocal } of allBookmarks) {
-      isLocalMap.set(bookmark.id, isLocal);
-    }
-
     // Populate in-memory state
-    initStateForFile(docUri, results, { isLocalMap, showWarningOnShared: showWarningOnShared ?? false });
+    initStateForFile(docUri, results, { isLocalMap, showWarningOnShared });
     log.debug(`[anchorState] state initialized`);
 
     // Context refresh for local smart anchors — regenerate context when it has drifted

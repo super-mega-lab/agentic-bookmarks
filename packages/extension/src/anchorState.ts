@@ -45,6 +45,33 @@ export interface InitStateOptions {
 }
 
 /**
+ * Classify a core resolution result into an anchor status. Single source of truth
+ * shared by initStateForFile (open path) and the scan path (scanValidate).
+ *
+ * - resolved + low score → 'warning' (suppressed to 'valid' on shared bookmarks
+ *   unless showWarningOnShared);
+ * - unresolved + lineCacheOnly → 'warning' (deep-flex pending);
+ * - otherwise 'broken'.
+ */
+export function classifyAnchorStatus(
+  result: AnchorResolutionResult,
+  opts?: { isLocal?: boolean; showWarningOnShared?: boolean }
+): AnchorStatus {
+  const wouldWarn = result.score !== undefined && result.score < SMART_ANCHOR_HIGH_CONFIDENCE;
+  const isLocal = opts?.isLocal ?? true; // default to local (safer)
+  const showWarningOnShared = opts?.showWarningOnShared ?? false;
+  const suppressSharedWarning = wouldWarn && !isLocal && !showWarningOnShared;
+
+  return result.resolved
+    ? (wouldWarn && !suppressSharedWarning)
+      ? 'warning'
+      : 'valid'
+    : result.lineCacheOnly
+      ? 'warning'
+      : 'broken';
+}
+
+/**
  * Initialize state for a file from resolution results.
  */
 export function initStateForFile(
@@ -63,20 +90,9 @@ export function initStateForFile(
       ? (result.line ?? -1)
       : (result.lineCacheOnlyLine ?? -1);
 
-    // Determine status: lineCacheOnly anchors get 'warning' (unique lineCache found,
-    // context unconfirmed) so getResolvedLine returns the position for display.
-    // Suppress score-based warnings on shared bookmarks when showWarningOnShared is false.
-    const wouldWarn = result.score !== undefined && result.score < SMART_ANCHOR_HIGH_CONFIDENCE;
+    // Determine status via the shared classifier (see classifyAnchorStatus).
     const isLocal = isLocalMap?.get(result.anchorId) ?? true; // default to local (safer)
-    const suppressSharedWarning = wouldWarn && !isLocal && !showWarningOnShared;
-
-    const status: AnchorStatus = result.resolved
-      ? (wouldWarn && !suppressSharedWarning)
-        ? 'warning'
-        : 'valid'
-      : result.lineCacheOnly
-        ? 'warning'  // lineCacheOnly always shows warning (deep-flex pending)
-        : 'broken';
+    const status: AnchorStatus = classifyAnchorStatus(result, { isLocal, showWarningOnShared });
 
     const state: InMemoryAnchorState = {
       bookmarkId: result.anchorId,

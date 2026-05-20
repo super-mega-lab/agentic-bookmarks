@@ -831,11 +831,11 @@
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "    this.disposed = true;",
+        "lineCache": "  private async processQueue(): Promise<void> {",
         "contextBefore": [],
         "contextAfter": [],
         "lastUpdatedLine": 145,
-        "nonce": 1
+        "nonce": 0
       },
       "label": "processQueue() — drains pending one file at a time, yielding between each",
       "note": "The drain loop. `processing` flag guards against re-entrancy. Pulls one URI at a time from `pending`, skips files edited since enqueue, re-checks the autoRepair setting, processes the file, then `await setTimeout(0)` to yield to the event loop before the next file — this is what spreads CPU cost over time.",
