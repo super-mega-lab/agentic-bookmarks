@@ -1,3 +1,5 @@
+// ABOUTME: MCP tool handler for bookmark_add and bookmark_delete operations.
+// ABOUTME: Resolves workspace, group, and file context before writing bookmark data.
 import type { ServerContext } from '../server-context.js';
 import type {
   BookmarkAnchor,

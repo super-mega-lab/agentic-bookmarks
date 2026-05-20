@@ -1,3 +1,5 @@
+// ABOUTME: VS Code commands for MCP setup (Claude, Cursor, Codex), diagnostics, and bookmark file management.
+// ABOUTME: Also contains anchor-type and isLocal per-file setting commands.
 /**
  * MCP configuration, diagnostics, and file management commands extracted from extension.ts.
  *

@@ -1,3 +1,5 @@
+// ABOUTME: Shared MCP server helpers — logging, group creation, and bookmark file path resolution.
+// ABOUTME: createGroupWithStyleSetActive and createGroupWithAIStyle are the two entry points for group init.
 import {
   canonicalFileUri,
   type BookmarkAnchor,
