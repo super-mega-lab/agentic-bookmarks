@@ -22,7 +22,6 @@ const AGENTIC_ACCELERATION_URL = 'https://agenticbookmarks.com/agentic-accelerat
 const SKILLS_URL = 'https://agenticbookmarks.com/skills';
 const DISCORD_URL = 'https://discord.gg/zukZdvqf8q';
 const GITHUB_ISSUES_URL = 'https://github.com/super-mega-lab/agentic-bookmarks/issues/new';
-const TWITTER_X_URL = 'https://agenticbookmarks.com/x';
 
 const openUrlCmd = (url: string) =>
   `command:vscode.open?${encodeURIComponent(JSON.stringify([url]))}`;
@@ -88,10 +87,6 @@ function activeBody(needsGitignore: boolean): string {
     <a class="card" href="${openUrlCmd(GITHUB_ISSUES_URL)}">
       <span class="card-title">Report an Issue</span>
       <span class="card-sub">Found a bug or have a feature request? Open an issue on GitHub.</span>
-    </a>
-    <a class="card" href="${openUrlCmd(TWITTER_X_URL)}">
-      <span class="card-title">Follow on X</span>
-      <span class="card-sub">Stay up to date with news and updates.</span>
     </a>
   </section>`;
 }

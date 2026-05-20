@@ -78,10 +78,6 @@ describe('renderWelcomeHtml', () => {
       expect(activeHtml).toContain('Report an Issue');
     });
 
-    it('shows X follow card in active mode', () => {
-      expect(activeHtml).toContain('Follow on X');
-    });
-
     it('community cards use the vscode.open command', () => {
       expect(activeHtml).toContain('command:vscode.open');
     });
@@ -89,7 +85,6 @@ describe('renderWelcomeHtml', () => {
     it('omits community section in empty mode', () => {
       expect(emptyHtml).not.toContain('Join our Discord');
       expect(emptyHtml).not.toContain('Report an Issue');
-      expect(emptyHtml).not.toContain('Follow on X');
     });
   });
 
