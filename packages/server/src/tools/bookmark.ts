@@ -8,6 +8,7 @@ import type {
 import {
   readFileAt,
   writeFileAt,
+  pathsForDataFile,
   editFileV2WithContext,
   resolveWorkspacePath,
   uriToWorkspaceRelative,
@@ -190,7 +191,8 @@ export async function handleBookmarkAdd(ctx: ServerContext, args: Record<string,
           isUnsorted: true,
         };
         data.groups.push(unsortedGroup);
-        await writeFileAt(filePath, data);
+        const p = pathsForDataFile(filePath, workspace.workspaceRoot, workspace.bookmarksDataRoot);
+        await writeFileAt(p, data);
       }
 
       targetGroupId = unsortedGroup.id;

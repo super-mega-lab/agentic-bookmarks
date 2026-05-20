@@ -7,6 +7,7 @@ import {
   registryPathForRoot,
   readFileAt,
   writeFileAt,
+  pathsForDataFile,
   emptyFileV2,
   isLocalPath,
   createGroupInFile,
@@ -155,7 +156,8 @@ export async function createGroupWithStyleSetActive(workspaceRoot: string, dataF
   }
 
   // Persist and set active
-  await writeFileAt(abs, f);
+  const p = pathsForDataFile(abs, workspaceRoot, DEFAULT_BOOKMARKS_DATA_ROOT);
+  await writeFileAt(p, f);
   log(`Created group "${gname}" (${groupId}) in file: ${abs}`);
 
   try {

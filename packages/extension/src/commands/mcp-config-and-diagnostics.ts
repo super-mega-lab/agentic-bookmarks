@@ -818,7 +818,7 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
         (file as any).defaultAnchorType = pick.value;
       }
 
-      await writeFileAt(currentFilePaths.data, file);
+      await writeFileAt(currentFilePaths, file);
       filesGroups.refresh();
 
       vscode.window.showInformationMessage(
@@ -894,7 +894,7 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
         (file as any).isLocal = pick.value;
       }
 
-      await writeFileAt(filePaths.data, file);
+      await writeFileAt(filePaths, file);
       filesGroups.refresh();
 
       const modeLabel = pick.value === true ? 'local' : pick.value === false ? 'shared' : 'auto';
