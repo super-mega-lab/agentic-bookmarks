@@ -121,7 +121,7 @@ export async function activate(context: vscode.ExtensionContext) {
     if (hasScoped) return;
     if (!vscode.workspace.workspaceFolders?.length) return;
     hasScoped = true;
-    await activateForWorkspace(context, log, outputChannel);
+    await activateForWorkspace(context, log, outputChannel, welcomeProvider);
   };
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => { void maybeActivateForWorkspace(); }),
@@ -140,6 +140,7 @@ async function activateForWorkspace(
   context: vscode.ExtensionContext,
   log: ReturnType<typeof createLogger>,
   outputChannel: vscode.OutputChannel,
+  welcomeProvider: WelcomeViewProvider,
 ) {
   if (!vscode.workspace.workspaceFolders?.length) {
     log.error('activateForWorkspace called with no workspace folder; skipping');
@@ -680,6 +681,7 @@ async function activateForWorkspace(
       getUIState,
       setUIState,
       getCatalogCache,
+      refreshWelcomeView: () => welcomeProvider.refresh(),
     }),
   );
 

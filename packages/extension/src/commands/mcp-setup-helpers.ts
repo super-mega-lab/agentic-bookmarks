@@ -1,5 +1,35 @@
-// ABOUTME: Pure helpers for building the 'claude mcp add' setup command string.
+// ABOUTME: Pure helpers for MCP setup: command string construction and gitignore application.
 // ABOUTME: Extracted for testability — no VS Code API dependencies.
+
+import {
+  appendGitignoreLine as defaultAppendGitignoreLine,
+  BOOKMARKS_LOCAL_GITIGNORE_LINE,
+} from '@agentic-bookmarks/core';
+import { GITIGNORE_NUDGE_SHOWN_KEY, type WorkspaceStateLike } from '../gitignore-nudge';
+
+export interface ApplyGitignoreSetupDeps {
+  workspaceRoot: string;
+  workspaceState: WorkspaceStateLike;
+  log: { error(msg: string): void; info(msg: string): void };
+  appendGitignoreLineFn?: typeof defaultAppendGitignoreLine;
+}
+
+/**
+ * Applies the `.bookmarks/local/` gitignore entry and suppresses the standalone
+ * gitignore nudge so the user isn't prompted again after MCP setup already handled it.
+ * Never throws — errors are logged and silently swallowed so MCP setup still succeeds.
+ */
+export async function applyGitignoreSetup(deps: ApplyGitignoreSetupDeps): Promise<void> {
+  const { workspaceRoot, workspaceState, log, appendGitignoreLineFn = defaultAppendGitignoreLine } = deps;
+  try {
+    const status = await appendGitignoreLineFn(workspaceRoot, BOOKMARKS_LOCAL_GITIGNORE_LINE);
+    log.info(`[mcpSetup] .gitignore update: status=${status} at ${workspaceRoot}`);
+    await workspaceState.update(GITIGNORE_NUDGE_SHOWN_KEY, true);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error(`[mcpSetup] Failed to update .gitignore at ${workspaceRoot}: ${msg}`);
+  }
+}
 
 // Quote a value for POSIX shell (single-quote style).
 function shellQuote(value: string): string {
