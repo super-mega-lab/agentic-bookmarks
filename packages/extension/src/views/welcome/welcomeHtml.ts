@@ -20,7 +20,7 @@ const LOCAL_VS_SHARED_URL = 'https://agenticbookmarks.com/local-vs-shared';
 const ANCHORS_URL = 'https://agenticbookmarks.com/anchors';
 const AGENTIC_ACCELERATION_URL = 'https://agenticbookmarks.com/agentic-acceleration';
 const SKILLS_URL = 'https://agenticbookmarks.com/skills';
-const DISCORD_URL = 'https://agenticbookmarks.com/discord';
+const DISCORD_URL = 'https://discord.gg/zukZdvqf8q';
 const GITHUB_ISSUES_URL = 'https://github.com/super-mega-lab/agentic-bookmarks/issues';
 const TWITTER_X_URL = 'https://agenticbookmarks.com/x';
 
