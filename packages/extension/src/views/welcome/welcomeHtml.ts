@@ -26,7 +26,7 @@ const runCmd = (cmd: string) => `command:${cmd}`;
 function emptyBody(): string {
   return /* html */ `
   <section>
-    <p class="cta-text">Open a folder to activate Agentic Bookmarks.</p>
+    <p class="cta-text">Open a folder to use Agentic Bookmarks — most of this panel appears once you do.</p>
     <div class="button-row">
       <a class="button" href="${runCmd('vscode.openFolder')}">Open Folder…</a>
     </div>
