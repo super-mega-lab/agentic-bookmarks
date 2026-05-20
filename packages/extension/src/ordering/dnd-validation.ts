@@ -22,8 +22,8 @@ export interface DragSpec {
  * cross-parent reordering) silently return false — the drop handler no-ops.
  *
  * TODO(future): cross-file move-bookmark, cross-group move-bookmark,
- * cross-file move-group, cross-workspace move-file are separate commands
- * (not sort operations). Hook sites left at the ignore branches.
+ * cross-workspace move-file are separate commands (not sort operations).
+ * Hook sites left at the ignore branches.
  */
 export function canReorder(src: DragSpec, tgt: DragSpec): boolean {
   if (src.kind !== tgt.kind) return false;

@@ -30,6 +30,12 @@ export interface DnDOptions {
   /** Provider's `_onDidChangeTreeData.fire()` callback. */
   onChanged: () => void;
   service: OrderingService;
+  /**
+   * Called when no dragged item passes canReorder against the drop target.
+   * Implementations can use this to handle cross-kind or cross-parent drops
+   * (e.g. moving a group to a different file).
+   */
+  onFallbackDrop?: (srcSpecs: DragSpec[], target: vscode.TreeItem) => Promise<void>;
 }
 
 export function makeDnDController(opts: DnDOptions): vscode.TreeDragAndDropController<vscode.TreeItem> {
@@ -63,9 +69,13 @@ export function makeDnDController(opts: DnDOptions): vscode.TreeDragAndDropContr
       // for bookmarkFiles). Mixed-kind multi-select is fine — invalid ones
       // are silently filtered.
       // TODO(future): cross-* moves are separate commands (move-to-group,
-      // move-to-file, move-group, move-bookmarkFile-to-workspace).
+      // move-to-file, move-bookmarkFile-to-workspace). cross-file move-group
+      // is handled via onFallbackDrop.
       const survivors = srcSpecs.filter(s => canReorder(s, targetSpec));
-      if (survivors.length === 0) return;
+      if (survivors.length === 0) {
+        await opts.onFallbackDrop?.(srcSpecs, target);
+        return;
+      }
 
       const resolved = await opts.resolveSiblings(target);
       if (!resolved) return;

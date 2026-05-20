@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, getCacheDir, readRegistry, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath } from '@agentic-bookmarks/core';
+import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, getCacheDir, readRegistry, readFileV2, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath } from '@agentic-bookmarks/core';
 import { BookmarksProvider } from './treeProvider';
 import { FilesGroupsProvider } from './filesGroupsProvider';
 import { SettingsProvider } from './settingsProvider';
@@ -34,7 +34,7 @@ import { registerBookmarkNavigationCommands, cleanupPickMode } from './commands/
 import { registerBookmarkQuickpicksCommands } from './commands/bookmark-quickpicks';
 import { registerBookmarkBulkOpenCommands } from './commands/bookmark-bulk-open';
 import { registerBookmarkExportCommand } from './commands/bookmark-export';
-import { registerGroupManagementCommands } from './commands/group-management';
+import { registerGroupManagementCommands, executeGroupMove } from './commands/group-management';
 import { registerAppearanceCommands } from './commands/appearance';
 import { registerViewsCommands } from './commands/views';
 import { registerSettingsAndFilterCommands } from './commands/settings-and-filters';
@@ -183,6 +183,22 @@ export async function activate(context: vscode.ExtensionContext) {
   log.info('Tree view registered');
 
   const filesGroups = new FilesGroupsProvider(workspaceRoot, getUIState, defaultIconPath, isFileHidden, context, orderingService);
+  filesGroups.setGroupMoveHandler(async (groupId, srcFilePath, wsRoot, dstFileNode) => {
+    try {
+      const reg = await readRegistry(wsRoot);
+      const dataRoot = getBookmarksDataRoot(reg);
+      const p = pathsForDataFile(srcFilePath, wsRoot, dataRoot);
+      const file = await readFileV2(p);
+      const group = file.groups.find((g: any) => g.id === groupId);
+      const groupName = group?.name ?? groupId;
+      await executeGroupMove(
+        { workspaceRoot: wsRoot, log, provider, filesGroups, updateDecorations },
+        groupId, groupName, srcFilePath, dstFileNode.reg.path, wsRoot
+      );
+    } catch (e) {
+      vscode.window.showErrorMessage(`Move failed: ${e}`);
+    }
+  });
   const filesGroupsView = vscode.window.createTreeView('agenticBookmarks.filesGroups', {
     treeDataProvider: filesGroups,
     showCollapseAll: true,

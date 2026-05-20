@@ -54,6 +54,137 @@ export interface GroupManagementDeps {
   setUIState: (next: UIState & { searches?: SearchFilter[] }) => Promise<void>;
 }
 
+/**
+ * Execute a group move between bookmark files within a workspace.
+ *
+ * Performs the move via `moveGroupBetweenFiles`, surfaces conversion-issue
+ * notifications, applies any tag insertions/removals to source files, and
+ * refreshes the affected tree views and decorations.
+ *
+ * Callers are responsible for prior validation (workspace membership, dest
+ * file selection, etc.). Paths may be workspace-relative or absolute; they
+ * are resolved against `wsRoot` here.
+ */
+export async function executeGroupMove(
+  deps: Pick<GroupManagementDeps, 'workspaceRoot' | 'log' | 'provider' | 'filesGroups' | 'updateDecorations'>,
+  groupId: string,
+  groupName: string,
+  srcFilePath: string,
+  dstFilePath: string,
+  wsRoot: string
+): Promise<void> {
+  const { log, provider, filesGroups, updateDecorations } = deps;
+  try {
+    const resolvedSrc = path.isAbsolute(srcFilePath) ? srcFilePath : path.join(wsRoot, srcFilePath);
+    const resolvedDst = path.isAbsolute(dstFilePath) ? dstFilePath : path.join(wsRoot, dstFilePath);
+
+    log.trace(`[GroupMove] srcFilePath (resolved): ${resolvedSrc}`);
+    log.trace(`[GroupMove] destFilePath (resolved): ${resolvedDst}`);
+    log.trace(`[GroupMove] wsRoot: ${wsRoot}`);
+
+    const moveResult = await moveGroupBetweenFiles(wsRoot, resolvedSrc, resolvedDst, groupId);
+
+    if (moveResult.conversionIssues.length > 0) {
+      const issueCount = moveResult.conversionIssues.length;
+      vscode.window.showWarningMessage(
+        `Moved group "${groupName}". ${issueCount} bookmark(s) had conversion issues.`,
+        'Show Details'
+      ).then(selection => {
+        if (selection === 'Show Details') {
+          const details = moveResult.conversionIssues
+            .map(i => `• ${i.bookmarkId}: ${i.reason}`)
+            .join('\n');
+          vscode.window.showInformationMessage(details, { modal: true });
+        }
+      });
+    } else {
+      vscode.window.showInformationMessage(
+        `Moved group "${groupName}" with ${moveResult.movedCount} bookmarks.`
+      );
+    }
+
+    // Handle tag insertions
+    for (const insertion of moveResult.tagInsertions) {
+      try {
+        const targetPath = resolveWorkspacePath(insertion.file, wsRoot);
+        const doc = await vscode.workspace.openTextDocument(targetPath);
+        const edit = new vscode.WorkspaceEdit();
+
+        if (insertion.placement === 'inline') {
+          const line = doc.lineAt(insertion.line);
+          edit.insert(doc.uri, line.range.end, ` ${insertion.comment}`);
+        } else {
+          const position = new vscode.Position(insertion.line, 0);
+          edit.insert(doc.uri, position, `${insertion.comment}\n`);
+        }
+
+        await vscode.workspace.applyEdit(edit);
+        await doc.save();
+        log.trace(`[GroupMove] Inserted tag comment: ${insertion.comment} at ${insertion.file}:${insertion.line}`);
+      } catch (err) {
+        const errMsg = `Failed to insert tag comment ${insertion.comment}: ${err}`;
+        log.error(`[GroupMove] ERROR: ${errMsg}`);
+        vscode.window.showWarningMessage(errMsg);
+      }
+    }
+
+    // Handle tag removals
+    for (const removal of moveResult.tagRemovals) {
+      try {
+        const targetPath = resolveWorkspacePath(removal.file, wsRoot);
+        const doc = await vscode.workspace.openTextDocument(targetPath);
+        const text = doc.getText();
+        const lines = text.split('\n');
+
+        const edit = new vscode.WorkspaceEdit();
+
+        const tagIdMatch = removal.pattern.match(/@bookmark:(\S+)/);
+        const tagId = tagIdMatch ? tagIdMatch[1] : removal.pattern;
+        const escapedTagId = tagId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const TAG_TAIL = '(?![A-Za-z0-9_-])';
+        const tagPattern = new RegExp(`\\s*//\\s*@bookmark:${escapedTagId}${TAG_TAIL}|\\s*#\\s*@bookmark:${escapedTagId}${TAG_TAIL}|\\s*/\\*\\s*@bookmark:${escapedTagId}\\s*\\*/`, 'g');
+
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].includes(removal.pattern)) {
+            const newLine = lines[i].replace(tagPattern, '');
+            const lineRange = doc.lineAt(i).range;
+
+            if (newLine.trim() === '') {
+              edit.delete(doc.uri, lineRange.with(undefined, new vscode.Position(i + 1, 0)));
+            } else {
+              edit.replace(doc.uri, lineRange, newLine);
+            }
+            break;
+          }
+        }
+
+        await vscode.workspace.applyEdit(edit);
+        await doc.save();
+        log.trace(`[GroupMove] Removed tag comment: ${removal.pattern} from ${removal.file}:${removal.line}`);
+      } catch (err) {
+        const errMsg = `Failed to remove tag comment ${removal.pattern}: ${err}`;
+        log.error(`[GroupMove] ERROR: ${errMsg}`);
+        vscode.window.showWarningMessage(errMsg);
+      }
+    }
+
+    log.debug(`[GroupMove] Refreshing tree views after group move completion`);
+    provider.refresh();
+    filesGroups.refresh();
+    await updateDecorations();
+  } catch (e) {
+    const errMsg = `Move failed: ${e}`;
+    log.error(`[GroupMove] FATAL ERROR: ${errMsg}`);
+    vscode.window.showErrorMessage(errMsg);
+    try {
+      provider.refresh();
+      filesGroups.refresh();
+    } catch (refreshErr) {
+      log.error(`[GroupMove] ERROR: Failed to refresh UI: ${refreshErr}`);
+    }
+  }
+}
+
 export function registerGroupManagementCommands(deps: GroupManagementDeps): vscode.Disposable[] {
   const {
     workspaceRoot,
@@ -224,109 +355,16 @@ export function registerGroupManagementCommands(deps: GroupManagementDeps): vsco
 
         if (!pick) return;
 
-        const srcFilePath = path.isAbsolute(node.dataFilePath)
-          ? node.dataFilePath
-          : path.join(nodeWorkspaceRoot, node.dataFilePath);
-
-        const destFilePath = path.isAbsolute(pick.filePath)
-          ? pick.filePath
-          : path.join(nodeWorkspaceRoot, pick.filePath);
-
         log.trace(`[GroupMove] node.dataFilePath: ${node.dataFilePath}`);
-        log.trace(`[GroupMove] srcFilePath (resolved): ${srcFilePath}`);
-        log.trace(`[GroupMove] destFilePath (resolved): ${destFilePath}`);
-        log.trace(`[GroupMove] nodeWorkspaceRoot: ${nodeWorkspaceRoot}`);
 
-        const moveResult = await moveGroupBetweenFiles(nodeWorkspaceRoot, srcFilePath, destFilePath, (node.group as any).id);
-
-        if (moveResult.conversionIssues.length > 0) {
-          const issueCount = moveResult.conversionIssues.length;
-          vscode.window.showWarningMessage(
-            `Moved group "${node.group.name}". ${issueCount} bookmark(s) had conversion issues.`,
-            'Show Details'
-          ).then(selection => {
-            if (selection === 'Show Details') {
-              const details = moveResult.conversionIssues
-                .map(i => `• ${i.bookmarkId}: ${i.reason}`)
-                .join('\n');
-              vscode.window.showInformationMessage(details, { modal: true });
-            }
-          });
-        } else {
-          vscode.window.showInformationMessage(
-            `Moved group "${node.group.name}" with ${moveResult.movedCount} bookmarks.`
-          );
-        }
-
-        // Handle tag insertions
-        for (const insertion of moveResult.tagInsertions) {
-          try {
-            const targetPath = resolveWorkspacePath(insertion.file, nodeWorkspaceRoot);
-            const doc = await vscode.workspace.openTextDocument(targetPath);
-            const edit = new vscode.WorkspaceEdit();
-
-            if (insertion.placement === 'inline') {
-              const line = doc.lineAt(insertion.line);
-              edit.insert(doc.uri, line.range.end, ` ${insertion.comment}`);
-            } else {
-              const position = new vscode.Position(insertion.line, 0);
-              edit.insert(doc.uri, position, `${insertion.comment}\n`);
-            }
-
-            await vscode.workspace.applyEdit(edit);
-            await doc.save();
-            log.trace(`[GroupMove] Inserted tag comment: ${insertion.comment} at ${insertion.file}:${insertion.line}`);
-          } catch (err) {
-            const errMsg = `Failed to insert tag comment ${insertion.comment}: ${err}`;
-            log.error(`[GroupMove] ERROR: ${errMsg}`);
-            vscode.window.showWarningMessage(errMsg);
-          }
-        }
-
-        // Handle tag removals
-        for (const removal of moveResult.tagRemovals) {
-          try {
-            const targetPath = resolveWorkspacePath(removal.file, nodeWorkspaceRoot);
-            const doc = await vscode.workspace.openTextDocument(targetPath);
-            const text = doc.getText();
-            const lines = text.split('\n');
-
-            const edit = new vscode.WorkspaceEdit();
-
-            const tagIdMatch = removal.pattern.match(/@bookmark:(\S+)/);
-            const tagId = tagIdMatch ? tagIdMatch[1] : removal.pattern;
-            const escapedTagId = tagId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            const TAG_TAIL = '(?![A-Za-z0-9_-])';
-            const tagPattern = new RegExp(`\\s*//\\s*@bookmark:${escapedTagId}${TAG_TAIL}|\\s*#\\s*@bookmark:${escapedTagId}${TAG_TAIL}|\\s*/\\*\\s*@bookmark:${escapedTagId}\\s*\\*/`, 'g');
-
-            for (let i = 0; i < lines.length; i++) {
-              if (lines[i].includes(removal.pattern)) {
-                const newLine = lines[i].replace(tagPattern, '');
-                const lineRange = doc.lineAt(i).range;
-
-                if (newLine.trim() === '') {
-                  edit.delete(doc.uri, lineRange.with(undefined, new vscode.Position(i + 1, 0)));
-                } else {
-                  edit.replace(doc.uri, lineRange, newLine);
-                }
-                break;
-              }
-            }
-
-            await vscode.workspace.applyEdit(edit);
-            await doc.save();
-            log.trace(`[GroupMove] Removed tag comment: ${removal.pattern} from ${removal.file}:${removal.line}`);
-          } catch (err) {
-            const errMsg = `Failed to remove tag comment ${removal.pattern}: ${err}`;
-            log.error(`[GroupMove] ERROR: ${errMsg}`);
-            vscode.window.showWarningMessage(errMsg);
-          }
-        }
-
-        log.debug(`[GroupMove] Refreshing tree views after group move completion`);
-        provider.refresh();
-        filesGroups.refresh();
-        await updateDecorations();
+        await executeGroupMove(
+          { workspaceRoot, log, provider, filesGroups, updateDecorations },
+          (node.group as any).id,
+          node.group.name,
+          node.dataFilePath,
+          pick.filePath,
+          nodeWorkspaceRoot
+        );
       } catch (e) {
         const errMsg = `Move failed: ${e}`;
         log.error(`[GroupMove] FATAL ERROR: ${errMsg}`);

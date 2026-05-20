@@ -78,11 +78,19 @@ export class GroupNode extends vscode.TreeItem {
 
 type UIState = { hidden: string[]; focus: string | null; hiddenFiles?: string[] };
 
+type GroupMoveHandler = (
+  groupId: string,
+  srcFilePath: string,
+  wsRoot: string,
+  dstFileNode: RegFileNode
+) => Promise<void>;
+
 export class FilesGroupsProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<void>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
   public readonly dnd: vscode.TreeDragAndDropController<vscode.TreeItem>;
+  private _groupMoveHandler?: GroupMoveHandler;
 
   constructor(
     private workspaceRoot: string,  // Primary workspace (for backward compat)
@@ -98,7 +106,27 @@ export class FilesGroupsProvider implements vscode.TreeDataProvider<vscode.TreeI
       onChanged: () => this._onDidChangeTreeData.fire(),
       specOf: (item) => this.specOf(item),
       resolveSiblings: (target) => this.resolveSiblings(target),
+      onFallbackDrop: async (srcSpecs, target) => {
+        if (!(target instanceof RegFileNode)) return;
+        if (srcSpecs.length !== 1 || srcSpecs[0].kind !== 'group') return;
+        if (!this._groupMoveHandler) return;
+        const srcSpec = srcSpecs[0];
+        const pipeIdx = srcSpec.parentId?.indexOf('|') ?? -1;
+        if (pipeIdx < 0) return;
+        const srcWsRoot = srcSpec.parentId!.slice(0, pipeIdx);
+        const srcFilePath = srcSpec.parentId!.slice(pipeIdx + 1);
+        if (target.reg.path === srcFilePath) return;
+        if (target.workspaceRoot !== srcWsRoot) {
+          vscode.window.showErrorMessage('Cannot move groups between workspaces.');
+          return;
+        }
+        await this._groupMoveHandler(srcSpec.id, srcFilePath, srcWsRoot, target);
+      },
     });
+  }
+
+  setGroupMoveHandler(handler: GroupMoveHandler): void {
+    this._groupMoveHandler = handler;
   }
 
   private specOf(item: vscode.TreeItem): DragSpec | null {
