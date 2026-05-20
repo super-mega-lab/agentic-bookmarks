@@ -78,8 +78,54 @@ export async function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // --- Welcome webview (workspace-agnostic; shows an "open a folder" CTA when empty) ---
+  const welcomeProvider = new WelcomeViewProvider(context.extensionUri, context.subscriptions);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      WelcomeViewProvider.viewId,
+      welcomeProvider,
+      { webviewOptions: { retainContextWhenHidden: false } },
+    ),
+  );
+
+  // --- Defer workspace-scoped activation until a folder is present (SML-1394) ---
+  // Constructing providers/services against process.cwd() when no folder is open
+  // writes to '/.bookmarks' and leaves the extension half-wired until reload.
+  // Run the scoped phase only once a workspace folder exists, re-checking when
+  // folders change so "empty window -> open folder" activates without a reload.
+  let hasScoped = false;
+  const maybeActivateForWorkspace = async () => {
+    if (hasScoped) return;
+    if (!vscode.workspace.workspaceFolders?.length) return;
+    hasScoped = true;
+    await activateForWorkspace(context, log, outputChannel);
+  };
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => { void maybeActivateForWorkspace(); }),
+  );
+  await maybeActivateForWorkspace();
+
+  log.info('Extension activation (agnostic phase) complete');
+  console.log('Agentic Bookmarks extension ready');
+}
+
+// ---------------------------------------------------------------------------
+// activateForWorkspace — workspace-scoped phase, runs once a folder is available
+// ---------------------------------------------------------------------------
+
+async function activateForWorkspace(
+  context: vscode.ExtensionContext,
+  log: ReturnType<typeof createLogger>,
+  outputChannel: vscode.OutputChannel,
+) {
+  if (!vscode.workspace.workspaceFolders?.length) {
+    log.error('activateForWorkspace called with no workspace folder; skipping');
+    return;
+  }
+  log.info('Workspace-scoped activation started');
+
   // --- Workspace root & default paths ---
-  const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+  const workspaceRoot = vscode.workspace.workspaceFolders[0].uri.fsPath;
   const defaultDataRoot = DEFAULT_BOOKMARKS_DATA_ROOT;
 
   // --- Migrate legacy layout (registry/icon-cache/.cache/logs) into .bookmarks/local/ ---
@@ -256,16 +302,6 @@ export async function activate(context: vscode.ExtensionContext) {
   const settingsProvider = new SettingsProvider(workspaceRoot, context, licensing);
   const settingsView = vscode.window.createTreeView('agenticBookmarks.settings', { treeDataProvider: settingsProvider, showCollapseAll: true });
   context.subscriptions.push(settingsView);
-
-  // --- Welcome webview ---
-  const welcomeProvider = new WelcomeViewProvider(context.extensionUri);
-  context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      WelcomeViewProvider.viewId,
-      welcomeProvider,
-      { webviewOptions: { retainContextWhenHidden: false } },
-    ),
-  );
 
   // --- Multi-workspace context ---
   const updateHasMultipleWorkspacesContext = () => {
@@ -737,7 +773,7 @@ export async function activate(context: vscode.ExtensionContext) {
         onDidChangeMcpServerDefinitions: mcpEmitter.event,
         provideMcpServerDefinitions: async () => {
           log.debug('Providing MCP server definitions');
-          const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+          const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? workspaceRoot;
           const workspaceConfig = getMcpWorkspaceConfig();
 
           if ((vscode as any).McpStdioServerDefinition) {
@@ -782,8 +818,7 @@ export async function activate(context: vscode.ExtensionContext) {
     log.error(`Failed to register MCP server: ${error}`);
   }
 
-  log.info('Extension activation complete');
-  console.log('Agentic Bookmarks extension ready');
+  log.info('Workspace-scoped activation complete');
   outputChannel.show();
 }
 
