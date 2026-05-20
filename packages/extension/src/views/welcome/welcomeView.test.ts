@@ -33,12 +33,36 @@ describe('renderWelcomeHtml', () => {
 
     it('shows Learn cards and MCP setup buttons', () => {
       expect(html).toContain('Local vs. Shared Bookmarks');
+      expect(html).toContain('Powerful Support Skills');
       expect(html).toContain('Set up for Claude Code');
       expect(html).toContain('agenticBookmarks.setupClaude');
     });
 
     it('does not show the open-folder CTA', () => {
       expect(html).not.toContain('command:vscode.openFolder');
+    });
+  });
+
+  describe('gitignore banner', () => {
+    it('shows the banner with its command when needsGitignore is true and a folder is loaded', () => {
+      const html = renderWelcomeHtml({ ...baseOpts, hasFolder: true, needsGitignore: true });
+      expect(html).toContain('command:agenticBookmarks.addLocalToGitignore');
+      expect(html).toContain('.gitignore');
+    });
+
+    it('omits the banner when needsGitignore is false', () => {
+      const html = renderWelcomeHtml({ ...baseOpts, hasFolder: true, needsGitignore: false });
+      expect(html).not.toContain('command:agenticBookmarks.addLocalToGitignore');
+    });
+
+    it('omits the banner when no folder is loaded even if needsGitignore is true', () => {
+      const html = renderWelcomeHtml({ ...baseOpts, hasFolder: false, needsGitignore: true });
+      expect(html).not.toContain('command:agenticBookmarks.addLocalToGitignore');
+    });
+
+    it('renders the banner before the Learn section', () => {
+      const html = renderWelcomeHtml({ ...baseOpts, hasFolder: true, needsGitignore: true });
+      expect(html.indexOf('addLocalToGitignore')).toBeLessThan(html.indexOf('>Learn<'));
     });
   });
 });

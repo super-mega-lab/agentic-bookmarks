@@ -29,6 +29,7 @@ import {
   setFileWatch,
   getDefaultAnchorType,
   setDefaultAnchorType,
+  ANCHOR_TYPES,
 } from '@agentic-bookmarks/core';
 import type { Logger } from '../logger';
 import type { BookmarksProvider } from '../treeProvider';
@@ -179,7 +180,8 @@ export function registerSettingsAndFilterCommands(deps: SettingsAndFilterDeps): 
     // Cycle default anchor type
     vscode.commands.registerCommand('agenticBookmarks.cycleDefaultAnchorType', async () => {
       const current = await getDefaultAnchorType(workspaceRoot);
-      const next = current === 'smart' ? 'tag' : current === 'tag' ? 'point' : 'smart';
+      const idx = ANCHOR_TYPES.indexOf(current as (typeof ANCHOR_TYPES)[number]);
+      const next = ANCHOR_TYPES[(idx + 1) % ANCHOR_TYPES.length];
       await setDefaultAnchorType(workspaceRoot, next);
       settingsProvider.refresh();
       vscode.window.showInformationMessage(`Default anchor type set to: ${next}`);

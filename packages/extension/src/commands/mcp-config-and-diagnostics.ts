@@ -57,6 +57,8 @@ import {
   readFileAt,
   writeFileAt,
   getLocalDir,
+  ANCHOR_TYPES,
+  type AnchorTypeOption,
 } from '@agentic-bookmarks/core';
 import type { BookmarkNode } from '../treeProvider';
 import type { GroupNode, RegFileNode, FilesGroupsProvider } from '../filesGroupsProvider';
@@ -800,10 +802,16 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
       const currentType: string | undefined = (currentFile as any).defaultAnchorType;
 
       const tag = ' [current]';
-      const options = [
-        { label: 'Smart' + (currentType === 'smart' ? tag : ''), description: 'Finds location using surrounding code context', value: 'smart' as const },
-        { label: 'Tag' + (currentType === 'tag' ? tag : ''), description: 'Uses inline comment markers in source files', value: 'tag' as const },
-        { label: 'Point' + (currentType === 'point' ? tag : ''), description: 'Fixed line number (may drift when code changes)', value: 'point' as const },
+      const meta: Record<AnchorTypeOption, { label: string; description: string }> = {
+        smart: { label: 'Smart', description: 'Finds location using surrounding code context' },
+        tag: { label: 'Tag', description: 'Uses inline comment markers in source files' },
+      };
+      const options: { label: string; description: string; value: AnchorTypeOption | undefined }[] = [
+        ...ANCHOR_TYPES.map((t) => ({
+          label: meta[t].label + (currentType === t ? tag : ''),
+          description: meta[t].description,
+          value: t as AnchorTypeOption,
+        })),
         { label: 'None (inherit)' + (currentType === undefined ? tag : ''), description: 'Use user settings', value: undefined },
       ];
 

@@ -7,9 +7,17 @@ export interface WelcomeHtmlOptions {
   cspSource: string;
   /** Per-render nonce for inline content. */
   nonce: string;
+  /**
+   * Whether to offer the "Add to .gitignore" banner. Only honored when
+   * `hasFolder` is true — the no-folder view performs no workspace evaluation.
+   */
+  needsGitignore?: boolean;
 }
 
-const LEARN_URL = 'https://agenticbookmarks.com';
+const LOCAL_VS_SHARED_URL = 'https://agenticbookmarks.com/local-vs-shared';
+const ANCHORS_URL = 'https://agenticbookmarks.com/anchors';
+const AGENTIC_ACCELERATION_URL = 'https://agenticbookmarks.com/agentic-acceleration';
+const SKILLS_URL = 'https://agenticbookmarks.com/skills';
 
 const openUrlCmd = (url: string) =>
   `command:vscode.open?${encodeURIComponent(JSON.stringify([url]))}`;
@@ -25,21 +33,35 @@ function emptyBody(): string {
   </section>`;
 }
 
-function activeBody(): string {
+function gitignoreBanner(): string {
   return /* html */ `
+  <section class="banner">
+    <p class="banner-text">Machine-local bookmark state isn't ignored by git yet. Add <code>.bookmarks/local/</code> to <code>.gitignore</code> so collaborators don't see churn from per-machine files.</p>
+    <div class="button-row">
+      <a class="button" href="${runCmd('agenticBookmarks.addLocalToGitignore')}">Add Agentic Bookmarks to .gitignore</a>
+    </div>
+  </section>`;
+}
+
+function activeBody(needsGitignore: boolean): string {
+  return /* html */ `${needsGitignore ? gitignoreBanner() : ''}
   <section>
     <h2>Learn</h2>
-    <a class="card" href="${openUrlCmd(LEARN_URL)}">
+    <a class="card" href="${openUrlCmd(LOCAL_VS_SHARED_URL)}">
       <span class="card-title">Local vs. Shared Bookmarks</span>
       <span class="card-sub">Workspace-only vs. Git-friendly groups that travel with the repo.</span>
     </a>
-    <a class="card" href="${openUrlCmd(LEARN_URL)}">
+    <a class="card" href="${openUrlCmd(ANCHORS_URL)}">
       <span class="card-title">Smart &amp; Tag Anchors</span>
       <span class="card-sub">How anchors survive refactors and code movement.</span>
     </a>
-    <a class="card" href="${openUrlCmd(LEARN_URL)}">
+    <a class="card" href="${openUrlCmd(AGENTIC_ACCELERATION_URL)}">
       <span class="card-title">Agentic Acceleration with the MCP</span>
       <span class="card-sub">Let your AI assistant create and navigate bookmarks for you.</span>
+    </a>
+    <a class="card" href="${openUrlCmd(SKILLS_URL)}">
+      <span class="card-title">Powerful Support Skills</span>
+      <span class="card-sub">Built-in MCP playbooks that teach agents to map, analyze, and bookmark code.</span>
     </a>
   </section>
 
@@ -54,8 +76,8 @@ function activeBody(): string {
 }
 
 export function renderWelcomeHtml(opts: WelcomeHtmlOptions): string {
-  const { hasFolder, iconUri, cspSource, nonce } = opts;
-  const body = hasFolder ? activeBody() : emptyBody();
+  const { hasFolder, iconUri, cspSource, nonce, needsGitignore = false } = opts;
+  const body = hasFolder ? activeBody(needsGitignore) : emptyBody();
 
   return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -113,6 +135,19 @@ export function renderWelcomeHtml(opts: WelcomeHtmlOptions): string {
       margin: 0 0 10px;
       color: var(--vscode-descriptionForeground);
       font-size: 0.9em;
+    }
+    .banner {
+      background: var(--vscode-inputValidation-warningBackground, var(--vscode-editorWidget-background));
+      border-top: none;
+      border-left: 3px solid var(--vscode-inputValidation-warningBorder, var(--vscode-editorWarning-foreground));
+    }
+    .banner-text {
+      margin: 0;
+      font-size: 0.9em;
+    }
+    .banner code {
+      font-family: var(--vscode-editor-font-family, monospace);
+      font-size: 0.95em;
     }
     .card {
       display: block;

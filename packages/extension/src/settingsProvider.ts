@@ -82,12 +82,10 @@ export class SettingsProvider implements vscode.TreeDataProvider<vscode.TreeItem
       items.push(this.toggleItem('Show notes and labels', notesOn, 'agenticBookmarks.toggleNotesAndLabels'));
       // Default anchor type
       const anchorType = reg.settings?.anchors?.defaultAnchorType ?? 'smart';
-      const anchorLabel = anchorType === 'smart' ? 'Smart (recommended)' : anchorType === 'tag' ? 'Tag' : 'Point';
+      const anchorLabel = anchorType === 'tag' ? 'Tag' : 'Smart (recommended)';
       const anchorItem = new vscode.TreeItem(`Default anchor: ${anchorLabel}`, vscode.TreeItemCollapsibleState.None);
       anchorItem.command = { command: 'agenticBookmarks.cycleDefaultAnchorType', title: 'Cycle' };
-      anchorItem.iconPath = new vscode.ThemeIcon(
-        anchorType === 'smart' ? 'symbol-method' : anchorType === 'tag' ? 'tag' : 'location'
-      );
+      anchorItem.iconPath = new vscode.ThemeIcon(anchorType === 'tag' ? 'tag' : 'symbol-method');
       items.push(anchorItem);
       return items;
     }

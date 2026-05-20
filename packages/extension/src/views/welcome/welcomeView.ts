@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { renderWelcomeHtml } from './welcomeHtml';
+import { shouldOfferGitignoreLine } from './needsGitignore';
 
 export class WelcomeViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewId = 'agenticBookmarks.welcome';
@@ -11,7 +12,7 @@ export class WelcomeViewProvider implements vscode.WebviewViewProvider {
     subscriptions: vscode.Disposable[],
   ) {
     subscriptions.push(
-      vscode.workspace.onDidChangeWorkspaceFolders(() => this.render()),
+      vscode.workspace.onDidChangeWorkspaceFolders(() => void this.render()),
     );
   }
 
@@ -26,14 +27,28 @@ export class WelcomeViewProvider implements vscode.WebviewViewProvider {
       enableCommandUris: true,
       localResourceRoots: [this.extensionUri],
     };
-    this.render();
+    void this.render();
   }
 
-  private render(): void {
+  /** Re-render the view. Safe to call after side effects (e.g. updating .gitignore). */
+  public refresh(): void {
+    void this.render();
+  }
+
+  private async render(): Promise<void> {
     if (!this.view) return;
     const webview = this.view.webview;
+    const folders = vscode.workspace.workspaceFolders;
+    const hasFolder = (folders?.length ?? 0) > 0;
+    // The no-folder view is a no-op: do no workspace evaluation when empty.
+    const needsGitignore = hasFolder
+      ? await shouldOfferGitignoreLine(folders![0].uri.fsPath)
+      : false;
+    // The view may have been disposed while awaiting; re-check before writing.
+    if (!this.view) return;
     webview.html = renderWelcomeHtml({
-      hasFolder: (vscode.workspace.workspaceFolders?.length ?? 0) > 0,
+      hasFolder,
+      needsGitignore,
       iconUri: webview
         .asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'icon512.png'))
         .toString(),

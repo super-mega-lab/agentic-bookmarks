@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
-import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, getCacheDir, readRegistry, readFileV2, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath } from '@agentic-bookmarks/core';
+import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, getCacheDir, readRegistry, readFileV2, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath, appendGitignoreLine, BOOKMARKS_LOCAL_GITIGNORE_LINE } from '@agentic-bookmarks/core';
 import { BookmarksProvider } from './treeProvider';
 import { FilesGroupsProvider } from './filesGroupsProvider';
 import { SettingsProvider } from './settingsProvider';
@@ -86,6 +86,29 @@ export async function activate(context: vscode.ExtensionContext) {
       welcomeProvider,
       { webviewOptions: { retainContextWhenHidden: false } },
     ),
+  );
+
+  // Welcome-page "Add to .gitignore" button: append the canonical line, then
+  // refresh the view so the banner clears. Detection of when to show it lives
+  // in the welcome view (folder-loaded only); this command performs the write.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('agenticBookmarks.addLocalToGitignore', async () => {
+      const root = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+      if (!root) return;
+      try {
+        const status = await appendGitignoreLine(root, BOOKMARKS_LOCAL_GITIGNORE_LINE);
+        log.info(`[gitignore] add-to-gitignore command: status=${status} at ${root}`);
+        if (status !== 'already-present') {
+          void vscode.window.showInformationMessage('Added `.bookmarks/local/` to .gitignore.');
+        }
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        log.error(`[gitignore] add-to-gitignore command failed at ${root}: ${msg}`);
+        void vscode.window.showWarningMessage(`Bookmarks: failed to update .gitignore — ${msg}`);
+      } finally {
+        welcomeProvider.refresh();
+      }
+    }),
   );
 
   // --- Defer workspace-scoped activation until a folder is present (SML-1394) ---

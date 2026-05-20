@@ -9,6 +9,7 @@
   "scripts": {
     "build": "pnpm -r run build",
     "build:watch": "pnpm -r --parallel run build:watch",
+    "build-core": "(cd ../agentic-bookmarks-core && pnpm build) && pnpm install",
     "lint": "eslint .",
     "typecheck": "pnpm -r --no-bail typecheck",
     "test": "vitest run",
@@ -30,7 +31,8 @@
     "increment:patch": "node scripts/bump-version.mjs patch",
     "increment:minor": "node scripts/bump-version.mjs minor",
     "increment:major": "node scripts/bump-version.mjs major",
-    "iterate": "pnpm increment:patch && pnpm package && pnpm package:update"
+    "iterate": "pnpm increment:patch && pnpm package && pnpm package:update",
+    "iterate:core": "pnpm build-core && pnpm iterate"
   },
   "devDependencies": {
     "@types/node": "^20.19.41",
