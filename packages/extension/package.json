@@ -254,15 +254,18 @@
         {
           "id": "agenticBookmarks.view",
           "name": "All Bookmarks",
-          "icon": "media/bookmarks-icon.svg"
+          "icon": "media/bookmarks-icon.svg",
+          "visibility": "collapsed"
         },
         {
           "id": "agenticBookmarks.filesGroups",
-          "name": "Files + Groups"
+          "name": "Files + Groups",
+          "visibility": "collapsed"
         },
         {
           "id": "agenticBookmarks.settings",
-          "name": "Settings"
+          "name": "Settings",
+          "visibility": "collapsed"
         }
       ]
     },
