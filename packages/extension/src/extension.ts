@@ -118,6 +118,13 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand('agenticBookmarks.openGettingStarted', () => {
+      const uri = vscode.Uri.joinPath(context.extensionUri, 'resources', 'getting-started.md');
+      void vscode.commands.executeCommand('markdown.showPreview', uri);
+    }),
+  );
+
   // --- Defer workspace-scoped activation until a folder is present (SML-1394) ---
   // Constructing providers/services against process.cwd() when no folder is open
   // writes to '/.bookmarks' and leaves the extension half-wired until reload.

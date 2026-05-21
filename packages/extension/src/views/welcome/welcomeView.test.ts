@@ -24,6 +24,17 @@ describe('package.json view visibility', () => {
   });
 });
 
+describe('package.json command contributions', () => {
+  const commands: Array<{ command: string; title: string; category: string }> =
+    pkg.contributes.commands;
+
+  it('registers agenticBookmarks.openGettingStarted', () => {
+    const cmd = commands.find(c => c.command === 'agenticBookmarks.openGettingStarted');
+    expect(cmd).toBeDefined();
+    expect(cmd?.category).toBe('Agentic Bookmarks');
+  });
+});
+
 const baseOpts = {
   iconUri: 'https://example/icon512.png',
   cspSource: 'vscode-webview://example',

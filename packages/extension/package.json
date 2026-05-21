@@ -821,6 +821,11 @@
         "title": "Repair All: Settings",
         "category": "Agentic Bookmarks",
         "icon": "$(gear)"
+      },
+      {
+        "command": "agenticBookmarks.openGettingStarted",
+        "title": "Open Getting Started Guide",
+        "category": "Agentic Bookmarks"
       }
     ],
     "menus": {
