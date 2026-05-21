@@ -249,10 +249,15 @@ Use this skill when:
 
 **Via the panel:** Right-click a line in any editor and choose **Agentic Bookmarks: Add Bookmark**. Or open the panel and use the inline add button.
 
-**Via agent:** Use \`bookmark_add\` with \`filePath\`, \`line\` (0-based), and \`label\`. Pass \`groupName\` to assign to a group (auto-created if it doesn't exist):
+**Via agent:** Use \`bookmark_add\` with \`uri\` (a \`file://\` URI), \`anchor\` (1-based line), and \`label\`. Pass \`groupName\` to assign to a group (auto-created if it doesn't exist):
 
 \`\`\`ts
-bookmark_add({ filePath: "src/auth/token.ts", line: 42, label: "Token validation logic", groupName: "Authentication" })
+bookmark_add({
+  uri: "file:///path/to/src/auth/token.ts",
+  anchor: { kind: "point", line: 42 },
+  label: "Token validation logic",
+  groupName: "Authentication"
+})
 \`\`\`
 
 ### Navigating to a bookmark
