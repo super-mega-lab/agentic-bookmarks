@@ -264,7 +264,7 @@ bookmark_add({
 
 Click any bookmark in the Agentic Bookmarks panel to jump to it. The panel lives in the Activity Bar.
 
-Via agent: \`bookmark_open\` with a \`bookmarkId\` from \`bookmark_list\` or \`bookmark_search\`.
+Via agent: \`bookmark_open\` with an \`id\` from \`bookmark_list\` or \`bookmark_search\`.
 
 ### Organizing with groups
 
@@ -274,11 +274,11 @@ Groups are auto-created when you pass \`groupName\` to \`bookmark_add\`. To rena
 
 Via the panel: use the search/filter input.
 
-Via agent: \`bookmark_search\` accepts a text \`query\`, optional \`groupName\`, and optional \`tags\` array. Returns matching bookmarks with their locations.
+Via agent: \`bookmark_search\` accepts \`text\` (search string), optional \`groupName\`, and optional \`tag\` (single tag string). Returns matching bookmarks with their locations.
 
 ### Repairing broken anchors
 
-Anchors break when code is deleted or heavily refactored. To check: \`anchor_listBroken\`. To repair: \`anchor_repair\` with the bookmark ID.
+Anchors break when code is deleted or heavily refactored. To check: \`anchor_listBroken\`. To repair: call \`anchor_getRepairSkillGuide\` first — it explains the full repair workflow and the parameters \`anchor_repair\` requires.
 
 For a full staleness assessment, use the \`bookmarks://skill/analyze\` playbook.
 
