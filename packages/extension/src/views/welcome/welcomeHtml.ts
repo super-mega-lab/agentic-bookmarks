@@ -51,7 +51,7 @@ function gitignoreBanner(): string {
 function activeBody(needsGitignore: boolean): string {
   return /* html */ `${needsGitignore ? gitignoreBanner() : ''}
   <section>
-    <div class="button-row">
+    <div class="button-row" style="margin-top: 0">
       <a class="button" href="${runCmd('agenticBookmarks.openGettingStarted')}">Getting Started Guide</a>
     </div>
   </section>

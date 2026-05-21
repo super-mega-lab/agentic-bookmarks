@@ -94,13 +94,11 @@ describe('renderWelcomeHtml', () => {
     });
 
     it('shows the Getting Started button', () => {
-      const html = renderWelcomeHtml({ ...baseOpts, hasFolder: true });
       expect(html).toContain('command:agenticBookmarks.openGettingStarted');
       expect(html).toContain('Getting Started Guide');
     });
 
     it('Getting Started button appears before the Learn section', () => {
-      const html = renderWelcomeHtml({ ...baseOpts, hasFolder: true });
       expect(html.indexOf('openGettingStarted')).toBeLessThan(html.indexOf('>Learn<'));
     });
   });
