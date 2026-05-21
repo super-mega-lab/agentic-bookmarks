@@ -290,3 +290,72 @@ For a full staleness assessment, use the \`bookmarks://skill/analyze\` playbook.
 - Machine-local state (\`.bookmarks/local/\`) should be in \`.gitignore\`.
 - Groups named after module paths (e.g., \`"packages/server"\`) make navigation intuitive in monorepos.
 `;
+
+export const SKILL_REPORT_ISSUE = `# Report an Issue — Skill Guide
+
+## Purpose
+
+Help a user report a bug or unexpected behavior by gathering diagnostics, composing a clear GitHub issue, and providing contact links for faster support.
+
+## When to use
+
+Use this skill when:
+- A user says something isn't working, reports a crash, or encounters unexpected behavior
+- A user asks how to report a bug or feature request
+
+## Workflow
+
+### Step 1: Gather diagnostics
+
+Call \`mcp_debug\` to collect server version, environment flags, and active workspace info. Capture the full output — it will be included in the issue body.
+
+### Step 2: Describe the problem
+
+Ask the user:
+1. What were you trying to do?
+2. What did you expect to happen?
+3. What actually happened?
+4. What are the steps to reproduce it?
+
+Keep your questions concise — one message is enough.
+
+### Step 3: Compose the issue
+
+Format the gathered information as a GitHub issue body:
+
+\`\`\`markdown
+## What happened
+
+[User's description of the problem]
+
+## Steps to reproduce
+
+[User's reproduction steps]
+
+## Expected behavior
+
+[What the user expected]
+
+## Diagnostics
+
+\`\`\`
+[mcp_debug output]
+\`\`\`
+\`\`\`
+
+Present the formatted issue body to the user and ask them to confirm it before filing.
+
+### Step 4: Provide contact options
+
+Share all three contact options so the user can choose the fastest path:
+
+- **File an issue on GitHub:** https://github.com/super-mega-lab/agentic-bookmarks/issues/new
+  (Paste the formatted body above)
+- **Discord (fastest response):** https://discord.gg/zukZdvqf8q
+- **Email:** contact@supermegalab.com
+
+## Tips
+
+- If the user doesn't know how to reproduce the issue, ask what they were doing right before the problem appeared.
+- \`mcp_debug\` output includes the server version — always include it, even for simple questions.
+`;

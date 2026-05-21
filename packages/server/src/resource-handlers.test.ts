@@ -21,6 +21,12 @@ describe('handleListResources', () => {
     expect(uris).toContain('bookmarks://skill/help');
   });
 
+  it('includes bookmarks://skill/report-issue', async () => {
+    const result = await handleListResources();
+    const uris = result.resources.map(r => r.uri);
+    expect(uris).toContain('bookmarks://skill/report-issue');
+  });
+
   it('does not include a repair skill resource', async () => {
     const result = await handleListResources();
     const uris = result.resources.map(r => r.uri);
@@ -77,6 +83,13 @@ describe('handleReadResource — skill URIs', () => {
     expect(result.contents).toHaveLength(1);
     expect(result.contents[0].mimeType).toBe('text/markdown');
     expect(result.contents[0].text).toContain('How to Use Agentic Bookmarks');
+  });
+
+  it('returns markdown content for bookmarks://skill/report-issue', async () => {
+    const result = await handleReadResource(fakeCtx, 'bookmarks://skill/report-issue');
+    expect(result.contents).toHaveLength(1);
+    expect(result.contents[0].mimeType).toBe('text/markdown');
+    expect(result.contents[0].text).toContain('Report an Issue');
   });
 
   it('throws for unknown skill URI', async () => {
