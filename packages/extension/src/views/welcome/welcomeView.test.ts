@@ -24,6 +24,17 @@ describe('package.json view visibility', () => {
   });
 });
 
+describe('package.json command contributions', () => {
+  const commands: Array<{ command: string; title: string; category: string }> =
+    pkg.contributes.commands;
+
+  it('registers agenticBookmarks.openGettingStarted', () => {
+    const cmd = commands.find(c => c.command === 'agenticBookmarks.openGettingStarted');
+    expect(cmd).toBeDefined();
+    expect(cmd?.category).toBe('Agentic Bookmarks');
+  });
+});
+
 const baseOpts = {
   iconUri: 'https://example/icon512.png',
   cspSource: 'vscode-webview://example',
@@ -49,6 +60,11 @@ describe('renderWelcomeHtml', () => {
       expect(html).not.toContain('Set up for Claude Code');
       expect(html).not.toContain('agenticBookmarks.setupClaude');
     });
+
+    it('omits the Getting Started button', () => {
+      const html = renderWelcomeHtml({ ...baseOpts, hasFolder: false });
+      expect(html).not.toContain('command:agenticBookmarks.openGettingStarted');
+    });
   });
 
   describe('active mode (folder loaded)', () => {
@@ -69,12 +85,21 @@ describe('renderWelcomeHtml', () => {
       expect(html).toContain('Learn more');
     });
 
-    it('learn items do not use the card style', () => {
-      expect(html).not.toContain('class="card"');
+    it('learn items use learn-item class', () => {
+      expect(html).toContain('class="learn-item"');
     });
 
     it('learn items have browser-navigation link text', () => {
       expect(html).toContain('Learn more →');
+    });
+
+    it('shows the Getting Started button', () => {
+      expect(html).toContain('command:agenticBookmarks.openGettingStarted');
+      expect(html).toContain('Getting Started Guide');
+    });
+
+    it('Getting Started button appears before the Learn section', () => {
+      expect(html.indexOf('openGettingStarted')).toBeLessThan(html.indexOf('>Learn<'));
     });
   });
 

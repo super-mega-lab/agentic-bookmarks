@@ -6,13 +6,25 @@ import { handleListResources, handleReadResource, SKILL_RESOURCES } from './reso
 import { toolDefinitions } from './tools/definitions.js';
 
 describe('handleListResources', () => {
-  it('includes all four skill resources', async () => {
+  it('includes the original four skill resources', async () => {
     const result = await handleListResources();
     const uris = result.resources.map(r => r.uri);
     expect(uris).toContain('bookmarks://skill/add-to-system');
     expect(uris).toContain('bookmarks://skill/add-to-files');
     expect(uris).toContain('bookmarks://skill/analyze');
     expect(uris).toContain('bookmarks://skill/map-codebase');
+  });
+
+  it('includes bookmarks://skill/help', async () => {
+    const result = await handleListResources();
+    const uris = result.resources.map(r => r.uri);
+    expect(uris).toContain('bookmarks://skill/help');
+  });
+
+  it('includes bookmarks://skill/report-issue', async () => {
+    const result = await handleListResources();
+    const uris = result.resources.map(r => r.uri);
+    expect(uris).toContain('bookmarks://skill/report-issue');
   });
 
   it('does not include a repair skill resource', async () => {
@@ -64,6 +76,20 @@ describe('handleReadResource — skill URIs', () => {
     const result = await handleReadResource(fakeCtx, 'bookmarks://skill/map-codebase');
     expect(result.contents[0].mimeType).toBe('text/markdown');
     expect(result.contents[0].text).toContain('Map Codebase');
+  });
+
+  it('returns markdown content for bookmarks://skill/help', async () => {
+    const result = await handleReadResource(fakeCtx, 'bookmarks://skill/help');
+    expect(result.contents).toHaveLength(1);
+    expect(result.contents[0].mimeType).toBe('text/markdown');
+    expect(result.contents[0].text).toContain('How to Use Agentic Bookmarks');
+  });
+
+  it('returns markdown content for bookmarks://skill/report-issue', async () => {
+    const result = await handleReadResource(fakeCtx, 'bookmarks://skill/report-issue');
+    expect(result.contents).toHaveLength(1);
+    expect(result.contents[0].mimeType).toBe('text/markdown');
+    expect(result.contents[0].text).toContain('Report an Issue');
   });
 
   it('throws for unknown skill URI', async () => {

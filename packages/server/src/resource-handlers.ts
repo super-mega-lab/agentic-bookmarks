@@ -14,6 +14,8 @@ import {
   SKILL_ADD_TO_FILES,
   SKILL_ANALYZE,
   SKILL_MAP_CODEBASE,
+  SKILL_HELP,
+  SKILL_REPORT_ISSUE,
 } from './skills/index.js';
 
 // When adding a skill, update handleListResources entries below as well.
@@ -22,6 +24,8 @@ export const SKILL_RESOURCES: Record<string, string> = {
   'bookmarks://skill/add-to-files': SKILL_ADD_TO_FILES,
   'bookmarks://skill/analyze': SKILL_ANALYZE,
   'bookmarks://skill/map-codebase': SKILL_MAP_CODEBASE,
+  'bookmarks://skill/help': SKILL_HELP,
+  'bookmarks://skill/report-issue': SKILL_REPORT_ISSUE,
 };
 
 // ============================================================================
@@ -65,6 +69,18 @@ export async function handleListResources() {
         uri: 'bookmarks://skill/map-codebase',
         name: 'Skill: Map the full codebase',
         description: 'Workflow guide for building a complete organized bookmark map of the codebase',
+        mimeType: 'text/markdown'
+      },
+      {
+        uri: 'bookmarks://skill/help',
+        name: 'Skill: How to use Agentic Bookmarks',
+        description: 'Workflow guide for common bookmark tasks: adding, navigating, grouping, searching, and repairing',
+        mimeType: 'text/markdown'
+      },
+      {
+        uri: 'bookmarks://skill/report-issue',
+        name: 'Skill: Report a bug or issue',
+        description: 'Workflow guide for gathering diagnostics and filing a bug report',
         mimeType: 'text/markdown'
       },
     ]
