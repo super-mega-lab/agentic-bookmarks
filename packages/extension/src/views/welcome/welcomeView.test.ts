@@ -60,6 +60,11 @@ describe('renderWelcomeHtml', () => {
       expect(html).not.toContain('Set up for Claude Code');
       expect(html).not.toContain('agenticBookmarks.setupClaude');
     });
+
+    it('omits the Getting Started button', () => {
+      const html = renderWelcomeHtml({ ...baseOpts, hasFolder: false });
+      expect(html).not.toContain('command:agenticBookmarks.openGettingStarted');
+    });
   });
 
   describe('active mode (folder loaded)', () => {
@@ -86,6 +91,17 @@ describe('renderWelcomeHtml', () => {
 
     it('learn items have browser-navigation link text', () => {
       expect(html).toContain('Learn more →');
+    });
+
+    it('shows the Getting Started button', () => {
+      const html = renderWelcomeHtml({ ...baseOpts, hasFolder: true });
+      expect(html).toContain('command:agenticBookmarks.openGettingStarted');
+      expect(html).toContain('Getting Started Guide');
+    });
+
+    it('Getting Started button appears before the Learn section', () => {
+      const html = renderWelcomeHtml({ ...baseOpts, hasFolder: true });
+      expect(html.indexOf('openGettingStarted')).toBeLessThan(html.indexOf('>Learn<'));
     });
   });
 
