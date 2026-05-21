@@ -80,8 +80,8 @@ describe('renderWelcomeHtml', () => {
       expect(html).toContain('Learn more');
     });
 
-    it('learn items do not use the card style', () => {
-      expect(html).not.toContain('class="card"');
+    it('learn items use learn-item class', () => {
+      expect(html).toContain('class="learn-item"');
     });
 
     it('learn items have browser-navigation link text', () => {
