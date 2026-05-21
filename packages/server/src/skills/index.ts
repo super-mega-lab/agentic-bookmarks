@@ -169,6 +169,67 @@ Do not return a raw bookmark list. Produce a prose summary organized by the four
 - If the bookmark set is empty, recommend \`bookmarks://skill/map-codebase\` to build an initial map
 `;
 
+export const SKILL_HELP = `# How to Use Agentic Bookmarks — Help Guide
+
+## Purpose
+
+Answer user questions about Agentic Bookmarks and walk them through common tasks.
+
+## When to use
+
+Use this skill when:
+- A user asks "how do I...?" about bookmarks
+- A user asks what a feature does or how it works
+- A user is getting started and needs orientation
+
+## Common Workflows
+
+### Adding a bookmark
+
+**Via the panel:** Right-click a line in any editor and choose **Agentic Bookmarks: Add Bookmark**. Or open the panel and use the inline add button.
+
+**Via agent:** Use \`bookmark_add\` with \`filePath\`, \`line\` (0-based), and \`label\`. Pass \`groupName\` to assign to a group (auto-created if it doesn't exist):
+
+\`\`\`
+bookmark_add({ filePath: "src/auth/token.ts", line: 42, label: "Token validation logic", groupName: "Authentication" })
+\`\`\`
+
+### Navigating to a bookmark
+
+Click any bookmark in the Agentic Bookmarks panel to jump to it. The panel lives in the Activity Bar.
+
+Via agent: \`bookmark_open\` with a \`bookmarkId\` from \`bookmark_list\` or \`bookmark_search\`.
+
+### Organizing with groups
+
+Groups are auto-created when you pass \`groupName\` to \`bookmark_add\`. To rename a group: \`group_rename\`. To move a bookmark to a different group: \`group_moveFile\`. Groups can be reordered in the panel by drag-and-drop.
+
+### Searching bookmarks
+
+Via the panel: use the search/filter input.
+
+Via agent: \`bookmark_search\` accepts a text \`query\`, optional \`groupName\`, and optional \`tags\` array. Returns matching bookmarks with their locations.
+
+### Repairing broken anchors
+
+Anchors break when code is deleted or heavily refactored. To check: \`anchor_listBroken\`. To repair: \`anchor_repair\` with the bookmark ID.
+
+For a full staleness assessment, use the \`bookmarks://skill/analyze\` playbook.
+
+### Which AI skill playbook to use
+
+- \`bookmarks://skill/map-codebase\` — full repo map, use when starting fresh
+- \`bookmarks://skill/add-to-system\` — deeply bookmark one module or feature area
+- \`bookmarks://skill/add-to-files\` — annotate specific files you're already working in
+- \`bookmarks://skill/analyze\` — assess coverage, hotspots, staleness, and themes
+
+## Tips
+
+- Bookmarks are stored in \`.bookmarks/shared/\` and committed to git — they travel with the repo.
+- Machine-local state (\`.bookmarks/local/\`) should be in \`.gitignore\`.
+- Groups named after module paths (e.g., \`"packages/server"\`) make navigation intuitive in monorepos.
+`;
+
 export const SKILL_MAP_CODEBASE = `# Map Codebase — Skill Guide
 
 ## Purpose
