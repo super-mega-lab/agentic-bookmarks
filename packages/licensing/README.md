@@ -110,7 +110,7 @@ The diagnose command writes a block like this to the output channel:
 License diagnosis @ 2026-04-30T00:27:12.839Z
 ═══════════════════════════════════════════════════════════════
 Workspace folders (1):
-  - /Users/afoster/Documents/otherproj/bcigui
+  - /Users/example/Documents/sample-project
 
 Test override: not set
 Running detection (force=true, bypassing TTL cache)...
@@ -118,16 +118,16 @@ Workspace visibility (raw):    public
 Workspace visibility (mapped): public
 
 Per-root breakdown (1):
-  /Users/afoster/Documents/otherproj/bcigui
+  /Users/example/Documents/sample-project
     visibility:    public
     graceFallback: false
     remotes (2):
-      openBCIofficial → public [source=probe, platform=github, http=200]
-        url: https://github.com/OpenBCI/OpenBCI_GUI.git
-        probe: https://github.com/openbci/openbci_gui
+      upstream → public [source=probe, platform=github, http=200]
+        url: https://github.com/example-org/sample-project.git
+        probe: https://github.com/example-org/sample-project
       origin → private [source=probe, platform=github, http=404, reason=http-404]
-        url: git@github.com:afostr/bcigui.git
-        probe: https://github.com/afostr/bcigui
+        url: git@github.com:example-user/sample-project.git
+        probe: https://github.com/example-user/sample-project
 
 Resolved licensing state:
   tier:       free

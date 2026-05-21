@@ -35,7 +35,7 @@ The root `tsconfig.json` has a stale `references` entry pointing at `./packages/
 - `../agentic-bookmarks-core/docs/core/quickstart.md` — entry point for the per-subsystem API docs under `docs/core/`.
 - `../agentic-bookmarks-core/docs/specs/` — authoritative design specs; the load-bearing ones are `durable-anchors.md` (anchor system), `multi-workspace.md` (storage/registry), `agentrepair.md` and `autorepair.md` (repair flows), and `mcp-server.md` (the surface this repo's `packages/server` implements).
 
-Per-ticket plans / design docs **specific to work in this repo** still live here under `docs/plans/` (named `SML-####.md` or dated).
+Per-ticket plans / design docs for extension-side work live in the sibling core repo under `docs/extension/plans/` (named `SML-####.md` or dated). The public extension repo no longer carries a `docs/plans/` directory.
 
 ## Package layout and the build pipeline
 
@@ -124,4 +124,4 @@ ESLint v9 flat config (`eslint.config.js`) only lints `packages/*/src/**/*.ts`. 
 - The MCP server is invoked over **stdio**; all logging in `packages/server/` goes to `console.error` (stdout is the JSON-RPC channel). Keep it that way.
 - The extension's MCP server registration uses `vscode.lm.registerMcpServerDefinitionProvider` — see the `mcpServerDefinitionProviders` contribution in `packages/extension/package.json` and the corresponding code in `packages/extension/src/extension.ts`.
 - License-gated ("Pro") features are currently free during public beta (`licensing.testTier` default `'auto'` resolves to free). The `agenticBookmarks.testLicense.*` commands and `agenticBookmarks.licensing.*` settings are dev-only and gated by `agenticBookmarks.isDevelopment`.
-- Design docs and per-ticket plans live under `docs/plans/` (named `SML-####.md` or dated). Cross-package / product-level docs live in the **sibling core repo** under `docs/`, per its conventions.
+- Design docs and per-ticket plans for extension-side work live in the sibling core repo under `docs/extension/plans/` (named `SML-####.md` or dated). Cross-package / product-level docs live in the same sibling core repo under `docs/`, per its conventions.
