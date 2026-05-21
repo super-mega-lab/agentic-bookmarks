@@ -6,7 +6,7 @@ import { handleListResources, handleReadResource, SKILL_RESOURCES } from './reso
 import { toolDefinitions } from './tools/definitions.js';
 
 describe('handleListResources', () => {
-  it('includes all four skill resources', async () => {
+  it('includes the original four skill resources', async () => {
     const result = await handleListResources();
     const uris = result.resources.map(r => r.uri);
     expect(uris).toContain('bookmarks://skill/add-to-system');
