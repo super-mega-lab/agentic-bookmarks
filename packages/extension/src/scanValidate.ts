@@ -38,6 +38,11 @@ export function missingFileEntries(bookmarkIds: string[], uri: string): ScanResu
  * (`scannedUris`) are fully replaced by `scannedEntries` (valid ones dropped, so a
  * now-clean file loses its stale entry); entries for files outside scan scope are
  * kept untouched. `discoveredAt` is preserved for bookmarks already in the cache.
+ *
+ * Invalidation is also bookmark-id-aware: any existing entry whose bookmark was
+ * re-validated this scan is dropped even if its cached URI is outside `scannedUris`.
+ * This clears stale entries after a cross-file repair moved a bookmark to a new
+ * target (the old-URI entry would otherwise survive the URI-scoped rule).
  */
 export function buildAuthoritativeCache(
   existing: BrokenAnchorEntry[],
@@ -48,9 +53,16 @@ export function buildAuthoritativeCache(
   const discoveredAtById = new Map<string, number>();
   for (const e of existing) discoveredAtById.set(e.bookmarkId, e.discoveredAt);
 
+  // Bookmarks re-validated this scan (any status) — their stale entries are replaced
+  // by the fresh results below, regardless of the old entry's URI.
+  const scannedBookmarkIds = new Set(scannedEntries.map((e) => e.bookmarkId));
+
   const out: BrokenAnchorEntry[] = [];
-  // Keep entries for files the scan did not touch.
-  for (const e of existing) if (!scannedUris.has(e.uri)) out.push(e);
+  // Keep entries that were neither re-validated by id nor in a scanned file.
+  for (const e of existing) {
+    if (scannedBookmarkIds.has(e.bookmarkId)) continue;
+    if (!scannedUris.has(e.uri)) out.push(e);
+  }
   // Add fresh results for scanned files (broken + warning only).
   for (const s of scannedEntries) {
     if (s.status === 'valid') continue;

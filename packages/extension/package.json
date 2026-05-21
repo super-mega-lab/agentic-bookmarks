@@ -17,7 +17,7 @@
   },
   "license": "LicenseRef-PolyForm-Shield-1.0.0",
   "icon": "icon512.png",
-  "version": "0.7.16",
+  "version": "0.7.20",
   "engines": {
     "vscode": "^1.92.0"
   },
@@ -809,7 +809,12 @@
         "command": "agenticBookmarks.repairAll",
         "title": "Repair All Broken Bookmarks",
         "category": "Agentic Bookmarks",
-        "icon": "$(wrench)"
+        "icon": "$(run-all)"
+      },
+      {
+        "command": "agenticBookmarks.repairAllForce",
+        "title": "Force Repair (Ignore Detected Count)",
+        "category": "Agentic Bookmarks"
       },
       {
         "command": "agenticBookmarks.repairAllSettings",
@@ -927,9 +932,39 @@
           "group": "inline@1"
         },
         {
-          "command": "agenticBookmarks.repairAllSettings",
+          "command": "agenticBookmarks.scanAll",
+          "when": "view == agenticBookmarks.view && viewItem == scanAllRow",
+          "group": "inline@0"
+        },
+        {
+          "command": "agenticBookmarks.scanAll",
+          "when": "view == agenticBookmarks.view && viewItem == scanAllRow",
+          "group": "1_actions@0"
+        },
+        {
+          "command": "agenticBookmarks.repairAll",
           "when": "view == agenticBookmarks.view && viewItem == repairAllRow",
           "group": "inline@0"
+        },
+        {
+          "command": "agenticBookmarks.repairAllSettings",
+          "when": "view == agenticBookmarks.view && viewItem == repairAllRow",
+          "group": "inline@1"
+        },
+        {
+          "command": "agenticBookmarks.repairAll",
+          "when": "view == agenticBookmarks.view && viewItem == repairAllRow",
+          "group": "1_actions@0"
+        },
+        {
+          "command": "agenticBookmarks.repairAllForce",
+          "when": "view == agenticBookmarks.view && viewItem == repairAllRow",
+          "group": "1_actions@1"
+        },
+        {
+          "command": "agenticBookmarks.repairAllSettings",
+          "when": "view == agenticBookmarks.view && viewItem == repairAllRow",
+          "group": "1_actions@2"
         },
         {
           "command": "agenticBookmarks.editSearchFilter",

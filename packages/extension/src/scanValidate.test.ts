@@ -49,6 +49,20 @@ describe('buildAuthoritativeCache', () => {
     ]);
   });
 
+  it('drops a stale entry after cross-file repair moved the bookmark (id-aware)', () => {
+    // b1 was broken at old.ts; a cross-file repair moved it to new.ts, which the
+    // scan validates as valid. The old.ts entry is outside scannedUris but must
+    // still be pruned because b1 was re-validated this scan.
+    const stale = [
+      { bookmarkId: 'b1', uri: 'old.ts', status: 'broken' as const, errorCode: null, errorDetails: null, score: null, discoveredAt: 100 },
+    ];
+    const scanned: ScanResultEntry[] = [
+      { bookmarkId: 'b1', uri: 'new.ts', status: 'valid', errorCode: null, errorDetails: null, score: null },
+    ];
+    const out = buildAuthoritativeCache(stale, new Set(['new.ts']), scanned, 999);
+    expect(out).toEqual([]); // no entry for b1 at the old URI
+  });
+
   it('keeps warning entries', () => {
     const scanned: ScanResultEntry[] = [
       { bookmarkId: 'b9', uri: 'src/c.ts', status: 'warning', errorCode: null, errorDetails: null, score: 0.5 },

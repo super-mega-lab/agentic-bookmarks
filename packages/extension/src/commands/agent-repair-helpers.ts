@@ -3,7 +3,8 @@
 import type { McpAgent } from './mcp-install-state';
 
 export const REPAIR_PROMPT =
-  'Please use the agentic-bookmarks MCP to repair all broken bookmarks.';
+  'Please use the agentic-bookmarks MCP to repair all broken bookmarks. ' +
+  'Start by reading the repair skill guide from anchor_getRepairSkillGuide.';
 
 export type LaunchDecision =
   | { action: 'connect' }

@@ -6,7 +6,7 @@ describe('scanRowDescriptor', () => {
   it('shows coverage at rest', () => {
     const d = scanRowDescriptor({ scanned: 3, total: 43, phase: 'idle' });
     expect(d.label).toBe('Scan All — 3/43 scanned');
-    expect(d.icon).toBe('run-all');
+    expect(d.icon).toBe('search-sparkle');
     expect(d.spin).toBe(false);
   });
   it('shows progress + spinner while scanning', () => {
@@ -28,18 +28,16 @@ describe('scanRowDescriptor', () => {
 });
 
 describe('repairRowDescriptor', () => {
-  it('reports no errors when nothing is broken', () => {
+  it('reports no errors when nothing is broken (green check)', () => {
     const d = repairRowDescriptor({ broken: 0, total: 12 });
     expect(d.label).toBe('Repair All — no errors');
     expect(d.icon).toBe('pass-filled');
     expect(d.themeColor).toBe('charts.green');
-    expect(d.actionable).toBe(false);
   });
-  it('reports broken count with error styling', () => {
+  it('reports broken count with red styling', () => {
     const d = repairRowDescriptor({ broken: 4, total: 43 });
     expect(d.label).toBe('Repair All — 4/43 broken');
     expect(d.icon).toBe('error');
     expect(d.themeColor).toBe('charts.red');
-    expect(d.actionable).toBe(true);
   });
 });

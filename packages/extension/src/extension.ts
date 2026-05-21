@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fsp from 'node:fs/promises';
-import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, getCacheDir, readRegistry, readFileV2, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath, appendGitignoreLine, BOOKMARKS_LOCAL_GITIGNORE_LINE, brokenAnchorsCache, workspaceRelativeToUri } from '@agentic-bookmarks/core';
+import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, getCacheDir, readRegistry, readFileV2, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath, appendGitignoreLine, BOOKMARKS_LOCAL_GITIGNORE_LINE, brokenAnchorsCache, workspaceRelativeToUri, invalidateFileCache } from '@agentic-bookmarks/core';
 import { BookmarksProvider } from './treeProvider';
 import { FilesGroupsProvider } from './filesGroupsProvider';
 import { SettingsProvider } from './settingsProvider';
@@ -797,13 +797,21 @@ async function activateForWorkspace(
 
   // Enumerate every enabled registered file's distinct target files (independent of
   // the open-files cache and UI visibility) so a scan can validate them all.
+  //
+  // Invalidates core's in-memory data-file cache first: that cache is keyed by a
+  // pulse-file mtime that only moves on extension writes, so an external mutation
+  // (e.g. `git checkout` swapping the committed .bookmarks data files) would
+  // otherwise serve stale anchors and the scan would re-report the old state. A
+  // scan is an explicit "re-check disk" action, so we always read the store fresh.
   async function collectAllBookmarkedTargets(): Promise<ScanTarget[]> {
     const reg = await readRegistry(workspaceRoot);
     const dataRoot = getBookmarksDataRoot(reg);
     const seen = new Map<string, ScanTarget>();
     for (const rf of reg.files.filter((f) => f.enabled !== false)) {
       try {
-        const file = await readFileV2(pathsForDataFile(rf.path, workspaceRoot, dataRoot));
+        const paths = pathsForDataFile(rf.path, workspaceRoot, dataRoot);
+        invalidateFileCache(paths); // drop stale cache before the fresh read (repopulates)
+        const file = await readFileV2(paths);
         for (const b of file.bookmarks) {
           const uri = b.target.uri.split('#')[0];
           const fsPath = targetUriToFsPath(uri);
@@ -894,7 +902,7 @@ async function activateForWorkspace(
       await recomputeBrokenCount();
       provider.refresh();
     }),
-    ...registerAgentRepairCommands({ context, workspaceRoot, log }),
+    ...registerAgentRepairCommands({ context, workspaceRoot, log, getBrokenCount: () => lastBrokenCount }),
   );
 
   // --- Active editor change ---

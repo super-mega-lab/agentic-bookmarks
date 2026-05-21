@@ -21,6 +21,8 @@ export interface AgentRepairDeps {
   context: vscode.ExtensionContext;
   workspaceRoot: string;
   log: { info(m: string): void; error(m: string): void };
+  /** Current count of known-broken anchors (drives the no-broken guard). */
+  getBrokenCount: () => number;
 }
 
 const SETUP_COMMAND: Record<McpAgent, string> = {
@@ -83,23 +85,35 @@ async function offerConnect(): Promise<void> {
 
 export function registerAgentRepairCommands(deps: AgentRepairDeps): vscode.Disposable[] {
   const { context } = deps;
+
+  // Run the agent-repair launch flow. When force=false, bail with a hint if the
+  // current scan shows no broken bookmarks.
+  async function runRepairAll(force: boolean): Promise<void> {
+    if (!force && deps.getBrokenCount() === 0) {
+      vscode.window.showInformationMessage(
+        'No broken bookmarks in the current scan. You can rescan all or force-repair-all from the repair context menu.',
+      );
+      return;
+    }
+    const decision = pickAgentToLaunch({
+      connected: connectedAgents(context),
+      preferred: getRepairAgentDefault(context),
+    });
+    if (decision.action === 'connect') { await offerConnect(); return; }
+    if (!(await ensureConsent(context))) return;
+    let agent: McpAgent | undefined;
+    if (decision.action === 'launch') {
+      agent = decision.agent;
+    } else {
+      agent = await chooseAgent(decision.agents);
+      if (agent) await setRepairAgentDefault(context, agent); // remember the choice
+    }
+    if (agent) await launchAgent(deps, agent);
+  }
+
   return [
-    vscode.commands.registerCommand('agenticBookmarks.repairAll', async () => {
-      const decision = pickAgentToLaunch({
-        connected: connectedAgents(context),
-        preferred: getRepairAgentDefault(context),
-      });
-      if (decision.action === 'connect') { await offerConnect(); return; }
-      if (!(await ensureConsent(context))) return;
-      let agent: McpAgent | undefined;
-      if (decision.action === 'launch') {
-        agent = decision.agent;
-      } else {
-        agent = await chooseAgent(decision.agents);
-        if (agent) await setRepairAgentDefault(context, agent); // remember the choice
-      }
-      if (agent) await launchAgent(deps, agent);
-    }),
+    vscode.commands.registerCommand('agenticBookmarks.repairAll', () => runRepairAll(false)),
+    vscode.commands.registerCommand('agenticBookmarks.repairAllForce', () => runRepairAll(true)),
 
     vscode.commands.registerCommand('agenticBookmarks.repairAllSettings', async () => {
       const connected = connectedAgents(context);

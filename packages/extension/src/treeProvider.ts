@@ -431,15 +431,15 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
         const scanRow = new vscode.TreeItem(scan.label, vscode.TreeItemCollapsibleState.None);
         scanRow.iconPath = new vscode.ThemeIcon(scan.spin ? `${scan.icon}~spin` : scan.icon);
         (scanRow as any).contextValue = scan.contextValue;
-        scanRow.command = { command: 'agenticBookmarks.scanAll', title: 'Scan All' };
+        // No row.command — activation is via the inline button / context menu only,
+        // so a stray row click can't kick off a scan.
         nodes.push(scanRow);
 
         const repair = repairRowDescriptor({ broken: st.brokenCount, total: totalBookmarks });
         const repairRow = new vscode.TreeItem(repair.label, vscode.TreeItemCollapsibleState.None);
         repairRow.iconPath = new vscode.ThemeIcon(repair.icon, new vscode.ThemeColor(repair.themeColor));
         (repairRow as any).contextValue = repair.contextValue;
-        // Always wire the click; the handler no-ops when nothing is broken.
-        repairRow.command = { command: 'agenticBookmarks.repairAll', title: 'Repair All' };
+        // No row.command — activation is via the inline button / context menu only.
         nodes.push(repairRow);
       }
       // Determine whether to group bookmarks under file parents. Stored in
