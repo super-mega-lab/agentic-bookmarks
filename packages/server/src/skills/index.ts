@@ -323,7 +323,7 @@ Keep your questions concise — one message is enough.
 
 Format the gathered information as a GitHub issue body:
 
-\`\`\`markdown
+\`\`\`\`markdown
 ## What happened
 
 [User's description of the problem]
@@ -341,7 +341,7 @@ Format the gathered information as a GitHub issue body:
 \`\`\`
 [mcp_debug output]
 \`\`\`
-\`\`\`
+\`\`\`\`
 
 Present the formatted issue body to the user and ask them to confirm it before filing.
 
