@@ -33,12 +33,9 @@ import type { BookmarkNode } from '../treeProvider';
 import type { Logger } from '../logger';
 import type { BookmarksProvider } from '../treeProvider';
 import type { FilesGroupsProvider } from '../filesGroupsProvider';
-import type { RepairDeps } from '../anchor-repair-helpers';
-import { runAutoRepairForBookmark, runFileMoveRepairForBookmark } from '../anchor-repair-helpers';
 import {
   insertTagComment,
   removeTagComment,
-  buildAgentRepairPrompt,
 } from '../workspace-helpers';
 
 // ---------------------------------------------------------------------------
@@ -77,7 +74,6 @@ export interface BookmarkNavigationDeps {
   updateDecorations: () => Promise<void>;
   debouncedCacheSync: () => void;
   getLineCacheLength: () => number;
-  repairDeps: RepairDeps;
 }
 
 // ---------------------------------------------------------------------------
@@ -186,10 +182,8 @@ async function executeReanchor(
 export function registerBookmarkNavigationCommands(deps: BookmarkNavigationDeps): vscode.Disposable[] {
   const {
     workspaceRoot,
-    log,
     provider,
     updateDecorations,
-    repairDeps,
   } = deps;
 
   return [
@@ -340,55 +334,9 @@ export function registerBookmarkNavigationCommands(deps: BookmarkNavigationDeps)
       await executeReanchor(deps, node, bookmark, targetPaths, file, reg, targetEditor, targetLine, nodeWsRoot);
     }),
 
-    // Auto-repair broken bookmark
-    vscode.commands.registerCommand('agenticBookmarks.autoRepairBookmark', async (node: BookmarkNode) => {
-      if (!node) {
-        vscode.window.showWarningMessage('Select a broken bookmark first.');
-        return;
-      }
-
-      const result = await runAutoRepairForBookmark(node.id, repairDeps, { ignoreAutoRepairSetting: true });
-      if (result.status === 'repaired') {
-        const oldLine = result.oldLine !== undefined ? `${result.oldLine + 1}` : '?';
-        const newLine = result.newLine !== undefined ? `${result.newLine + 1}` : '?';
-        vscode.window.showInformationMessage(
-          `Auto-repaired bookmark ${node.id}: line ${oldLine} -> ${newLine}`
-        );
-        if (result.debug) {
-          log.trace(() => `[autoRepairDebug] Manual repair success for ${node.id}: ${JSON.stringify(result.debug)}`);
-        }
-        return;
-      }
-
-      const reason = result.reason || 'unknown';
-      if (result.debug) {
-        log.debug(() => `[autoRepairDebug] Manual repair failure for ${node.id}: ${JSON.stringify(result.debug)}`);
-      }
-
-      // If regular repair failed because file is missing, try file-move repair
-      if (reason === 'target file not readable') {
-        const fileMoveResult = await runFileMoveRepairForBookmark(node.id, workspaceRoot, repairDeps);
-        if (fileMoveResult.status === 'repaired' && fileMoveResult.newFilePath) {
-          vscode.window.showInformationMessage(
-            `Auto-repair succeeded — file moved to ${fileMoveResult.newFilePath}`
-          );
-          try {
-            const newUri = workspaceRelativeToUri(fileMoveResult.newFilePath, workspaceRoot);
-            const doc = await vscode.workspace.openTextDocument(vscode.Uri.parse(newUri));
-            const editor = await vscode.window.showTextDocument(doc);
-            const line = fileMoveResult.newLine ?? 0;
-            const range = new vscode.Range(line, 0, line, 0);
-            editor.selection = new vscode.Selection(range.start, range.end);
-            editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
-          } catch { /* non-critical */ }
-          return;
-        }
-      }
-
-      vscode.window.showWarningMessage(
-        `Auto-repair failed for bookmark ${node.id}: ${reason}. You can ask your agent: "${buildAgentRepairPrompt(node.id)}"`
-      );
-    }),
+    // Note: the wrench command (agenticBookmarks.autoRepairBookmark) on a broken
+    // bookmark is registered by registerAgentRepairCommands — it launches the
+    // agent-repair flow scoped to that bookmark's id.
 
     // Confirm re-anchor (from pick mode)
     vscode.commands.registerCommand('agenticBookmarks.confirmReanchor', async () => {

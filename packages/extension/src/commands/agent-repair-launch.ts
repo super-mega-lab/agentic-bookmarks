@@ -1,6 +1,7 @@
 // ABOUTME: VS Code glue registering Repair All (agent launch) + its gear settings.
 // ABOUTME: Decision logic lives in agent-repair-helpers; persistence in repair-agent-state.
 import * as vscode from 'vscode';
+import type { BookmarkNode } from '../treeProvider';
 import {
   AGENT_DISPLAY_NAMES,
   getMcpInstallRecords,
@@ -9,6 +10,8 @@ import {
 import {
   pickAgentToLaunch,
   buildAgentLaunch,
+  buildRepairPrompt,
+  type RepairTarget,
 } from './agent-repair-helpers';
 import {
   getRepairAgentDefault,
@@ -49,8 +52,8 @@ async function ensureConsent(context: vscode.ExtensionContext): Promise<boolean>
   return true;
 }
 
-async function launchAgent(deps: AgentRepairDeps, agent: McpAgent): Promise<void> {
-  const launch = buildAgentLaunch(agent);
+async function launchAgent(deps: AgentRepairDeps, agent: McpAgent, prompt: string): Promise<void> {
+  const launch = buildAgentLaunch(agent, prompt);
   if (launch.method === 'terminal') {
     const terminal = vscode.window.createTerminal({
       name: `Repair Bookmarks (${AGENT_DISPLAY_NAMES[agent]})`,
@@ -86,10 +89,11 @@ async function offerConnect(): Promise<void> {
 export function registerAgentRepairCommands(deps: AgentRepairDeps): vscode.Disposable[] {
   const { context } = deps;
 
-  // Run the agent-repair launch flow. When force=false, bail with a hint if the
-  // current scan shows no broken bookmarks.
-  async function runRepairAll(force: boolean): Promise<void> {
-    if (!force && deps.getBrokenCount() === 0) {
+  // Run the agent-repair launch flow for a target (every broken anchor, or a
+  // specific list of bookmark ids). The no-broken guard only applies to the
+  // 'all' target; a targeted repair always names a concrete broken bookmark.
+  async function runAgentRepair(target: RepairTarget, opts: { force: boolean }): Promise<void> {
+    if (target.kind === 'all' && !opts.force && deps.getBrokenCount() === 0) {
       vscode.window.showInformationMessage(
         'No broken bookmarks in the current scan. You can rescan all or force-repair-all from the repair context menu.',
       );
@@ -108,12 +112,22 @@ export function registerAgentRepairCommands(deps: AgentRepairDeps): vscode.Dispo
       agent = await chooseAgent(decision.agents);
       if (agent) await setRepairAgentDefault(context, agent); // remember the choice
     }
-    if (agent) await launchAgent(deps, agent);
+    if (agent) await launchAgent(deps, agent, buildRepairPrompt(target));
   }
 
   return [
-    vscode.commands.registerCommand('agenticBookmarks.repairAll', () => runRepairAll(false)),
-    vscode.commands.registerCommand('agenticBookmarks.repairAllForce', () => runRepairAll(true)),
+    vscode.commands.registerCommand('agenticBookmarks.repairAll', () => runAgentRepair({ kind: 'all' }, { force: false })),
+    vscode.commands.registerCommand('agenticBookmarks.repairAllForce', () => runAgentRepair({ kind: 'all' }, { force: true })),
+
+    // Wrench on a single broken bookmark — launch the same agent-repair flow,
+    // scoped to just this bookmark's id.
+    vscode.commands.registerCommand('agenticBookmarks.autoRepairBookmark', async (node: BookmarkNode) => {
+      if (!node) {
+        vscode.window.showWarningMessage('Select a broken bookmark first.');
+        return;
+      }
+      await runAgentRepair({ kind: 'ids', ids: [node.id] }, { force: true });
+    }),
 
     vscode.commands.registerCommand('agenticBookmarks.repairAllSettings', async () => {
       const connected = connectedAgents(context);
