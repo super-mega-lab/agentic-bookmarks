@@ -85,7 +85,11 @@ are published as source under **PolyForm Shield 1.0.0** at https://github.com/su
 You can audit those components to confirm:
 
 - That the Software does not contact Super Mega Lab during the Beta
-  Period — the outbound host allowlist excludes any Provider service.
+  Period — no code in the published repository contains any Super Mega
+  Lab URL, and the only outbound HTTP function in the product (the
+  repository-visibility HEAD probe in
+  `packages/extension/src/visibility-probe.ts`) is invoked only with
+  URLs derived from the user's own git remotes.
 - That repository content, prompts, telemetry, or other
   development-environment data are never sent to Provider.
 - That the repository visibility check runs on the user's device by
@@ -119,11 +123,16 @@ against any Provider service. No account or sign-in is required.
 
 ## 5. Network design
 
-The Software enforces an explicit allowlist of outbound hosts. The
-allowlist is implemented in the public network layer at https://github.com/super-mega-lab/agentic-bookmarks.
-During the Beta Period the allowlist excludes Provider infrastructure
-entirely. Any change to the allowlist requires a code change visible
-in the public repository.
+The Software contains exactly one function that makes outbound HTTP
+requests: `probeRepoVisibility`, implemented in [`packages/extension/src/visibility-probe.ts`](https://github.com/super-mega-lab/agentic-bookmarks/blob/main/packages/extension/src/visibility-probe.ts).
+It performs a single HEAD request and classifies the response status
+of a URL the caller supplies. The only call site supplies URLs
+derived from the user's own git remotes, for the purpose of
+determining repository visibility for license-tier resolution.
+
+No code in the Software contains any Super Mega Lab URL. Adding any
+new outbound network call would require a code change visible in the
+public repository.
 
 ---
 
