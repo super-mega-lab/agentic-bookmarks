@@ -13,6 +13,7 @@ import {
   type TrialRecord,
 } from '@agentic-bookmarks/licensing';
 import { openSourceDetection } from '@agentic-bookmarks/core';
+import { probeRepoVisibility } from './visibility-probe';
 
 type DetectFn = typeof openSourceDetection.detectWorkspaceVisibility;
 type WorkspaceVisibilityResult = Awaited<ReturnType<DetectFn>>;
@@ -161,6 +162,7 @@ export class LicensingService {
         const result = await this.detectFn(roots, {
           cache: this.visibilityCache,
           forceRefresh: force,
+          probeFn: probeRepoVisibility,
         });
         // Map workspace 'mixed' → 'private' for the licensing model.
         // The detector already maps {public, local} → 'public' (public wins),
