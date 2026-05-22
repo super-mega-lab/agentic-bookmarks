@@ -31,6 +31,7 @@ The extension stores machine-local runtime state (registry, lock/pulse cache, ge
 
 That's all. See the Marketplace page for more details — videos coming soon.
 
+→ **[Full Getting Started guide with screenshots](packages/extension/resources/getting-started.md)**
 
 ## MCP Server Setup
 
