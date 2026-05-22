@@ -31,14 +31,16 @@ and click **Install**. Publisher: **supermegalab**.
 
 ## 2. Place your first bookmark
 
-Open any file. Right-click on a line you want to bookmark and choose **Add Bookmark**.
+Open any file. Right-click the **line number** (the gutter on the left) and choose
+**Add Labeled Bookmark**.
 
 ![Right-click context menu showing Add Bookmark](images/02-context-menu.png)
 
 A quick-pick prompt asks for a **label**. Type something meaningful — "auth boundary",
 "main render loop", "the 3am hack" — and press Enter.
 
-A pin appears in the editor gutter and the bookmark shows up in the **Agentic Bookmarks** sidebar.
+A pin appears in the editor gutter and the bookmark shows up in the **Agentic Bookmarks** sidebar
+(click the bookmark icon in the Activity Bar to open it if it isn't already visible).
 
 ![Gutter pin and sidebar tree showing the new bookmark](images/03-pin-and-sidebar.png)
 
@@ -63,7 +65,7 @@ it.
 
 The extension bundles an MCP server that lets your AI coding assistant read, place, and repair
 bookmarks. Open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and type
-**"Agentic Bookmarks: Setup"**.
+**"Agentic Bookmarks: Setup for"**.
 
 ![Command palette showing Agentic Bookmarks setup commands](images/05-mcp-setup.png)
 
@@ -82,7 +84,7 @@ bookmark you placed in step 2.
 ## 5. Navigate and search
 
 Click any bookmark in the sidebar to jump to it. Use the search input at the top of the panel
-to filter by label, group, or file.
+to filter by label, group, or tag.
 
 ---
 
