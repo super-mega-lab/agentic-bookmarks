@@ -1,14 +1,16 @@
-# QUICKSTART.md Implementation Plan
+# Getting Started Guide — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Create `QUICKSTART.md` at the repo root that walks a new user through the full Agentic Bookmarks core loop (install → bookmark → survive refactor → MCP agent setup), illustrated with screenshots.
+**Goal:** Enrich the existing `packages/extension/resources/getting-started.md` with an install step, refactor-survival section, and screenshot references, so it serves as the canonical user-facing quickstart both inside VS Code and on GitHub.
 
-**Architecture:** Single `QUICKSTART.md` at repo root, linear narrative across four chapters. Screenshots stored under `docs/images/quickstart/` as relative references. README gets one added link. Marc takes screenshots alongside writing — the guide is written first with `TODO` placeholders, then screenshots are dropped in.
+**Architecture:** One source of truth: `packages/extension/resources/getting-started.md`. Screenshots stored at `packages/extension/resources/images/` (bundled in the VSIX, works in VS Code preview and GitHub). README gets one link. Marc takes screenshots after the text is written — guide is written first with relative image references, screenshots dropped in.
 
 **Tech Stack:** Markdown, VS Code extension UI (for screenshots), git
 
 **Spec:** `docs/superpowers/specs/2026-05-22-quickstart-guide-design.md`
+
+**Note on approach change:** Original plan targeted a new `QUICKSTART.md` at repo root. During implementation an in-extension Getting Started guide was discovered at `packages/extension/resources/getting-started.md`. Enriching that file is less redundant.
 
 ---
 
@@ -16,86 +18,102 @@
 
 | Action | Path | Purpose |
 |--------|------|---------|
-| Create | `QUICKSTART.md` | The user-facing getting started guide |
-| Create | `docs/images/quickstart/` | Directory for guide screenshots |
-| Modify | `README.md` | Add one link to QUICKSTART.md in the Quickstart section |
+| Modify | `packages/extension/resources/getting-started.md` | Add install step, refactor-survival section, screenshot refs, reorder content |
+| Create | `packages/extension/resources/images/.gitkeep` | Image directory for screenshots (committed empty; populated by Marc) |
+| Modify | `README.md` | Add one link to the getting-started guide |
 
 ---
 
-### Task 1: Scaffold image directory and QUICKSTART skeleton
+### Task 1: Set up images directory
 
 **Files:**
-- Create: `docs/images/quickstart/.gitkeep`
-- Create: `QUICKSTART.md`
+- Create: `packages/extension/resources/images/.gitkeep`
 
-- [ ] **Step 1: Create image directory**
-
-```bash
-mkdir -p docs/images/quickstart
-touch docs/images/quickstart/.gitkeep
-```
-
-- [ ] **Step 2: Create QUICKSTART.md skeleton**
-
-Create `QUICKSTART.md` at repo root with the following content:
-
-```markdown
-<!-- ABOUTME: User-facing getting started guide covering the full Agentic Bookmarks core loop. -->
-<!-- ABOUTME: Covers install, bookmark placement, refactor survival, and MCP agent setup. -->
-
-# Quickstart
-
-Most code bookmarks break the moment you rename a file or move a function.
-Agentic Bookmarks fixes that: bookmarks survive refactors via self-healing anchors, check into git
-so your whole team shares them, and are readable by AI agents through a bundled MCP server.
-
-This guide takes you from a fresh install to your first shared, agent-accessible bookmark in about
-five minutes.
-
----
-
-## Chapter 1: Install
-
-## Chapter 2: Place your first bookmark
-
-## Chapter 3: Watch it survive a refactor
-
-## Chapter 4: Connect your AI agent
-
----
-
-## What's next
-```
-
-- [ ] **Step 3: Verify the file renders**
-
-Open `QUICKSTART.md` in VS Code's Markdown preview (Cmd+Shift+V / Ctrl+Shift+V). Confirm the skeleton renders without errors.
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 1: Create directory**
 
 ```bash
-git add docs/images/quickstart/.gitkeep QUICKSTART.md
-git commit -m "docs(SML-1431): scaffold QUICKSTART.md and image directory"
+mkdir -p packages/extension/resources/images
+touch packages/extension/resources/images/.gitkeep
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add packages/extension/resources/images/.gitkeep
+git commit -m "docs(SML-1431): add images directory for getting-started screenshots"
 ```
 
 ---
 
-### Task 2: Write Chapter 1 — Install
+### Task 2: Rewrite getting-started.md with full core loop
 
 **Files:**
-- Modify: `QUICKSTART.md` (Chapter 1 section)
+- Modify: `packages/extension/resources/getting-started.md`
 
-- [ ] **Step 1: Write Chapter 1 content**
-
-Replace the `## Chapter 1: Install` heading in `QUICKSTART.md` with:
+The current file content to replace:
 
 ```markdown
-## Chapter 1: Install
+# Getting Started with Agentic Bookmarks
+
+Agentic Bookmarks gives you durable, self-healing bookmarks that survive refactors — and lets your AI assistant create, navigate, and manage them through the MCP.
+
+## Quick Start
+
+**1. Open the Welcome panel**  
+Click the bookmark icon in the Activity Bar to open the Agentic Bookmarks panel.
+
+**2. Set up the MCP** (for AI-assisted workflows)  
+In the Welcome panel, click **Set up for Claude Code** (or Cursor/Codex). This lets your AI assistant read and place bookmarks through the MCP tools.
+
+**3. Place your first bookmark**  
+Right-click any line in an editor and choose **Agentic Bookmarks: Add Bookmark**. Give it a label and optionally assign it to a group.
+
+**4. Navigate and search**  
+Click any bookmark in the panel to jump to it. Use the search input to filter by label, group, or tag.
+
+## What's Next: AI Skill Playbooks
+
+Once the MCP is set up, ask your AI assistant to use these built-in playbooks:
+
+| Playbook | What it does |
+|---|---|
+| `bookmarks://skill/map-codebase` | Build a complete bookmark map of the whole repo |
+| `bookmarks://skill/add-to-system` | Deeply bookmark one module or feature area |
+| `bookmarks://skill/add-to-files` | Annotate specific files you're already reading |
+| `bookmarks://skill/analyze` | Review coverage, staleness, and themes in your bookmarks |
+
+Or just ask your assistant: **"Map this codebase with bookmarks"** — it knows what to do.
+
+## Get Help
+
+- **Discord** (fastest): https://discord.gg/zukZdvqf8q
+- **GitHub Issues**: https://github.com/super-mega-lab/agentic-bookmarks/issues/new
+- **Email**: contact@supermegalab.com
+```
+
+- [ ] **Step 1: Write the new content**
+
+Replace the entire file with:
+
+```markdown
+<!-- ABOUTME: User-facing getting started guide for Agentic Bookmarks. -->
+<!-- ABOUTME: Covers install, bookmark placement, refactor survival, MCP setup, and AI skill playbooks. -->
+
+# Getting Started with Agentic Bookmarks
+
+Agentic Bookmarks gives you durable, self-healing bookmarks that survive refactors — and lets
+your AI assistant create, navigate, and manage them through the MCP.
+
+This guide takes you from install to your first agent-accessible bookmark in about five minutes.
+
+---
+
+## 1. Install
 
 Search for **"Agentic Bookmarks"** in the VS Code Extensions panel (`Cmd+Shift+X` / `Ctrl+Shift+X`)
 and click **Install**. Publisher: **supermegalab**.
 
-![Extension installed in VS Code Extensions panel](docs/images/quickstart/01-install.png)
+![Extension installed in VS Code Extensions panel](images/01-install.png)
 
 > **One-time setup:** add this line to your project's `.gitignore` so machine-local state never
 > gets committed:
@@ -106,350 +124,199 @@ and click **Install**. Publisher: **supermegalab**.
 >
 > Or run **Agentic Bookmarks: Add .bookmarks/local/ to .gitignore** from the command palette
 > (`Cmd+Shift+P`) to have the extension do it for you.
-```
-
-- [ ] **Step 2: Take Screenshot 1**
-
-In VS Code, open the Extensions panel and find Agentic Bookmarks with the "Installed" badge visible.
-Screenshot filename: `docs/images/quickstart/01-install.png`
-
-- [ ] **Step 3: Verify Markdown preview**
-
-Open `QUICKSTART.md` preview. Confirm the image renders (will show broken image until the file exists, but the link path should be correct). Confirm the gitignore block renders as a blockquote with a code block inside.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add QUICKSTART.md docs/images/quickstart/01-install.png
-git commit -m "docs(SML-1431): add Chapter 1 Install with screenshot"
-```
-
-Note: if the screenshot isn't ready yet, commit without it and amend later, or use a placeholder:
-```bash
-git add QUICKSTART.md
-git commit -m "docs(SML-1431): add Chapter 1 Install (screenshot pending)"
-```
 
 ---
 
-### Task 3: Write Chapter 2 — Place your first bookmark
+## 2. Place your first bookmark
 
-**Files:**
-- Modify: `QUICKSTART.md` (Chapter 2 section)
+Open any file. Right-click on a line you want to bookmark and choose **Add Bookmark**.
 
-- [ ] **Step 1: Write Chapter 2 content**
-
-Replace the `## Chapter 2: Place your first bookmark` heading with:
-
-```markdown
-## Chapter 2: Place your first bookmark
-
-Open any file in your project. Right-click on a line you want to bookmark — the start of a
-function, a tricky algorithm, a known trouble spot — and choose **Add Bookmark**.
-
-![Right-click context menu showing Add Bookmark](docs/images/quickstart/02-context-menu.png)
+![Right-click context menu showing Add Bookmark](images/02-context-menu.png)
 
 A quick-pick prompt asks for a **label**. Type something meaningful — "auth boundary",
 "main render loop", "the 3am hack" — and press Enter.
 
-The bookmark is placed: a pin appears in the editor gutter and the bookmark shows up in the
-**Agentic Bookmarks** sidebar panel under its group.
+A pin appears in the editor gutter and the bookmark shows up in the **Agentic Bookmarks** sidebar.
 
-![Gutter pin and sidebar tree showing the new bookmark](docs/images/quickstart/03-pin-and-sidebar.png)
-
-To navigate back to any bookmark at any time, click it in the sidebar.
-```
-
-- [ ] **Step 2: Take Screenshot 2**
-
-Right-click on a line in a code file to show the context menu with "Add Bookmark" visible.
-Screenshot filename: `docs/images/quickstart/02-context-menu.png`
-
-- [ ] **Step 3: Take Screenshot 3**
-
-After placing a bookmark with a label, capture the editor (showing the gutter pin) alongside the
-Agentic Bookmarks sidebar (showing the bookmark entry with label).
-Screenshot filename: `docs/images/quickstart/03-pin-and-sidebar.png`
-
-- [ ] **Step 4: Verify Markdown preview**
-
-Open preview. Confirm both images render (or show expected broken-image placeholders until files exist). Confirm the prose flows naturally between screenshots.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add QUICKSTART.md docs/images/quickstart/02-context-menu.png docs/images/quickstart/03-pin-and-sidebar.png
-git commit -m "docs(SML-1431): add Chapter 2 Place your first bookmark with screenshots"
-```
+![Gutter pin and sidebar tree showing the new bookmark](images/03-pin-and-sidebar.png)
 
 ---
 
-### Task 4: Write Chapter 3 — Watch it survive a refactor
+## 3. Watch it survive a refactor
 
-**Files:**
-- Modify: `QUICKSTART.md` (Chapter 3 section)
-
-- [ ] **Step 1: Write Chapter 3 content**
-
-Replace the `## Chapter 3: Watch it survive a refactor` heading with:
-
-```markdown
-## Chapter 3: Watch it survive a refactor
-
-This is where Agentic Bookmarks earns its name.
-
-Rename the function your bookmark is on — or cut a few lines and paste them somewhere else in
-the file. Go ahead, do a real edit.
+Rename the function your bookmark is on — or move a few lines somewhere else in the file.
 
 Now click the bookmark in the sidebar. It navigates to the **correct code** at its new location,
 not the stale line number where it used to be.
 
-![Editor after renaming the function — pin still on the right line](docs/images/quickstart/04-post-refactor.png)
+![Editor after renaming the function — pin still on the right line](images/04-post-refactor.png)
 
 **How it works:** the bookmark stores enough surrounding context to re-find its line as code
 drifts. This is called a *smart anchor*. Small edits — renames, insertions, moves — don't break
-it. When a change is too drastic for automatic recovery, the extension shows a warning and a
-one-click repair flow.
-```
-
-- [ ] **Step 2: Take Screenshot 4**
-
-Rename a function that has a bookmark on it, then show the editor with the bookmark pin
-still correctly placed on the renamed code.
-Screenshot filename: `docs/images/quickstart/04-post-refactor.png`
-
-- [ ] **Step 3: Verify Markdown preview**
-
-Confirm the chapter renders cleanly. The italicized "smart anchor" term should render correctly.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add QUICKSTART.md docs/images/quickstart/04-post-refactor.png
-git commit -m "docs(SML-1431): add Chapter 3 refactor survival with screenshot"
-```
+it.
 
 ---
 
-### Task 5: Write Chapter 4 — Connect your AI agent
-
-**Files:**
-- Modify: `QUICKSTART.md` (Chapter 4 section)
-
-- [ ] **Step 1: Write Chapter 4 content**
-
-Replace the `## Chapter 4: Connect your AI agent` heading with:
-
-```markdown
-## Chapter 4: Connect your AI agent
+## 4. Connect your AI assistant
 
 The extension bundles an MCP server that lets your AI coding assistant read, place, and repair
-bookmarks. Setup takes one command.
+bookmarks. Open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and type
+**"Agentic Bookmarks: Setup"**.
 
-Open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and type **"Agentic Bookmarks: Setup"**.
-You'll see setup commands for Claude Code, Cursor, and Codex.
+![Command palette showing Agentic Bookmarks setup commands](images/05-mcp-setup.png)
 
-![Command palette showing Agentic Bookmarks setup commands](docs/images/quickstart/05-mcp-setup.png)
+Pick the command for your tool:
 
-Pick the one for your tool:
+- **Setup for Claude Code** — runs `claude mcp add` in a terminal. Choose Local (this project)
+  or User (all projects).
+- **Setup for Cursor** — writes `.cursor/mcp.json` (Project) or `~/.cursor/mcp.json` (Global).
+- **Setup for Codex** — writes `.codex/config.toml` (Project) or `~/.codex/config.toml` (Global).
 
-### Claude Code
-
-Select **Agentic Bookmarks: Setup for Claude Code**. A terminal opens and runs `claude mcp add`.
-Choose **Local** (this project only) or **User** (all your projects).
-
-### Cursor
-
-Select **Agentic Bookmarks: Setup for Cursor**. Choose **Project** (writes `.cursor/mcp.json`)
-or **Global** (writes `~/.cursor/mcp.json`).
-
-### Codex
-
-Select **Agentic Bookmarks: Setup for Codex**. Choose **Project** (writes `.codex/config.toml`)
-or **Global** (writes `~/.codex/config.toml`).
+**Verify it's working:** ask your assistant "List my bookmarks" — it should respond with the
+bookmark you placed in step 2.
 
 ---
 
-**Verify it's working:** ask your agent:
+## 5. Navigate and search
 
-> "List my bookmarks"
-
-It should respond with the bookmark you placed in Chapter 2, including its label and file location.
-```
-
-- [ ] **Step 2: Take Screenshot 5**
-
-Open the command palette and type "Agentic Bookmarks: Setup" so all three setup commands are visible.
-Screenshot filename: `docs/images/quickstart/05-mcp-setup.png`
-
-- [ ] **Step 3: Verify Markdown preview**
-
-Confirm the three sub-headings render correctly (h3 inside h2). Confirm the blockquote for the verify step renders as a blockquote.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add QUICKSTART.md docs/images/quickstart/05-mcp-setup.png
-git commit -m "docs(SML-1431): add Chapter 4 MCP agent setup with screenshot"
-```
+Click any bookmark in the sidebar to jump to it. Use the search input at the top of the panel
+to filter by label, group, or file.
 
 ---
 
-### Task 6: Write What's Next and finalize
+## What's Next: AI Skill Playbooks
 
-**Files:**
-- Modify: `QUICKSTART.md` (What's next section and any final polish)
+Once the MCP is set up, ask your AI assistant to use these built-in playbooks:
 
-- [ ] **Step 1: Write What's Next content**
+| Playbook | What it does |
+|---|---|
+| `bookmarks://skill/map-codebase` | Build a complete bookmark map of the whole repo |
+| `bookmarks://skill/add-to-system` | Deeply bookmark one module or feature area |
+| `bookmarks://skill/add-to-files` | Annotate specific files you're already reading |
+| `bookmarks://skill/analyze` | Review coverage, staleness, and themes in your bookmarks |
 
-Replace the `## What's next` heading with:
+Or just ask your assistant: **"Map this codebase with bookmarks"** — it knows what to do.
 
-```markdown
-## What's next
+---
 
-- **[README](README.md)** — workspace layout, custom data root, running the MCP server without VS Code
-- **Repair** — when an anchor drifts beyond automatic recovery, the sidebar shows a warning. Right-click the broken bookmark for the one-click repair flow, or ask your agent to run a guided repair.
-- **Agent skill guides** — your AI agent has built-in playbooks for bookmark-driven research: bookmarking a subsystem, annotating files, mapping a codebase from scratch. Ask it: "What bookmark skills do you have?"
+## Get Help
+
+- **Discord** (fastest): https://discord.gg/zukZdvqf8q
+- **GitHub Issues**: https://github.com/super-mega-lab/agentic-bookmarks/issues/new
+- **Email**: contact@supermegalab.com
 ```
 
-- [ ] **Step 2: Do a full read-through of QUICKSTART.md**
+- [ ] **Step 2: Verify the Markdown**
 
-Read the entire document from top to bottom. Check:
-- [ ] No orphaned TODO or placeholder text
-- [ ] All five image references use the correct relative path `docs/images/quickstart/NN-name.png`
-- [ ] Chapter numbers are sequential (1–4)
-- [ ] Command palette strings match exactly: "Agentic Bookmarks: Setup for Claude Code", "Agentic Bookmarks: Setup for Cursor", "Agentic Bookmarks: Setup for Codex"
-- [ ] The gitignore line in Chapter 1 is `.bookmarks/local/` (with trailing slash)
+Check:
+- [ ] ABOUTME headers are the first two lines (HTML comments, invisible when rendered)
+- [ ] Five numbered sections (1–5) plus What's Next and Get Help
+- [ ] All five image references use relative path `images/NN-name.png` (no leading slash, no `packages/extension/resources/`)
+- [ ] The gitignore blockquote in step 1 has a code block inside (`.bookmarks/local/`)
+- [ ] Command palette strings are exact: "Agentic Bookmarks: Setup for Claude Code", "Agentic Bookmarks: Setup for Cursor", "Agentic Bookmarks: Setup for Codex"
+- [ ] The existing "What's Next" playbook table and Get Help section are preserved verbatim
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add QUICKSTART.md
-git commit -m "docs(SML-1431): add What's next section and final polish"
+git add packages/extension/resources/getting-started.md
+git commit -m "docs(SML-1431): enrich getting-started.md with install, refactor survival, and MCP steps"
 ```
 
 ---
 
-### Task 7: Update README to link to QUICKSTART.md
+### Task 3: Update README to link to getting-started guide
 
 **Files:**
-- Modify: `README.md` (Quickstart section)
+- Modify: `README.md`
 
-- [ ] **Step 1: Find the current Quickstart section in README.md**
+- [ ] **Step 1: Find the Quickstart section**
 
-The README currently has a `## Quickstart` section with three bullet points ending in "videos coming soon."
+The README has a `## Quickstart` section with a few bullets ending in "videos coming soon."
 
 - [ ] **Step 2: Add the link**
 
-After the existing bullet points in the `## Quickstart` section, add one line:
+After the existing "That's all. See the Marketplace page..." line, add:
 
 ```markdown
-→ **[Full Quickstart with screenshots](QUICKSTART.md)**
+→ **[Full Getting Started guide with screenshots](packages/extension/resources/getting-started.md)**
 ```
 
-The resulting section should look like:
+- [ ] **Step 3: Verify**
 
-```markdown
-## Quickstart
-
-- install "Agentic Bookmarks" by supermegalab extension from VS Code extension browser
-- Optional, but awesome: setup the MCP to work with the agent of your choice
-  - ctrl-shift-p / cmd-shift-p and type "Agentic Bookmarks: setup" to see options for setting up the MCP server
-  - for claude, select Local (this project only) or User (all your projects) based on your preference
-
-That's all. See the Marketplace page for more details — videos coming soon.
-
-→ **[Full Quickstart with screenshots](QUICKSTART.md)**
-```
-
-- [ ] **Step 3: Verify README preview**
-
-Open `README.md` in Markdown preview. Confirm the link renders correctly and points to `QUICKSTART.md`.
+Read the section to confirm the link renders and points to the correct relative path.
 
 - [ ] **Step 4: Commit**
 
 ```bash
 git add README.md
-git commit -m "docs(SML-1431): link QUICKSTART.md from README"
+git commit -m "docs(SML-1431): link getting-started.md from README Quickstart section"
 ```
 
 ---
 
-### Task 8: Screenshot integration pass
+### Task 4: Screenshot integration pass (Marc takes screenshots)
 
 **Files:**
-- Modify: `docs/images/quickstart/` (add any missing screenshots)
-- Modify: `QUICKSTART.md` (fix any image paths if screenshots were named differently)
+- Add: `packages/extension/resources/images/01-install.png`
+- Add: `packages/extension/resources/images/02-context-menu.png`
+- Add: `packages/extension/resources/images/03-pin-and-sidebar.png`
+- Add: `packages/extension/resources/images/04-post-refactor.png`
+- Add: `packages/extension/resources/images/05-mcp-setup.png`
 
-This task is for integrating screenshots taken during Tasks 2–5. If all five screenshots are already committed, this task is a verification pass only.
+Marc takes the five screenshots in VS Code and drops them into the images directory.
 
-- [ ] **Step 1: Verify all five screenshots exist**
-
-```bash
-ls -la docs/images/quickstart/
-```
-
-Expected output includes:
-```
-01-install.png
-02-context-menu.png
-03-pin-and-sidebar.png
-04-post-refactor.png
-05-mcp-setup.png
-```
-
-- [ ] **Step 2: Open QUICKSTART.md in Markdown preview**
-
-All five images should render without broken-image icons. If any are broken, check the file name matches the reference in `QUICKSTART.md` exactly (case-sensitive).
-
-- [ ] **Step 3: Remove .gitkeep if all screenshots are in place**
+- [ ] **Step 1: Verify all five exist**
 
 ```bash
-git rm docs/images/quickstart/.gitkeep
+ls -la packages/extension/resources/images/
 ```
 
-- [ ] **Step 4: Final commit**
+Expected: 5 `.png` files plus `.gitkeep`.
+
+- [ ] **Step 2: Open getting-started.md in VS Code Markdown preview**
+
+All five images should render without broken-image icons.
+
+- [ ] **Step 3: Remove .gitkeep**
 
 ```bash
-git add docs/images/quickstart/
-git commit -m "docs(SML-1431): add all quickstart screenshots"
+git rm packages/extension/resources/images/.gitkeep
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add packages/extension/resources/images/
+git commit -m "docs(SML-1431): add getting-started screenshots"
 ```
 
 ---
 
-### Task 9: Final review pass
+### Task 5: Final review pass
 
 **Files:** (read-only review)
 
-- [ ] **Step 1: Read the complete QUICKSTART.md from start to finish**
+- [ ] **Step 1: Read getting-started.md from top to bottom**
 
-Verify:
-- [ ] Intro clearly states the problem (bookmarks break on rename) and the payoff (5 minutes to first agent-accessible bookmark)
-- [ ] All four chapters are present and sequentially numbered
-- [ ] Every screenshot renders in VS Code Markdown preview
-- [ ] Command palette strings are exact (search for "Agentic Bookmarks" in the file — should match what the extension uses)
-- [ ] The What's Next section has three entries and the README link is a working relative link
-- [ ] No broken Markdown syntax (unclosed bold/italic, malformed image tags)
+Check:
+- [ ] ABOUTME headers present on lines 1–2
+- [ ] Sections 1–5 present and in order (Install → Place → Refactor → MCP → Navigate)
+- [ ] All five images render in VS Code Markdown preview
+- [ ] Command palette strings match package.json exactly
+- [ ] Existing "What's Next" playbook table unchanged
+- [ ] Existing "Get Help" links unchanged
+- [ ] README Quickstart section has the link
 
-- [ ] **Step 2: Click-test the README link**
+- [ ] **Step 2: Verify image paths work on GitHub**
 
-From `README.md` preview, click `QUICKSTART.md` link. Confirm it opens the file.
+Image references are `images/NN-name.png` (relative). Since the file is at
+`packages/extension/resources/getting-started.md`, GitHub will resolve images from
+`packages/extension/resources/images/` — correct.
 
-- [ ] **Step 3: Verify ABOUTME headers are present**
-
-```bash
-head -2 QUICKSTART.md
-```
-
-Expected:
-```
-<!-- ABOUTME: User-facing getting started guide covering the full Agentic Bookmarks core loop. -->
-<!-- ABOUTME: Covers install, bookmark placement, refactor survival, and MCP agent setup. -->
-```
-
-- [ ] **Step 4: Final commit (if any fixes were made)**
+- [ ] **Step 3: Final commit if fixes needed**
 
 ```bash
-git add QUICKSTART.md README.md
+git add packages/extension/resources/getting-started.md README.md
 git commit -m "docs(SML-1431): final review fixes"
 ```
