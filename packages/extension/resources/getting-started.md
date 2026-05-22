@@ -64,17 +64,17 @@ it.
 ## 4. Connect your AI assistant
 
 The extension bundles an MCP server that lets your AI coding assistant read, place, and repair
-bookmarks. Open the command palette (`Cmd+Shift+P` / `Ctrl+Shift+P`) and type
-**"Agentic Bookmarks: Setup for"**.
+bookmarks. Open the **Agentic Bookmarks** panel (the bookmark icon in the Activity Bar) and
+scroll to the **Set up the MCP** section.
 
-![Command palette showing Agentic Bookmarks setup commands](images/05-mcp-setup.png)
+![Welcome panel showing Set up the MCP buttons](images/05-mcp-setup.png)
 
-Pick the command for your tool:
+Click the button for your tool:
 
-- **Setup for Claude Code** — runs `claude mcp add` in a terminal. Choose Local (this project)
+- **Set up for Claude Code** — runs `claude mcp add` in a terminal. Choose Local (this project)
   or User (all projects).
-- **Setup for Cursor** — writes `.cursor/mcp.json` (Project) or `~/.cursor/mcp.json` (Global).
-- **Setup for Codex** — writes `.codex/config.toml` (Project) or `~/.codex/config.toml` (Global).
+- **Set up for Cursor** — writes `.cursor/mcp.json` (Project) or `~/.cursor/mcp.json` (Global).
+- **Set up for Codex** — writes `.codex/config.toml` (Project) or `~/.codex/config.toml` (Global).
 
 **Verify it's working:** ask your assistant "List my bookmarks" — it should respond with the
 bookmark you placed in step 2.
