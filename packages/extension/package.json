@@ -1,7 +1,7 @@
 {
   "name": "agentic-bookmarks",
   "displayName": "Agentic Bookmarks",
-  "description": "Durable code bookmarks with self-healing anchors, so you and your agents can create local bookmarks or Git-friendly shared groups that survive refactors and code movement.",
+  "description": "Durable bookmarks that survive refactors, share via git, and work with your AI coding agents through MCP.",
   "publisher": "supermegalab",
   "author": {
     "name": "Super Mega Lab",
@@ -23,6 +23,18 @@
   },
   "categories": [
     "Other"
+  ],
+  "keywords": [
+    "bookmarks",
+    "mcp",
+    "ai",
+    "agents",
+    "claude",
+    "cursor",
+    "codex",
+    "code-navigation",
+    "team",
+    "git"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
