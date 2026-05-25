@@ -167,3 +167,9 @@ If you do not agree to these, please do not install or use the extension.
 - Beta and Pro Features Policy: <https://agenticbookmarks.com/legal/policy>
 - Sub-processor list: <https://agenticbookmarks.com/legal/subprocessors>
 - License (PolyForm Shield 1.0.0): [`LICENSE`](LICENSE)
+
+## Support & feedback
+
+- GitHub Issues: <https://github.com/super-mega-lab/agentic-bookmarks/issues>
+- Discord: <https://discord.gg/zukZdvqf8q>
+- Email: **contact@supermegalab.com**
