@@ -2,15 +2,13 @@
 
 ![public beta](https://img.shields.io/badge/status-public%20beta-blue)
 
-**Public beta:** all Pro features are free for everyone. Beta end date: **to be announced**.
+Your AI coding agent loses context every session. **Agentic Bookmarks** fixes that: durable, self-healing bookmarks that agents can read, place, and repair through a bundled MCP server. They survive refactors, check into git, and give your whole team — humans and agents — persistent codebase knowledge.
 
-Most code bookmarks are local to your machine and break the moment you rename a file or move a function. **Agentic Bookmarks** fixes both: self-healing bookmarks that survive refactors, check into git so your whole team shares them, and are usable by LLM agents through a bundled MCP server. Implemented in pure JavaScript with atomic JSON storage (no native dependencies).
+The extension collects no usage telemetry. Pure JavaScript, no native dependencies. Source-available under [PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/) — see [`LICENSE`](LICENSE).
 
-The extension collects no usage telemetry.
-
-> **Source-available repository.** The code in this repository is published under [PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/) — see [`LICENSE`](LICENSE). The proprietary core that implements Agentic Bookmarks' Pro features is maintained in a separate private repository and is distributed only as a compiled artifact bundled with the Marketplace release.
+> **Public beta:** all Pro features are free for everyone, no account required. Beta end date: **to be announced**.
 >
-> **This repository is not stand-alone buildable at this time.** `pnpm install` depends on the private `@agentic-bookmarks/core` sibling and will fail without it. To run the extension, install **Agentic Bookmarks** from the VS Code Marketplace — that's the supported path. The contents here exist so the network-facing portions of the product can be independently audited (see [`SECURITY.md`](SECURITY.md)), not as a from-source build target.
+> **Not stand-alone buildable.** `pnpm install` depends on the private `@agentic-bookmarks/core` sibling and will fail without it. Install from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=supermegalab.agentic-bookmarks) — the contents here exist so the network-facing portions can be independently audited (see [`SECURITY.md`](SECURITY.md)).
 
 ## Important: add this line to your project's `.gitignore`
 
@@ -22,14 +20,22 @@ The extension stores machine-local runtime state (registry, lock/pulse cache, ge
 
 `.bookmarks/shared/` (team-distributable bookmark data) is intentionally *not* gitignored — that's the part you do want to share with collaborators. See [Workspace Layout](#workspace-layout) below for the full picture, including a transitional block of legacy paths to ignore for one release cycle if you're upgrading from a pre-0.5 version.
 
+## What can your agent do?
+
+Once the MCP server is connected, your AI assistant can:
+
+- **Place bookmarks** during research — "bookmark the auth boundary and the rate limiter"
+- **Read bookmarks as context** — "what bookmarks exist in this module?"
+- **Map an entire codebase** — "map this codebase with bookmarks" (uses built-in skill guide)
+- **Repair broken bookmarks** — structured diagnostic waterfall for bookmarks that drifted during large refactors
+
+28 MCP tools cover the full lifecycle: create, read, search, organize, validate, and repair.
+
 ## Quickstart
 
-- install "Agentic Bookmarks" by supermegalab extension from VS Code extension browser
-- Optional, but awesome: setup the MCP to work with the agent of your choice
-  - ctrl-shift-p / cmd-shift-p and type "Agentic Bookmarks: setup" to see options for setting up the MCP server
-  - for claude, select Local (this project only) or User (all your projects) based on your preference
-
-That's all. See the Marketplace page for more details — videos coming soon.
+1. Install **"Agentic Bookmarks"** by supermegalab from the VS Code extension browser
+2. `Cmd+Shift+P` → **"Agentic Bookmarks: Setup for Claude Code"** (or Cursor / Codex) — this also handles `.gitignore`
+3. Start placing bookmarks — your agent can too
 
 → **[Full Getting Started guide with screenshots](packages/extension/resources/getting-started.md)**
 
