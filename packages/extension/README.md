@@ -1,160 +1,78 @@
 # Agentic Bookmarks
 
-**Durable code bookmarks for you and your AI agents.** Bookmarks that survive
-refactors, merge cleanly when checked into git, and that LLM agents can read,
-place, and repair through MCP — turning the bookmark set into shared project
-memory for a team and the agents working with it.
-
-> _[PLACEHOLDER: hero GIF / screenshot — bookmarks panel + gutter decorations +
-> overlay notes in an editor]_
+Your AI coding agent loses context every session. **Agentic Bookmarks** fixes that: durable, self-healing bookmarks that agents can read, place, and repair through a bundled MCP server. They survive refactors, check into git, and give your whole team — humans and agents — persistent codebase knowledge.
 
 ---
 
-## Why another bookmarks extension?
+## What can your agent do?
 
-Traditional bookmarks work as "a line number in a file." That works fine until anyone else edits
-the file — which is why bookmarks are usually treated as throwaway,
-single-developer scratch state instead of a real way to share knowledge about
-a codebase.
+Once the MCP server is connected, your AI assistant can:
 
-Agentic Bookmarks takes the opposite bet: **a bookmark should be a first-class
-artifact of a codebase that a team — and the agents working with that team —
-can rely on.**
+- **Place bookmarks** during research — "bookmark the auth boundary and the rate limiter"
+- **Read bookmarks as context** — "what bookmarks exist in this module?"
+- **Map an entire codebase** — "map this codebase with bookmarks" (uses built-in skill guide)
+- **Repair broken bookmarks** — structured diagnostic waterfall for bookmarks that drifted during large refactors
 
-- **Durable anchors.** Bookmarks resolve from surrounding context, not raw
-  line numbers, so they survive normal editing and merging.
-- **Local _and_ shared, as first-class concepts.** Personal scratch
-  bookmarks ("I'm working here this week") and team-shared knowledge
-  ("this is the auth boundary") have different tradeoffs and are modelled
-  separately.
-- **AI agents as a first-class user.** A bundled MCP server lets agents
-  read, place, organize, and repair bookmarks during research and task work.
+28 MCP tools cover the full lifecycle: create, read, search, organize, validate, and repair.
 
 ---
 
 ## Installation
 
-Install **Agentic Bookmarks** from the VS Code Marketplace:
+Search for **"Agentic Bookmarks"** in the VS Code Extensions panel (`Ctrl+Shift+X` / `Cmd+Shift+X`) and click **Install**. Publisher: **supermegalab**.
 
-- Marketplace page: _[PLACEHOLDER: Marketplace listing URL once published]_
-- Or, in VS Code: open the Extensions view (`Ctrl+Shift+X` / `Cmd+Shift+X`)
-  and search for **Agentic Bookmarks**.
-- Or, from the Command Palette: `ext install supermegalab.agentic-bookmarks`.
+Or from the command line: `code --install-extension supermegalab.agentic-bookmarks`
 
-Requires VS Code `1.92` or newer. Also works in **Cursor** and other
-VS Code–compatible editors that support the Extensions API and MCP.
+Also works in **Cursor** and other VS Code-compatible editors that support the Extensions API and MCP.
 
 ---
 
-## Getting started
+## Quickstart
 
-1. Open any file and place your cursor on a line you want to remember.
-2. Press **`Ctrl+K Ctrl+B`** (**`Cmd+K Cmd+B`** on macOS) to toggle a
-   bookmark on the current line. Use **`Ctrl+K Ctrl+Shift+B`** to add a
-   labelled bookmark — you'll be prompted for a label and (optionally) a
-   group.
-3. Open the **Bookmarks** panel from the Activity Bar to see every bookmark
-   in the workspace, organized by group and file.
-4. Jump between bookmarks with **`Ctrl+K Ctrl+N`** / **`Ctrl+K Ctrl+P`**, or
-   open the in-file list with **`Ctrl+K L`**.
+1. Install **"Agentic Bookmarks"** from the Extensions panel
+2. Open the **Agentic Bookmarks** panel (bookmark icon in the Activity Bar) and click **Set up for Claude Code** (or Cursor / Codex) — this also handles `.gitignore`
+3. Start placing bookmarks — your agent can too
 
-> _[PLACEHOLDER: short GIF — toggle a bookmark, see it in the panel, jump to
-> the next one]_
+→ **[Full Getting Started guide with screenshots](resources/getting-started.md)**
 
-That's the minimum loop. Everything else — groups, notes, MCP, repair — is
-optional polish on top.
+---
+
+The extension collects no usage telemetry. Pure JavaScript, no native dependencies. Source-available under [PolyForm Shield 1.0.0](https://polyformproject.org/licenses/shield/1.0.0/) — see [`LICENSE`](LICENSE).
+
+> **Public beta:** all Pro features are free for everyone, no account required. Beta end date: **to be announced**.
 
 ---
 
 ## Features
 
-### Anchors: how a bookmark stays attached to code
+### Your agents remember
 
-Three anchor types, picked per bookmark:
+A bundled MCP server lets Claude Code, Cursor, and Codex read, place, and repair bookmarks — no separate setup. Built-in skill guides teach agents best practices so you can say "map this codebase with bookmarks" and it knows what to do.
 
-- **Smart anchor (default).** Stores enough surrounding context to re-find
-  its line as code drifts. Designed for adaptive, loose matching — small
-  edits in or near the line don't force the stored data to update, which is
-  what makes smart anchors team-friendly when checked into git.
-- **Tag anchor.** Places a small comment tag (e.g. `// @bookmark:abc123`)
-  on the line. The source of truth lives in the code itself, so maintenance
-  is trivial; the tradeoff is that the code has to be touched. A natural
-  fit for shared bookmarks where an inline marker is acceptable.
+- 28 MCP tools for full bookmark lifecycle
+- Works with any MCP-compatible client
+- Zero-config: installs with the extension
 
-> _[PLACEHOLDER: diagram comparing the three anchor types]_
+The MCP server runs **locally on your machine**. Agents you connect to it get whatever access you'd give any other local tool — no Agentic Bookmarks service sits in the middle.
 
-### Local vs. shared bookmarks
+### Survives every refactor
 
-Bookmarks live in files in your repo, but **local** and **shared** are
-different first-class concepts:
+Smart anchors store surrounding context — not line numbers — so bookmarks survive renames, moves, and formatting passes. Self-healing keeps them correct as code drifts; agent-assisted repair handles the hard cases.
 
-- **Local bookmarks** are personal scratch — stored under
-  `.bookmarks/local/` in your workspace (gitignored). Smart anchors
-  used for local bookmarks keep richer context, since git history
-  can't help bail them out.
-- **Shared bookmarks** live under `.bookmarks/shared/` in your
-  workspace and are checked in (path configurable). They use a
-  leaner footprint so the data file doesn't churn merge conflicts on
-  every neighbouring edit.
+- Context-based matching, not line numbers
+- Background self-healing on file changes
+- Agent-assisted repair for large refactors
 
-### Groups, labels, notes, overlays
+Repair is layered: manual relocation (always available) → background auto-repair (configurable) → agent-assisted repair through MCP for the hard cases that defeat mechanical methods.
 
-- **Groups** organize bookmarks and each one has its own icon style and
-  color. A curated catalog ships so groups stay visually distinct without
-  configuration work.
-- **Labels** are short titles; **notes** are longer free-form text — the
-  "what is this and why did I mark it" that turns a pin into a useful
-  artifact (especially for agents reading them).
-- Bookmarks render as **gutter decorations**. With editor overlays
-  enabled, labels and notes can also appear **inline in the editor** as
-  floating UI.
-- Don't like the visual styling? **Uniform-style** and **uniform-color**
-  overrides flatten the appearance without changing the bookmarks
-  themselves.
-- **Broken or low-confidence anchors** get distinct overlay indicators so
-  problems are visible at a glance.
+### Knowledge that compounds
 
-> _[PLACEHOLDER: screenshot of gutter decorations + inline note overlay]_
+Shared bookmarks commit to git like code. New team members and agents inherit the map on clone. Groups, labels, and notes turn bookmarks into living documentation.
 
-### Self-healing: when anchors do drift or break
-
-Code changes can always outrun an anchor. Repair is a layered system:
-
-1. **Manual relocation.** Right-click a broken bookmark and pick the
-   correct line with a quick-pick UI. Always available.
-2. **Auto-repair.** Mechanical repair that runs in the background
-   (configurable; can be disabled and triggered on demand instead). Uses
-   context search, optionally git history, and shift validation to find
-   the most likely new location — and only writes when confidence is high
-   enough. Conservative by design: it's allowed to refuse when it isn't
-   sure.
-3. **Agent-assisted repair.** Through MCP, an LLM agent can run a
-   structured waterfall of diagnostic and repair tools — diff diagnosis,
-   baseline-commit forensics, line tracing, moved-code search, cross-file
-   search — and resolve cases that defeat purely mechanical methods. This
-   is what makes long-lived, shared bookmarks practical.
-
-### AI / MCP integration
-
-The bundled **MCP server** gives AI coding agents the same view of bookmarks
-you have, plus dedicated tooling for the things agents are uniquely good at:
-
-- **Research & placement.** Agents can study code and place well-labelled
-  bookmarks during an investigation — leaving a trail behind, or setting up
-  landmarks at the start of a task.
-- **Reading bookmarks as task context.** When working a ticket, an agent
-  can pull the relevant bookmarks (with their notes) into its working
-  context, turning the bookmark set into evolving project memory.
-- **Organization.** Rename, regroup, retag, and clean up bookmarks as
-  part of broader codebase maintenance.
-- **Repair.** The most invested-in capability — see above.
-
-> _[PLACEHOLDER: setup instructions / one-liner for Claude Code, Cursor, and
-> any other MCP-capable agents — once setup commands are finalized]_
-
-The MCP server runs **locally on your machine**. Agents you connect to it
-get whatever access you'd give any other local tool — no Agentic Bookmarks
-service sits in the middle.
+- **Local bookmarks** — personal scratch, stored under `.bookmarks/local/` (gitignored)
+- **Shared bookmarks** — team knowledge, stored under `.bookmarks/shared/` (committed)
+- Merge-conflict-friendly storage format
+- Groups and labels for organization
 
 ---
 
@@ -221,7 +139,7 @@ The public source repository is at
 
 ---
 
-## Keyboard shortcuts (QOL upgrade on way)
+## Keyboard shortcuts
 
 The extension ships with default keybindings. All editor-scope chords use
 the `Ctrl+K …` (`Cmd+K …` on macOS) prefix to stay clear of single-press
@@ -348,7 +266,7 @@ please tell us.
 
 ## Links
 
-- Marketplace listing: _[PLACEHOLDER: Marketplace URL]_
+- Marketplace listing: [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=supermegalab.agentic-bookmarks)
 - Source repository: <https://github.com/super-mega-lab/agentic-bookmarks>
 - Product page: <https://agenticbookmarks.com>
 - Company / Publisher: <https://supermegalab.com>
