@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
 import * as path from 'node:path';
 import * as fsp from 'node:fs/promises';
-import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, getCacheDir, readRegistry, readFileV2, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath, appendGitignoreLine, BOOKMARKS_LOCAL_GITIGNORE_LINE, brokenAnchorsCache, workspaceRelativeToUri, invalidateFileCache } from '@agentic-bookmarks/core';
+import { pathsForDataFile, type WorkspaceRegistryV1, DEFAULT_BOOKMARKS_DATA_ROOT, getDefaultLocalFilePath, getLocalDir, getCacheDir, readRegistry, readFileV2, autoRepairCandidate, editFileV2WithContext, getBookmarksDataRoot, updateBookmarkUris, toWorkspaceRelativePath, appendGitignoreLine, BOOKMARKS_LOCAL_GITIGNORE_LINE, brokenAnchorsCache, workspaceRelativeToUri, invalidateFileCache, ipc } from '@agentic-bookmarks/core';
+import { QueueConsumer } from './ipc-consumer';
+import { getMcpToExtensionQueuePaths } from './ipc-paths';
 import { BookmarksProvider } from './treeProvider';
 import { FilesGroupsProvider } from './filesGroupsProvider';
 import { SettingsProvider } from './settingsProvider';
@@ -260,10 +262,13 @@ async function activateForWorkspace(
   const orderingService = await OrderingService.load(orderingCacheDir);
   context.subscriptions.push({ dispose: () => { void orderingService.dispose(); } });
 
-  // Action-row state. `scanQueueRef` and `lastBrokenCount` are assigned later (the
+  // Action-row state. `scanQueueRef` and `lastBrokenIds` are assigned later (the
   // queues are built after the provider); the provider reads them lazily via thunks.
+  // We hold a Set of broken IDs (not just a count) so the MCP-driven streaming
+  // refresh can remove IDs one at a time as bookmark-repaired messages arrive,
+  // and the displayed X/Y count is always `lastBrokenIds.size`.
   let scanQueueRef: ScanQueue | null = null;
-  let lastBrokenCount = 0;
+  let lastBrokenIds = new Set<string>();
 
   const provider = new BookmarksProvider(
     paths, workspaceRoot, defaultIconPath, getUIState, isFileHidden, context, orderingService,
@@ -271,26 +276,29 @@ async function activateForWorkspace(
       scanPhase: scanQueueRef?.phase() ?? 'idle',
       scanRunningScanned: scanQueueRef?.scannedThisRun() ?? 0,
       scanRunningTotal: scanQueueRef?.totalThisRun() ?? 0,
-      brokenCount: lastBrokenCount,
+      brokenCount: lastBrokenIds.size,
     }),
     (fsPath: string) => isFileValidated(fsPath),
   );
 
-  // Recompute the Repair All broken count from the persisted cache across folders.
-  // Only updates while the repair queue is idle, so the number doesn't flicker
+  // Refresh the set of broken bookmark IDs from the persisted cache across folders.
+  // Only updates while the repair queue is idle, so the count doesn't flicker
   // while auto-repair is mid-flight (it leaves the last value in place until then).
-  async function recomputeBrokenCount(): Promise<void> {
+  // Streaming MCP `bookmark-repaired` events decrement this set between scans.
+  async function refreshBrokenIds(): Promise<void> {
     if (repairQueue && !repairQueue.isIdle()) return;
-    let total = 0;
+    const ids = new Set<string>();
     for (const folder of vscode.workspace.workspaceFolders ?? []) {
       try {
         const reg = await readRegistry(folder.uri.fsPath);
         const cacheDir = getCacheDir(folder.uri.fsPath, getBookmarksDataRoot(reg));
         const cache = await brokenAnchorsCache.readBrokenAnchorsCache(cacheDir);
-        total += countBroken(cache.entries);
+        for (const e of cache.entries) {
+          if (e.status === 'broken') ids.add(e.bookmarkId);
+        }
       } catch { /* ignore folders without a cache */ }
     }
-    lastBrokenCount = total;
+    lastBrokenIds = ids;
   }
 
   async function updateFilterContext() {
@@ -553,6 +561,32 @@ async function activateForWorkspace(
   });
   context.subscriptions.push(sticky.disposable);
 
+  // --- MCP → extension IPC queue consumer ---
+  // Generic one-way channel from the bundled MCP server. First consumer:
+  // `bookmark-repaired` messages drive the streaming broken-count update.
+  // Truncate on activation so stale messages from a previous session don't
+  // skew the in-memory state populated by the next scan.
+  const { queuePath: mcpQueuePath } = getMcpToExtensionQueuePaths(
+    workspaceRoot,
+    getBookmarksDataRoot(await readRegistry(workspaceRoot)),
+  );
+  await ipc.truncateQueue(mcpQueuePath);
+  const mcpConsumer = new QueueConsumer(mcpQueuePath, {
+    log,
+    handlers: {
+      // Streaming decrement: each successful MCP repair removes its ID from
+      // the broken-ID set and re-renders the tree. Repairs of IDs that aren't
+      // in the set (already healed, or never-broken) are silently ignored.
+      'bookmark-repaired': (payload: { bookmarkId?: string }) => {
+        const id = payload?.bookmarkId;
+        if (typeof id !== 'string') return;
+        if (lastBrokenIds.delete(id)) {
+          provider.refresh();
+        }
+      },
+    },
+  });
+
   // --- File & registry watchers ---
   const watchers = createWatcherManager(
     {
@@ -565,10 +599,12 @@ async function activateForWorkspace(
       refreshBookmarkTrees: () => { filesGroups.refresh(); provider.refresh(); },
       refreshCodeLens: () => codeLensProvider.refresh(),
       revalidateOpenDocuments,
+      onMcpToExtensionPulse: () => mcpConsumer.drain(),
     },
     sticky.getLastStickyRefreshAt,
   );
   await watchers.setupWatchers();
+  await watchers.setupMcpToExtensionWatcher();
   context.subscriptions.push(watchers.setupRegistryWatcher());
 
   // --- Document lifecycle ---
@@ -808,7 +844,7 @@ async function activateForWorkspace(
       applyAutoRepairCandidate(bookmarkId, candidateLine, workspaceRoot, getLineCacheLength),
     updateAnchorState,
     updateDeepFlexState,
-    refreshUI: () => { void recomputeBrokenCount().then(() => provider.refresh()); debouncedCacheSync(); },
+    refreshUI: () => { void refreshBrokenIds().then(() => provider.refresh()); debouncedCacheSync(); },
     getFileLines: getOpenDocumentLines,
     log: (msg: string) => log.debug(msg),
   });
@@ -913,7 +949,7 @@ async function activateForWorkspace(
   scanQueueRef = scanQueue;
 
   // Seed the broken-count badge from the persisted cache on activation.
-  void recomputeBrokenCount().then(() => provider.refresh());
+  void refreshBrokenIds().then(() => provider.refresh());
 
   // --- Scan All + agent-driven Repair All commands ---
   context.subscriptions.push(
@@ -925,10 +961,10 @@ async function activateForWorkspace(
       if (scanQueue.isRunning()) { scanQueue.cancel(); return; } // click again = cancel
       const targets = await collectAllBookmarkedTargets();
       await scanQueue.run(targets);
-      await recomputeBrokenCount();
+      await refreshBrokenIds();
       provider.refresh();
     }),
-    ...registerAgentRepairCommands({ context, workspaceRoot, log, getBrokenCount: () => lastBrokenCount }),
+    ...registerAgentRepairCommands({ context, workspaceRoot, log, getBrokenCount: () => lastBrokenIds.size }),
   );
 
   // --- Active editor change ---

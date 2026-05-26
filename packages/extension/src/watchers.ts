@@ -9,6 +9,7 @@ import {
   registryPathForRoot,
 } from '@agentic-bookmarks/core';
 import type { Logger } from './logger';
+import { getMcpToExtensionQueuePaths } from './ipc-paths';
 
 // ---------------------------------------------------------------------------
 // Suppress duplicate refreshes when the sticky handler just fired
@@ -28,6 +29,8 @@ export interface WatcherDeps {
   refreshBookmarkTrees: () => void;  // provider + filesGroups only
   refreshCodeLens: () => void;
   revalidateOpenDocuments: () => Promise<void>;
+  /** Fires when the mcp-to-extension queue's pulse file is touched. */
+  onMcpToExtensionPulse: () => void | Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -162,9 +165,29 @@ export function createWatcherManager(
     return watcher;
   };
 
+  // -------------------------------------------------------------------
+  // setupMcpToExtensionWatcher — single workspace-level watcher on the
+  // mcp-to-extension queue pulse file. Fires whenever the bundled MCP
+  // server appends a message (e.g. bookmark-repaired).
+  // -------------------------------------------------------------------
+  const setupMcpToExtensionWatcher = async (): Promise<void> => {
+    const reg = await readRegistry(workspaceRoot);
+    const dataRoot = getBookmarksDataRoot(reg);
+    const { pulsePath } = getMcpToExtensionQueuePaths(workspaceRoot, dataRoot);
+    const watcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(path.dirname(pulsePath), path.basename(pulsePath)),
+    );
+    const fire = () => { void deps.onMcpToExtensionPulse(); };
+    watcher.onDidChange(fire);
+    watcher.onDidCreate(fire);
+    watcher.onDidDelete(fire);
+    context.subscriptions.push(watcher);
+  };
+
   return {
     setupWatchers,
     restartWatchers,
     setupRegistryWatcher,
+    setupMcpToExtensionWatcher,
   };
 }
