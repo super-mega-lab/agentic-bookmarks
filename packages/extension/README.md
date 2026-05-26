@@ -141,25 +141,46 @@ The public source repository is at
 
 ## Keyboard shortcuts
 
-The extension ships with default keybindings. All editor-scope chords use
-the `Ctrl+K …` (`Cmd+K …` on macOS) prefix to stay clear of single-press
-defaults and to avoid AltGr issues on European keyboard layouts.
+The extension ships with single-press default keybindings that match
+familiar conventions from other bookmark extensions:
 
-| Action                       | Shortcut                                            | When                                  |
-| ---------------------------- | --------------------------------------------------- | ------------------------------------- |
-| Toggle bookmark              | `Ctrl+K Ctrl+B` (`Cmd+K Cmd+B` on macOS)            | Editor focused                        |
-| Toggle labeled bookmark      | `Ctrl+K Ctrl+Shift+B` (`Cmd+K Cmd+Shift+B`)         | Editor focused                        |
-| Jump to next bookmark        | `Ctrl+K Ctrl+N` (`Cmd+K Cmd+N`)                     | Editor focused                        |
-| Jump to previous bookmark    | `Ctrl+K Ctrl+P` (`Cmd+K Cmd+P`)                     | Editor focused                        |
-| List bookmarks in file       | `Ctrl+K L` (`Cmd+K L`)                              | Editor focused                        |
-| List bookmarks in all files  | `Ctrl+K Ctrl+Shift+L` (`Cmd+K Cmd+Shift+L`)         | Editor focused                        |
-| Toggle group filtering       | `Ctrl+K Ctrl+F` (`Cmd+K Cmd+F`)                     | Bookmarks panel focused               |
-| Confirm re-anchor pick       | `Enter`                                             | Re-anchor pick mode active            |
-| Cancel re-anchor pick        | `Escape`                                            | Re-anchor pick mode active            |
+| Action                       | Shortcut                                             | When                                  |
+| ---------------------------- | ---------------------------------------------------- | ------------------------------------- |
+| Toggle bookmark              | `Ctrl+Alt+K` (`Cmd+Alt+K` on macOS)                  | Editor focused                        |
+| Jump to next bookmark        | `Ctrl+Alt+L` (`Cmd+Alt+L`)                           | Editor focused                        |
+| Jump to previous bookmark    | `Ctrl+Alt+J` (`Cmd+Alt+J`)                           | Editor focused                        |
+| Expand selection to next     | `Shift+Alt+L`                                        | Editor focused                        |
+| Expand selection to previous | `Shift+Alt+J`                                        | Editor focused                        |
+| Shrink selection             | `Shift+Alt+K`                                        | Editor focused                        |
+| Confirm re-anchor pick       | `Enter`                                              | Re-anchor pick mode active            |
+| Cancel re-anchor pick        | `Escape`                                             | Re-anchor pick mode active            |
 
-`Ctrl+K L` for "List bookmarks in file" intentionally drops the second
-`Ctrl` — VS Code's default `Ctrl+K Ctrl+L` is `editor.toggleFold` and we
-don't want to override it.
+Heads-up: `Ctrl+Alt+<key>` produces AltGr characters on many European
+keyboard layouts (DE, FR, etc.) — if you're on one of those, switch to
+`chorded` or `custom` mode (see below). On macOS, the basic bindings use
+`Cmd+Alt` instead of `Ctrl+Alt`.
+
+### Switching keybinding modes
+
+The **`agenticBookmarks.hotkeyStyle`** setting lets you pick the mode that
+matches how you want to work:
+
+- **`basic`** (default) — single-press shortcuts matching
+  `alefragnani.Bookmarks`: `Ctrl+Alt+K` to toggle, `Ctrl+Alt+L` /
+  `Ctrl+Alt+J` to jump to the next / previous bookmark, and
+  `Shift+Alt+L` / `Shift+Alt+J` / `Shift+Alt+K` to expand the selection
+  to the next / previous bookmark / shrink it.
+- **`chorded`** — `Ctrl+K Ctrl+B`-style chord shortcuts (`Cmd+K` on
+  macOS). Avoids single-press conflicts and AltGr issues on European
+  layouts. Chords: `Ctrl+K Ctrl+B` toggle, `Ctrl+K Ctrl+Shift+B` toggle
+  labeled, `Ctrl+K Ctrl+N` / `Ctrl+K Ctrl+P` jump next / prev,
+  `Ctrl+K L` list in file, `Ctrl+K Ctrl+Shift+L` list all,
+  `Ctrl+K Ctrl+F` toggle group filtering.
+- **`custom`** — keeps the chorded defaults active and unlocks the
+  **Agentic Bookmarks: Customize Keybindings…** command, which opens VS
+  Code's Keyboard Shortcuts UI pre-filtered to this extension's commands
+  so you can bind whatever you like without leaving the extension's mental
+  model.
 
 ### Customizing keybindings
 
@@ -183,46 +204,6 @@ Open Keyboard Shortcuts (JSON)").
 (`Ctrl+Shift+P` / `Cmd+Shift+P`) and type "Bookmarks" or
 "Agentic Bookmarks". Each is bindable.
 
-### Migrating from other extensions or not a fan of chords?
-
-The simplest path is the **`agenticBookmarks.hotkeyStyle`** setting. Pick the
-mode that matches how you want to work:
-
-- **`chorded`** (default) — the `Ctrl+K Ctrl+B …` chord shortcuts described
-  above.
-- **`basic`** — single-press shortcuts matching `alefragnani.Bookmarks`:
-  `Ctrl+Alt+K` to toggle, `Ctrl+Alt+L` / `Ctrl+Alt+J` to jump to the next
-  / previous bookmark, and `Shift+Alt+L` / `Shift+Alt+J` / `Shift+Alt+K`
-  to expand the selection to the next / previous bookmark / shrink it.
-- **`custom`** — keeps the chorded defaults active and unlocks the
-  **Agentic Bookmarks: Customize Keybindings…** command, which opens VS
-  Code's Keyboard Shortcuts UI pre-filtered to this extension's commands
-  so you can bind whatever you like without leaving the extension's mental
-  model.
-
-Heads-up: `Ctrl+Alt+<key>` produces AltGr characters on many European
-keyboard layouts (DE, FR, etc.) — if you're on one of those, prefer
-`custom` mode and pick different keys. On macOS, the basic bindings use
-`Cmd+Alt` instead of `Ctrl+Alt`.
-
-**Advanced: hand-rolled `keybindings.json`.** If you'd rather manage
-bindings yourself, paste this snippet — it reproduces the basic-mode keys
-and is a good starting point to tweak:
-
-```jsonc
-[
-  { "key": "ctrl+alt+k",  "command": "agenticBookmarks.toggle",                    "when": "editorTextFocus" },
-  { "key": "ctrl+alt+l",  "command": "agenticBookmarks.jumpNext",                  "when": "editorTextFocus" },
-  { "key": "ctrl+alt+j",  "command": "agenticBookmarks.jumpPrevious",              "when": "editorTextFocus" },
-  { "key": "shift+alt+l", "command": "agenticBookmarks.expandSelectionToNext",     "when": "editorTextFocus" },
-  { "key": "shift+alt+j", "command": "agenticBookmarks.expandSelectionToPrevious", "when": "editorTextFocus" },
-  { "key": "shift+alt+k", "command": "agenticBookmarks.shrinkSelection",           "when": "editorTextFocus" }
-]
-```
-
-On macOS, replace the `ctrl+alt` entries with `cmd+alt`; the `shift+alt`
-entries are the same on both platforms.
-
 ---
 
 ## Settings
@@ -234,9 +215,9 @@ Highlights:
   stored, relative to the workspace root (default `.bookmarks`). Change
   this if your project already uses `.bookmarks` for something else.
 - **`agenticBookmarks.hotkeyStyle`** — picks the keybinding preset:
-  `chorded` (default) for the `Ctrl+K Ctrl+B …` chords, `basic` for the
-  single-press `Ctrl+Alt+K/L/J` shortcuts, or `custom` to keep the chords
-  and enable the **Agentic Bookmarks: Customize Keybindings…** command.
+  `basic` (default) for single-press `Ctrl+Alt+K/L/J` shortcuts, `chorded`
+  for the `Ctrl+K Ctrl+B …` chords, or `custom` to keep the chords and
+  enable the **Agentic Bookmarks: Customize Keybindings…** command.
 - **`agenticBookmarks.autoRepair`** — automatically attempt to repair
   broken smart anchors when files are opened.
 - **`agenticBookmarks.autoRepairCanUseGit`** — allow auto-repair to use
