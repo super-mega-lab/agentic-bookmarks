@@ -86,7 +86,7 @@ export async function activate(context: vscode.ExtensionContext) {
   );
 
   // --- Welcome webview (workspace-agnostic; shows an "open a folder" CTA when empty) ---
-  const welcomeProvider = new WelcomeViewProvider(context.extensionUri, context.subscriptions);
+  const welcomeProvider = new WelcomeViewProvider(context, context.subscriptions);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       WelcomeViewProvider.viewId,
@@ -122,6 +122,25 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('agenticBookmarks.openGettingStarted', () => {
       const uri = vscode.Uri.joinPath(context.extensionUri, 'resources', 'getting-started.md');
       void vscode.commands.executeCommand('markdown.showPreview', uri);
+    }),
+  );
+
+  // Per-view help (SML-1437). Each view's title bar gets a "?" action that
+  // opens a local .md as a Markdown preview. Content is initially a stub.
+  const openHelpDoc = (filename: string) => () => {
+    const uri = vscode.Uri.joinPath(context.extensionUri, 'resources', filename);
+    void vscode.commands.executeCommand('markdown.showPreview', uri);
+  };
+  context.subscriptions.push(
+    vscode.commands.registerCommand('agenticBookmarks.openHelp.allBookmarks',     openHelpDoc('all-bookmarks.md')),
+    vscode.commands.registerCommand('agenticBookmarks.openHelp.settings',         openHelpDoc('settings.md')),
+    vscode.commands.registerCommand('agenticBookmarks.openHelp.filesGroups',      openHelpDoc('files-groups.md')),
+    vscode.commands.registerCommand('agenticBookmarks.openHelp.agentConnections', openHelpDoc('agent-connections.md')),
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('agenticBookmarks.welcome.toggleSection', async (sectionId: string) => {
+      await welcomeProvider.toggleSection(sectionId);
     }),
   );
 

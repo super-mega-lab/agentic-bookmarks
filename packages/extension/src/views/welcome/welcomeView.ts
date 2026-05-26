@@ -1,6 +1,16 @@
 import * as vscode from 'vscode';
-import { renderWelcomeHtml } from './welcomeHtml';
+import { renderWelcomeHtml, WELCOME_SECTION_IDS, type AgentConnectionDescriptor, type WelcomeSectionId } from './welcomeHtml';
 import { shouldOfferGitignoreLine } from './needsGitignore';
+import {
+  getAgentMcpState,
+  getAllConfiguredAgents,
+  AGENT_DISPLAY_NAMES,
+  AGENT_SCOPES,
+  scopeDisplayLabel,
+  type McpAgent,
+} from '../../commands/mcp-install-state';
+
+const COLLAPSED_SECTIONS_KEY = 'agenticBookmarks.welcomeSectionCollapsed';
 
 export class WelcomeViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewId = 'agenticBookmarks.welcome';
@@ -8,12 +18,26 @@ export class WelcomeViewProvider implements vscode.WebviewViewProvider {
   private view?: vscode.WebviewView;
 
   constructor(
-    private readonly extensionUri: vscode.Uri,
+    private readonly context: vscode.ExtensionContext,
     subscriptions: vscode.Disposable[],
   ) {
     subscriptions.push(
       vscode.workspace.onDidChangeWorkspaceFolders(() => void this.render()),
     );
+  }
+
+  /** Flip a section's collapsed state in globalState and re-render. */
+  public async toggleSection(sectionId: string): Promise<void> {
+    if (!isWelcomeSectionId(sectionId)) return;
+    const current = this.getCollapsedSections();
+    const next = { ...current, [sectionId]: !current[sectionId] };
+    await this.context.globalState.update(COLLAPSED_SECTIONS_KEY, next);
+    this.refresh();
+  }
+
+  private getCollapsedSections(): Partial<Record<WelcomeSectionId, boolean>> {
+    const raw = this.context.globalState.get<Partial<Record<WelcomeSectionId, boolean>>>(COLLAPSED_SECTIONS_KEY);
+    return raw ?? {};
   }
 
   resolveWebviewView(
@@ -25,7 +49,7 @@ export class WelcomeViewProvider implements vscode.WebviewViewProvider {
     webviewView.webview.options = {
       enableScripts: true,
       enableCommandUris: true,
-      localResourceRoots: [this.extensionUri],
+      localResourceRoots: [this.context.extensionUri],
     };
     void this.render();
   }
@@ -33,6 +57,30 @@ export class WelcomeViewProvider implements vscode.WebviewViewProvider {
   /** Re-render the view. Safe to call after side effects (e.g. updating .gitignore). */
   public refresh(): void {
     void this.render();
+  }
+
+  private currentVersion(): string {
+    return (this.context.extension?.packageJSON?.version as string | undefined) ?? '';
+  }
+
+  private buildAgentDescriptors(): AgentConnectionDescriptor[] {
+    const currentVersion = this.currentVersion();
+    return getAllConfiguredAgents().map((agent: McpAgent) => {
+      const { installs } = getAgentMcpState(this.context, agent);
+      const installedScopes = Object.keys(installs) as Array<keyof typeof installs>;
+      const isOutdated = installedScopes.length > 0 && installedScopes.some((s) => {
+        const v = installs[s]?.installedVersion;
+        return !v || v !== currentVersion;
+      });
+      return {
+        agent,
+        displayName: AGENT_DISPLAY_NAMES[agent],
+        installs,
+        scopes: AGENT_SCOPES[agent],
+        scopeLabel: scopeDisplayLabel,
+        isOutdated,
+      };
+    });
   }
 
   private async render(): Promise<void> {
@@ -50,12 +98,18 @@ export class WelcomeViewProvider implements vscode.WebviewViewProvider {
       hasFolder,
       needsGitignore,
       iconUri: webview
-        .asWebviewUri(vscode.Uri.joinPath(this.extensionUri, 'icon512.png'))
+        .asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'icon512.png'))
         .toString(),
       cspSource: webview.cspSource,
       nonce: getNonce(),
+      agents: this.buildAgentDescriptors(),
+      collapsedSections: this.getCollapsedSections(),
     });
   }
+}
+
+function isWelcomeSectionId(value: string): value is WelcomeSectionId {
+  return (WELCOME_SECTION_IDS as readonly string[]).includes(value);
 }
 
 function getNonce(): string {

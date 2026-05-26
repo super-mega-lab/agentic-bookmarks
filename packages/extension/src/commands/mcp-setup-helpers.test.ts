@@ -2,7 +2,7 @@
 // ABOUTME: and gitignore setup application with injectable deps for testability.
 
 import { describe, it, expect } from 'vitest';
-import { buildClaudeMcpSetupCommand, applyGitignoreSetup } from './mcp-setup-helpers';
+import { buildClaudeMcpSetupCommand, buildClaudeMcpRemoveCommand, applyGitignoreSetup } from './mcp-setup-helpers';
 import { GITIGNORE_NUDGE_SHOWN_KEY } from '../gitignore-nudge';
 
 function makeState(initial?: Record<string, unknown>) {
@@ -63,6 +63,62 @@ describe('buildClaudeMcpSetupCommand', () => {
   it('shell-quotes the server path', () => {
     const cmd = buildClaudeMcpSetupCommand('user', '/path/to/server/index.js', '');
     expect(cmd).toContain("'/path/to/server/index.js'");
+  });
+
+  describe('with an array of scopes', () => {
+    it('still removes from both scopes once at the head of the command', () => {
+      const cmd = buildClaudeMcpSetupCommand(['local', 'user'], '/x/server.js', '/ws/.bookmarks/local');
+      // There must be exactly one remove for each scope (not duplicated per add).
+      const localRemoveMatches = cmd.match(/mcp remove agentic_bookmarks --scope local 2>\/dev\/null/g) ?? [];
+      const userRemoveMatches  = cmd.match(/mcp remove agentic_bookmarks --scope user 2>\/dev\/null/g) ?? [];
+      expect(localRemoveMatches).toHaveLength(1);
+      expect(userRemoveMatches).toHaveLength(1);
+    });
+
+    it('emits one `mcp add` per requested scope, in order, after the removes', () => {
+      const cmd = buildClaudeMcpSetupCommand(['local', 'user'], '/x/server.js', '/ws/.bookmarks/local');
+      const addLocal = cmd.indexOf('mcp add --transport stdio --env');
+      // Two `mcp add` invocations total
+      const addMatches = cmd.match(/mcp add --transport stdio/g) ?? [];
+      expect(addMatches).toHaveLength(2);
+      // The removes come before the first add
+      const lastRemove = Math.max(
+        cmd.lastIndexOf('mcp remove agentic_bookmarks --scope local'),
+        cmd.lastIndexOf('mcp remove agentic_bookmarks --scope user'),
+      );
+      expect(lastRemove).toBeLessThan(addLocal);
+    });
+
+    it('uses local-scope env flags for the local add and user-scope env flags for the user add', () => {
+      const cmd = buildClaudeMcpSetupCommand(['local', 'user'], '/x/server.js', '/ws/.bookmarks/local');
+      // Local-add line carries BOOKMARKS_DIR=<bookmarksDir>
+      expect(cmd).toContain('BOOKMARKS_DIR=/ws/.bookmarks/local');
+      // User-add line carries upward discovery
+      expect(cmd).toContain('BOOKMARKS_UPWARD_DISCOVERY=true');
+    });
+
+    it('an array of one scope behaves the same as a single-scope call', () => {
+      const single = buildClaudeMcpSetupCommand('user', '/x/server.js', '');
+      const wrappedArr = buildClaudeMcpSetupCommand(['user'], '/x/server.js', '');
+      expect(wrappedArr).toBe(single);
+    });
+  });
+});
+
+describe('buildClaudeMcpRemoveCommand', () => {
+  it('emits a bare remove for local scope without stderr suppression', () => {
+    const cmd = buildClaudeMcpRemoveCommand('local');
+    expect(cmd).toBe('claude mcp remove agentic_bookmarks --scope local');
+    expect(cmd).not.toContain('2>/dev/null');
+  });
+
+  it('emits a bare remove for user scope without stderr suppression', () => {
+    const cmd = buildClaudeMcpRemoveCommand('user');
+    expect(cmd).toBe('claude mcp remove agentic_bookmarks --scope user');
+  });
+
+  it('targets the agentic_bookmarks server identifier', () => {
+    expect(buildClaudeMcpRemoveCommand('local')).toContain('agentic_bookmarks');
   });
 });
 
