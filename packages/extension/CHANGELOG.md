@@ -9,6 +9,70 @@ they do, that's called out explicitly below.
 
 ---
 
+## [0.8.14] — 2026-05-26
+
+**MCP Control Panel.** Connecting Agentic Bookmarks to your AI agents — and keeping those connections current as the extension updates — is now a one-stop experience.
+
+- **New MCP Control Panel.** A dedicated home for installing, diagnosing, and removing MCP integrations across Claude Code, Cursor, and Codex. Setup status, fixes, and uninstall flows live in one place, making it dramatically clearer to connect to an agent or update an existing connection.
+- **Collapsible welcome sections.** Tidy up the Welcome panel by collapsing sections you've already worked through.
+- **Live repair feedback.** When an agent repairs a bookmark through MCP, the sidebar reflects it immediately — no rescan needed.
+
+---
+
+## [0.8.2] — 2026-05-25
+
+A small polish release focused on wording.
+
+- Consistent voice and naming across the Welcome panel, command palette, and README — same product, a little more refined.
+
+---
+
+## [0.8.0] — 2026-05-22
+
+A big quality-of-life release: a refreshed first-run experience, new ways to work with bookmarks in bulk via **Scan All** and the per-bookmark **Repair** action, and a much smoother MCP setup for AI agents.
+
+### Getting started feels like getting started
+
+- Refreshed Welcome panel with a clearer first-install layout, community and support links, and direct paths to docs.
+- New illustrated Getting Started guide covering install, the "refactor survival" demo, and MCP setup.
+- Friendlier "no folder open" messaging and a LEARN section with external links to deeper docs.
+
+### Work with bookmarks in bulk
+
+- **Scan all** bookmarked files from a single command, with progress and cancellation when the set is large.
+- **Per-bookmark Repair action** right in the tree — fix a drifted anchor without leaving the sidebar.
+- **Open all** bookmarked files in one command alongside Scan All.
+- Toggle the structure of the "All Bookmarks" and "Files & Groups" views to match how you think.
+- Drag-and-drop now moves groups **between files**, not just within one.
+
+### AI agents, set up in one click
+
+- MCP setup is now idempotent and understands user vs. workspace scope, so re-running it does the right thing.
+- The extension prompts to refresh agent registrations after it updates itself.
+- MCP setup now handles the relevant `.gitignore` entries for you.
+- New **skill guides** delivered through MCP teach agents *when* and *how* to use the bookmark tools — including how to map a new codebase, annotate specific files, and audit an existing bookmark set. Always current, nothing added to your project.
+- New help and report-issue MCP skills for quick agent-assisted support.
+
+### Under the hood
+
+- Workspace activation is deferred until you actually open a folder, keeping the extension out of cold-start paths.
+- Cross-file repairs reflect instantly in the tree (stale-cache fix).
+- Tag-comment cleanup now handles ids ending in `-` correctly.
+- Public-beta cutoff extended to 2027-01-01.
+- A handful of small fixes to welcome wording and settings defaults.
+
+---
+
+## [0.7.2] — 2026-05-15
+
+Post-beta polish.
+
+- **Pick your hotkey style.** New setting lets you choose chorded, basic, or fully custom keybindings to match how you already work.
+- **Snappier startup.** The extension now waits until VS Code finishes starting before activating, keeping it out of your cold-start path.
+- README refresh.
+
+---
+
 ## [0.5.8] — _[PLACEHOLDER: release date]_
 
 **Initial public beta.** First release on the VS Code Marketplace.
