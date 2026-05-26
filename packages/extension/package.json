@@ -144,8 +144,8 @@
             "basic",
             "custom"
           ],
-          "default": "chorded",
-          "description": "Built-in keybinding preset. 'chorded' uses Ctrl+K Ctrl+B-style chord shortcuts (default). 'basic' uses single-press shortcuts like Ctrl+Alt+K / Ctrl+Alt+L / Ctrl+Alt+J (closer to other bookmark extensions). 'custom' keeps the chorded defaults active and surfaces a 'Customize Keybindings…' command that opens VS Code's Keyboard Shortcuts UI pre-filtered to this extension's commands."
+          "default": "basic",
+          "description": "Built-in keybinding preset. 'basic' uses single-press shortcuts like Ctrl+Alt+K / Ctrl+Alt+L / Ctrl+Alt+J (default; closer to other bookmark extensions). 'chorded' uses Ctrl+K Ctrl+B-style chord shortcuts. 'custom' keeps the chorded defaults active and surfaces a 'Customize Keybindings…' command that opens VS Code's Keyboard Shortcuts UI pre-filtered to this extension's commands."
         },
         "agenticBookmarks.logLevel": {
           "type": "string",

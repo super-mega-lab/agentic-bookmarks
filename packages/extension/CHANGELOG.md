@@ -38,8 +38,9 @@ they do, that's called out explicitly below.
 - **Customizable appearance** — per-group styling, plus uniform-style and
   uniform-color overrides for users who prefer a flatter visual
   presentation.
-- **Customizable keybindings.** Defaults use the `Ctrl+K …` / `Cmd+K …`
-  prefix; every command is rebindable via `keybindings.json`.
+- **Customizable keybindings.** Defaults use single-press
+  `Ctrl+Alt+K/L/J` shortcuts; switch to `chorded` mode for `Ctrl+K …`
+  chords, or rebind freely via `keybindings.json`.
 
 ### Beta notes
 

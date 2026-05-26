@@ -60,7 +60,7 @@ describe('hotkey style preset support', () => {
     expect(linesMatching(/"chorded"/)).not.toEqual([]);
     expect(linesMatching(/"basic"/)).not.toEqual([]);
     expect(linesMatching(/"custom"/)).not.toEqual([]);
-    expect(linesMatching(/"default":\s*"chorded"/)).not.toEqual([]);
+    expect(linesMatching(/"default":\s*"basic"/)).not.toEqual([]);
   });
 
   it('ships Basic keybindings gated on hotkeyStyle == basic matching alefragnani.Bookmarks', () => {
