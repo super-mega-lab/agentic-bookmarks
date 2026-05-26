@@ -7,6 +7,8 @@ import type { ScanPhase } from './views/action-rows';
 export interface ScanTarget {
   fsPath: string;
   uri: string;
+  /** Number of bookmarks in this file — drives the bookmark-unit progress count. */
+  bookmarkCount: number;
 }
 
 /** Result of validating a single file from disk. */
@@ -72,7 +74,7 @@ export class ScanQueue {
     if (this.isRunning()) return;
     this.cancelled = false;
     this.scanned = 0;
-    this.total = targets.length;
+    this.total = targets.reduce((n, t) => n + t.bookmarkCount, 0);
     const batchSize = this.deps.batchSize ?? 5;
     const sleepMs = this.deps.sleepMs ?? 200;
     this.setPhase('scanning');
@@ -100,7 +102,7 @@ export class ScanQueue {
         if (!v.missing && v.entries.some((e) => e.status === 'broken')) {
           brokenTargets.push(target);
         }
-        this.scanned++;
+        this.scanned += target.bookmarkCount;
         this.deps.onPhaseChange(this.currentPhase, this.scanned, this.total);
         if (++inBatch >= batchSize) { inBatch = 0; await this.deps.delay(sleepMs); }
       }

@@ -877,7 +877,9 @@ async function activateForWorkspace(
         for (const b of file.bookmarks) {
           const uri = b.target.uri.split('#')[0];
           const fsPath = targetUriToFsPath(uri);
-          if (!seen.has(fsPath)) seen.set(fsPath, { fsPath, uri });
+          const existing = seen.get(fsPath);
+          if (existing) existing.bookmarkCount++;
+          else seen.set(fsPath, { fsPath, uri, bookmarkCount: 1 });
         }
       } catch (err: any) {
         log.error(`[scan] failed to read ${rf.path}: ${err?.message || err}`);
