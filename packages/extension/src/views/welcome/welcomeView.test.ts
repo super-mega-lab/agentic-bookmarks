@@ -18,9 +18,15 @@ describe('package.json view visibility', () => {
     expect(welcome?.visibility).toBe('visible');
   });
 
-  it('non-welcome views start collapsed so welcome is prominent on first install', () => {
-    const nonWelcome = containerViews.filter(v => v.id !== 'agenticBookmarks.welcome');
-    for (const view of nonWelcome) {
+  it('agents view starts visible', () => {
+    const agents = containerViews.find(v => v.id === 'agenticBookmarks.agents');
+    expect(agents?.visibility).toBe('visible');
+  });
+
+  it('non-welcome/agents views start collapsed so welcome is prominent on first install', () => {
+    const alwaysVisible = new Set(['agenticBookmarks.welcome', 'agenticBookmarks.agents']);
+    const collapsed = containerViews.filter(v => !alwaysVisible.has(v.id));
+    for (const view of collapsed) {
       expect(view.visibility, `view "${view.id}" must be "collapsed"`).toBe('collapsed');
     }
   });
