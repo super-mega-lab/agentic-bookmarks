@@ -17,7 +17,7 @@
   },
   "license": "LicenseRef-PolyForm-Shield-1.0.0",
   "icon": "icon512.png",
-  "version": "0.8.14",
+  "version": "0.8.15",
   "engines": {
     "vscode": "^1.92.0"
   },

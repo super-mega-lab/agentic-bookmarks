@@ -9,7 +9,7 @@ they do, that's called out explicitly below.
 
 ---
 
-## [0.8.14] — 2026-05-26
+## [0.8.15] — 2026-05-26
 
 **MCP Control Panel.** Connecting Agentic Bookmarks to your AI agents — and keeping those connections current as the extension updates — is now a one-stop experience.
 
