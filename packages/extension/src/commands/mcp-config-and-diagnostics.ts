@@ -67,8 +67,30 @@ import type { BookmarksProvider } from '../treeProvider';
 import type { SettingsProvider } from '../settingsProvider';
 import type { BookmarkCodeLensProvider } from '../bookmarkCodeLensProvider';
 import { buildAgentRepairPrompt, getConfiguredDataRoot } from '../workspace-helpers';
-import { buildClaudeMcpSetupCommand, applyGitignoreSetup } from './mcp-setup-helpers';
-import { recordMcpInstall, getOutdatedMcpInstalls } from './mcp-install-state';
+import { buildClaudeMcpSetupCommand, buildClaudeMcpRemoveCommand, applyGitignoreSetup } from './mcp-setup-helpers';
+import {
+  recordMcpInstall,
+  getOutdatedMcpInstalls,
+  getAgentMcpState,
+  clearMcpInstall,
+  AGENT_SCOPES,
+  AGENT_DISPLAY_NAMES,
+  scopeDisplayLabel,
+  getAllConfiguredAgents,
+  type McpAgent,
+  type AnyScope,
+} from './mcp-install-state';
+import {
+  applyCursorUninstall as applyCursorUninstallPure,
+  applyCodexUninstall as applyCodexUninstallPure,
+  type FsDeps,
+} from './mcp-uninstall-helpers';
+
+const AGENT_DOCS_URLS: Record<McpAgent, string> = {
+  claude: 'https://docs.anthropic.com/en/docs/claude-code/mcp',
+  cursor: 'https://docs.cursor.com/context/model-context-protocol',
+  codex: 'https://github.com/openai/codex',
+};
 
 type UIState = { hidden: string[]; focus: string | null; filterEnabled?: boolean; hiddenFiles?: string[] };
 type SearchFilter = { id: string; text: string; regex: boolean; op: 'AND' | 'OR' };
@@ -112,7 +134,40 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
 
   const currentVersion = ((context as any).extension?.packageJSON?.version as string) ?? '';
 
+  /**
+   * Modal warning shown when the user is about to install at a scope while a
+   * *different* scope is already installed for the same agent. Re-installing at
+   * the same scope (e.g. the smart-button Update path) is silent because no new
+   * scope is being added.
+   *
+   * Returns true if the install should proceed, false to abort. Help button
+   * opens the Agent Connections help doc and aborts the install.
+   */
+  async function confirmDualScopeInstall(agent: McpAgent, targetScope: AnyScope): Promise<boolean> {
+    const installs = getAgentMcpState(context, agent).installs;
+    if (installs[targetScope]) return true; // re-install at same scope; allowed
+    const otherInstalled = (Object.keys(installs) as AnyScope[]).filter((s) => installs[s]);
+    if (otherInstalled.length === 0) return true; // first install; allowed
+    const existingScope = otherInstalled[0];
+    const message =
+      `${AGENT_DISPLAY_NAMES[agent]} is already installed at ${scopeDisplayLabel(existingScope)} scope. ` +
+      `Installing at ${scopeDisplayLabel(targetScope)} as well will leave both registrations active, ` +
+      `which can be confusing to manage. We recommend uninstalling the existing scope first if you want to switch.`;
+    const choice = await vscode.window.showWarningMessage(
+      message,
+      { modal: true },
+      'Proceed',
+      'Help',
+    );
+    if (choice === 'Help') {
+      void vscode.commands.executeCommand('agenticBookmarks.openHelp.agentConnections');
+      return false;
+    }
+    return choice === 'Proceed';
+  }
+
   async function applyClaudeSetup(scope: 'local' | 'user'): Promise<void> {
+    if (!(await confirmDualScopeInstall('claude', scope))) return;
     const serverPath = context.asAbsolutePath('server-bundle/index.js');
     const cmd = buildClaudeMcpSetupCommand(scope, serverPath, getLocalDir(workspaceRoot));
     const terminal = vscode.window.createTerminal('Setup Claude MCP');
@@ -127,6 +182,7 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
   }
 
   async function applyCursorSetup(scope: 'project' | 'global'): Promise<void> {
+    if (!(await confirmDualScopeInstall('cursor', scope))) return;
     const fs = require('fs').promises as typeof import('node:fs/promises');
     const os = require('os') as typeof import('node:os');
     const serverAbs = context.asAbsolutePath('server-bundle/index.js');
@@ -175,6 +231,7 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
   }
 
   async function applyCodexSetup(scope: 'project' | 'global'): Promise<void> {
+    if (!(await confirmDualScopeInstall('codex', scope))) return;
     const fs = require('fs').promises as typeof import('node:fs/promises');
     const os = require('os') as typeof import('node:os');
     const serverAbs = context.asAbsolutePath('server-bundle/index.js');
@@ -225,6 +282,155 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     await recordMcpInstall(context, 'codex', scope, currentVersion);
     await applyGitignoreSetup({ workspaceRoot, workspaceState: context.workspaceState, log });
     refreshWelcomeView?.();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Uninstall flows (SML-1437)
+  // ---------------------------------------------------------------------------
+
+  function nodeFsDeps(): FsDeps {
+    const fs = require('fs').promises as typeof import('node:fs/promises');
+    return {
+      readFile: (p) => fs.readFile(p, 'utf8'),
+      writeFile: (p, data) => fs.writeFile(p, data),
+      rename: (from, to) => fs.rename(from, to),
+      copyFile: (from, to) => fs.copyFile(from, to),
+    };
+  }
+
+  async function applyClaudeUninstall(scope: 'local' | 'user'): Promise<void> {
+    const terminal = vscode.window.createTerminal('Uninstall Claude MCP');
+    terminal.show();
+    terminal.sendText(buildClaudeMcpRemoveCommand(scope), true);
+    vscode.window.showInformationMessage(
+      `Running 'claude mcp remove' (${scope} scope). Watch the terminal for output.`,
+    );
+    await clearMcpInstall(context, 'claude', scope);
+    refreshWelcomeView?.();
+  }
+
+  async function applyCursorUninstall(scope: 'project' | 'global'): Promise<void> {
+    const os = require('os') as typeof import('node:os');
+    const configPath =
+      scope === 'project'
+        ? path.join(workspaceRoot, '.cursor', 'mcp.json')
+        : path.join(os.homedir(), '.cursor', 'mcp.json');
+    const result = await applyCursorUninstallPure({ configPath, fs: nodeFsDeps() });
+    if (result.status === 'malformed') {
+      vscode.window.showWarningMessage(
+        `Cursor's mcp.json at ${configPath} appears manually edited and is not valid JSON. ` +
+        `Please remove the \`agentic_bookmarks\` entry manually.`,
+      );
+      return;
+    }
+    if (result.status === 'absent') {
+      log.info(`[uninstall:cursor] no agentic_bookmarks entry at ${configPath}; clearing state`);
+    } else {
+      vscode.window.showInformationMessage(`Removed agentic_bookmarks from ${configPath}`);
+    }
+    await clearMcpInstall(context, 'cursor', scope);
+    refreshWelcomeView?.();
+  }
+
+  async function applyCodexUninstall(scope: 'project' | 'global'): Promise<void> {
+    const os = require('os') as typeof import('node:os');
+    const configPath =
+      scope === 'project'
+        ? path.join(workspaceRoot, '.codex', 'config.toml')
+        : path.join(os.homedir(), '.codex', 'config.toml');
+    const result = await applyCodexUninstallPure({ configPath, fs: nodeFsDeps() });
+    if (result.status === 'malformed') {
+      vscode.window.showWarningMessage(
+        `Codex's config.toml at ${configPath} appears in an unexpected shape. ` +
+        `Please remove the \`[mcp_servers."agentic_bookmarks"]\` block manually.`,
+      );
+      return;
+    }
+    if (result.status === 'absent') {
+      log.info(`[uninstall:codex] no agentic_bookmarks block at ${configPath}; clearing state`);
+    } else {
+      vscode.window.showInformationMessage(`Removed agentic_bookmarks from ${configPath}`);
+    }
+    await clearMcpInstall(context, 'codex', scope);
+    refreshWelcomeView?.();
+  }
+
+  async function installAgentInScope(agent: McpAgent, scope: AnyScope): Promise<void> {
+    try {
+      if (agent === 'claude' && (scope === 'local' || scope === 'user')) {
+        await applyClaudeSetup(scope);
+      } else if (agent === 'cursor' && (scope === 'project' || scope === 'global')) {
+        await applyCursorSetup(scope);
+      } else if (agent === 'codex' && (scope === 'project' || scope === 'global')) {
+        await applyCodexSetup(scope);
+      }
+    } catch (e) {
+      vscode.window.showErrorMessage(`Failed to install ${AGENT_DISPLAY_NAMES[agent]} (${scopeDisplayLabel(scope)}): ${e}`);
+    }
+  }
+
+  // Batch setup for re-installing every scope at once. Claude uses a single
+  // combined terminal session because its setup helper removes from both
+  // scopes before adding — running setup twice would otherwise wipe the first
+  // install. Cursor and Codex loop sequentially since their setups upsert at
+  // a single scope without touching the other.
+  async function applyClaudeSetupAll(scopes: Array<'local' | 'user'>): Promise<void> {
+    if (scopes.length === 0) return;
+    const serverPath = context.asAbsolutePath('server-bundle/index.js');
+    const cmd = buildClaudeMcpSetupCommand(scopes, serverPath, getLocalDir(workspaceRoot));
+    const terminal = vscode.window.createTerminal('Setup Claude MCP');
+    terminal.show();
+    terminal.sendText(cmd, true);
+    vscode.window.showInformationMessage(
+      `Running 'claude mcp add' for scope${scopes.length === 1 ? '' : 's'}: ${scopes.join(', ')}. Watch the terminal for output.`,
+    );
+    for (const scope of scopes) {
+      await recordMcpInstall(context, 'claude', scope, currentVersion);
+    }
+    await applyGitignoreSetup({ workspaceRoot, workspaceState: context.workspaceState, log });
+    refreshWelcomeView?.();
+  }
+
+  async function applyAgentSetupAll(agent: McpAgent, scopes: AnyScope[]): Promise<{ failed: AnyScope[] }> {
+    const failed: AnyScope[] = [];
+    if (scopes.length === 0) return { failed };
+    if (agent === 'claude') {
+      const claudeScopes = scopes.filter((s) => s === 'local' || s === 'user') as Array<'local' | 'user'>;
+      try {
+        await applyClaudeSetupAll(claudeScopes);
+      } catch (e) {
+        log.error(`[setupAll:claude] ${e}`);
+        for (const s of claudeScopes) failed.push(s);
+      }
+    } else {
+      for (const scope of scopes) {
+        try {
+          if (agent === 'cursor' && (scope === 'project' || scope === 'global')) {
+            await applyCursorSetup(scope);
+          } else if (agent === 'codex' && (scope === 'project' || scope === 'global')) {
+            await applyCodexSetup(scope);
+          }
+        } catch (e) {
+          log.error(`[setupAll:${agent}:${scope}] ${e}`);
+          failed.push(scope);
+        }
+      }
+    }
+    return { failed };
+  }
+
+  async function uninstallAgentInScope(agent: McpAgent, scope: AnyScope): Promise<void> {
+    try {
+      if (agent === 'claude' && (scope === 'local' || scope === 'user')) {
+        await applyClaudeUninstall(scope);
+      } else if (agent === 'cursor' && (scope === 'project' || scope === 'global')) {
+        await applyCursorUninstall(scope);
+      } else if (agent === 'codex' && (scope === 'project' || scope === 'global')) {
+        await applyCodexUninstall(scope);
+      }
+    } catch (e) {
+      vscode.window.showErrorMessage(`Failed to uninstall ${AGENT_DISPLAY_NAMES[agent]} (${scopeDisplayLabel(scope)}): ${e}`);
+    }
   }
 
   return [
@@ -551,6 +757,202 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
         }
       }
     }),
+
+    // Per-agent uninstall commands (SML-1437). Called from the hamburger menu
+    // in the Agent Connections panel; also discoverable in the command palette.
+    vscode.commands.registerCommand('agenticBookmarks.uninstallClaude', async (scope?: 'local' | 'user') => {
+      if (!scope) {
+        const state = getAgentMcpState(context, 'claude').installs;
+        const items = (['local', 'user'] as const)
+          .filter((s) => state[s])
+          .map((s) => ({ label: `Uninstall (${scopeDisplayLabel(s)})`, scope: s }));
+        if (items.length === 0) {
+          vscode.window.showInformationMessage('Claude Code MCP is not installed.');
+          return;
+        }
+        const pick = await vscode.window.showQuickPick(items, { placeHolder: 'Select scope to uninstall' });
+        if (!pick) return;
+        scope = pick.scope;
+      }
+      await applyClaudeUninstall(scope);
+    }),
+
+    vscode.commands.registerCommand('agenticBookmarks.uninstallCursor', async (scope?: 'project' | 'global') => {
+      if (!scope) {
+        const state = getAgentMcpState(context, 'cursor').installs;
+        const items = (['project', 'global'] as const)
+          .filter((s) => state[s])
+          .map((s) => ({ label: `Uninstall (${scopeDisplayLabel(s)})`, scope: s }));
+        if (items.length === 0) {
+          vscode.window.showInformationMessage('Cursor MCP is not installed.');
+          return;
+        }
+        const pick = await vscode.window.showQuickPick(items, { placeHolder: 'Select scope to uninstall' });
+        if (!pick) return;
+        scope = pick.scope;
+      }
+      await applyCursorUninstall(scope);
+    }),
+
+    vscode.commands.registerCommand('agenticBookmarks.uninstallCodex', async (scope?: 'project' | 'global') => {
+      if (!scope) {
+        const state = getAgentMcpState(context, 'codex').installs;
+        const items = (['project', 'global'] as const)
+          .filter((s) => state[s])
+          .map((s) => ({ label: `Uninstall (${scopeDisplayLabel(s)})`, scope: s }));
+        if (items.length === 0) {
+          vscode.window.showInformationMessage('Codex MCP is not installed.');
+          return;
+        }
+        const pick = await vscode.window.showQuickPick(items, { placeHolder: 'Select scope to uninstall' });
+        if (!pick) return;
+        scope = pick.scope;
+      }
+      await applyCodexUninstall(scope);
+    }),
+
+    // Hamburger handler for a single agent row in the Agent Connections panel.
+    // Item ordering: Install (positive expansion) → Reinstall (maintenance) →
+    // Uninstall (destructive) → Docs (reference).
+    vscode.commands.registerCommand(
+      'agenticBookmarks.agentConnections.showRowActions',
+      async (agent: McpAgent) => {
+        if (!agent || !AGENT_DISPLAY_NAMES[agent]) return;
+        const scopes = AGENT_SCOPES[agent];
+        const state = getAgentMcpState(context, agent).installs;
+
+        type Action =
+          | { kind: 'install'; scope: AnyScope }
+          | { kind: 'reinstall'; scope: AnyScope }
+          | { kind: 'uninstall'; scope: AnyScope }
+          | { kind: 'docs' };
+
+        const items: Array<vscode.QuickPickItem & { action: Action }> = [];
+        for (const scope of [scopes.workspace, scopes.global]) {
+          if (!state[scope]) {
+            items.push({
+              label: `$(add) Install in ${scopeDisplayLabel(scope)}`,
+              action: { kind: 'install', scope },
+            });
+          }
+        }
+        for (const scope of [scopes.workspace, scopes.global]) {
+          if (state[scope]) {
+            items.push({
+              label: `$(sync) Reinstall (${scopeDisplayLabel(scope)})`,
+              action: { kind: 'reinstall', scope },
+            });
+          }
+        }
+        for (const scope of [scopes.workspace, scopes.global]) {
+          if (state[scope]) {
+            items.push({
+              label: `$(trash) Uninstall (${scopeDisplayLabel(scope)})`,
+              action: { kind: 'uninstall', scope },
+            });
+          }
+        }
+        items.push({
+          label: `$(link-external) Open ${AGENT_DISPLAY_NAMES[agent]} docs`,
+          action: { kind: 'docs' },
+        });
+
+        const pick = await vscode.window.showQuickPick(items, {
+          placeHolder: `${AGENT_DISPLAY_NAMES[agent]} — actions`,
+        });
+        if (!pick) return;
+        const action = pick.action;
+        if (action.kind === 'install' || action.kind === 'reinstall') {
+          await installAgentInScope(agent, action.scope);
+        } else if (action.kind === 'uninstall') {
+          await uninstallAgentInScope(agent, action.scope);
+        } else if (action.kind === 'docs') {
+          const url = AGENT_DOCS_URLS[agent];
+          if (url) void vscode.env.openExternal(vscode.Uri.parse(url));
+        }
+      },
+    ),
+
+    // Smart row-primary button dispatcher: re-runs setup at every currently
+    // installed scope, in one combined invocation for Claude (whose setup is
+    // destructive across scopes) and sequentially for Cursor/Codex.
+    vscode.commands.registerCommand(
+      'agenticBookmarks.agentConnections.smartUpdate',
+      async (agent: McpAgent) => {
+        if (!agent || !AGENT_DISPLAY_NAMES[agent]) return;
+        const installs = getAgentMcpState(context, agent).installs;
+        const installedScopes = (Object.keys(installs) as AnyScope[]).filter((s) => installs[s]);
+        if (installedScopes.length === 0) {
+          // Defensive fallback — smart button only renders for connected rows.
+          const setupCommand = `agenticBookmarks.setup${agent.charAt(0).toUpperCase()}${agent.slice(1)}`;
+          await vscode.commands.executeCommand(setupCommand);
+          return;
+        }
+        await applyAgentSetupAll(agent, installedScopes);
+      },
+    ),
+
+    // Update-all-outdated: scans every agent, batches each agent's outdated
+    // scopes through applyAgentSetupAll, and surfaces a summary toast.
+    vscode.commands.registerCommand(
+      'agenticBookmarks.agentConnections.updateAllOutdated',
+      async () => {
+        let attempted = 0;
+        let failedCount = 0;
+        for (const agent of getAllConfiguredAgents()) {
+          const { installs } = getAgentMcpState(context, agent);
+          const outdatedScopes = (Object.keys(installs) as AnyScope[]).filter((s) => {
+            const r = installs[s];
+            if (!r) return false;
+            return !r.installedVersion || r.installedVersion !== currentVersion;
+          });
+          if (outdatedScopes.length === 0) continue;
+          attempted += outdatedScopes.length;
+          const { failed } = await applyAgentSetupAll(agent, outdatedScopes);
+          failedCount += failed.length;
+        }
+        if (attempted === 0) {
+          vscode.window.showInformationMessage('No agent MCP installs are outdated.');
+          return;
+        }
+        const okCount = attempted - failedCount;
+        if (failedCount === 0) {
+          vscode.window.showInformationMessage(
+            `Updated ${okCount} scope${okCount === 1 ? '' : 's'}.`,
+          );
+        } else {
+          vscode.window.showWarningMessage(
+            `Updated ${okCount} of ${attempted} scopes; ${failedCount} failed — see the Agentic Bookmarks output channel.`,
+          );
+        }
+      },
+    ),
+
+    // Footer "Connect another agent…" — shows currently-unconnected agents and
+    // runs the standard setup command for the chosen one.
+    vscode.commands.registerCommand(
+      'agenticBookmarks.agentConnections.connectAnother',
+      async () => {
+        const candidates = getAllConfiguredAgents().filter((agent) => {
+          const installs = getAgentMcpState(context, agent).installs;
+          return Object.keys(installs).length === 0;
+        });
+        if (candidates.length === 0) {
+          vscode.window.showInformationMessage('All known agents are already connected.');
+          return;
+        }
+        const pick = await vscode.window.showQuickPick(
+          candidates.map((agent) => ({
+            label: AGENT_DISPLAY_NAMES[agent],
+            agent,
+          })),
+          { placeHolder: 'Select an agent to connect' },
+        );
+        if (!pick) return;
+        const setupCommand = `agenticBookmarks.setup${pick.agent.charAt(0).toUpperCase()}${pick.agent.slice(1)}`;
+        await vscode.commands.executeCommand(setupCommand);
+      },
+    ),
 
     // Create and register a new v2 bookmarks file
     vscode.commands.registerCommand('agenticBookmarks.newFile', async () => {

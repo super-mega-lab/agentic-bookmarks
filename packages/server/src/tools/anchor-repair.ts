@@ -17,7 +17,9 @@ import {
   createAnchor,
   getSmartAnchorDiagnostics,
   resolveAnchors,
+  ipc,
 } from '@agentic-bookmarks/core';
+import { getMcpToExtensionQueuePaths } from '../ipc-paths.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { nanoid } from 'nanoid';
@@ -514,6 +516,22 @@ export async function handleAnchorRepair(ctx: ServerContext, args: any) {
           }
         }
       });
+
+      // Best-effort IPC: notify the extension this bookmark was repaired.
+      // Never throws; never blocks repair flow.
+      {
+        const { queuePath, pulsePath } = getMcpToExtensionQueuePaths(
+          workspace.workspaceRoot,
+          workspace.bookmarksDataRoot,
+        );
+        await ipc.appendQueueMessage(
+          queuePath,
+          pulsePath,
+          'bookmark-repaired',
+          { bookmarkId },
+          { onError: (e) => console.error('[ipc] queue append failed:', e) },
+        );
+      }
 
       // Build result entry (echo newLine back as 1-based wire)
       const entry: Record<string, unknown> = {

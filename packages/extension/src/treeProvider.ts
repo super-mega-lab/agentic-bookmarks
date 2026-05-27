@@ -308,8 +308,8 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
       let visibleBookmarks = 0;
       const totalGroupIds = new Set<string>();
       const visibleGroupIds = new Set<string>();
-      // Distinct fsPaths of every bookmarked file (unfiltered) — drives Scan coverage total.
-      const bookmarkedFsPaths = new Set<string>();
+      // fsPath → bookmark count (unfiltered) — drives Scan coverage in bookmark units.
+      const bookmarksPerFsPath = new Map<string, number>();
 
       // Iterate over all workspace folders
       for (const folder of folders) {
@@ -350,7 +350,10 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
                 }
 
                 if (!fileMap.has(absoluteUri)) fileMap.set(absoluteUri, []);
-                try { bookmarkedFsPaths.add(vscode.Uri.parse(absoluteUri).fsPath); } catch { /* ignore unparseable URIs */ }
+                try {
+                  const fp = vscode.Uri.parse(absoluteUri).fsPath;
+                  bookmarksPerFsPath.set(fp, (bookmarksPerFsPath.get(fp) ?? 0) + 1);
+                } catch { /* ignore unparseable URIs */ }
                 const group = file.groups.find(g => (g as any).id === (bookmark as any).groupId);
                 const gid = (bookmark as any).groupId as string;
                 const isHidden = ui.focus ? ui.focus !== gid : ui.hidden.includes(gid);
@@ -414,14 +417,18 @@ export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeIte
       // filtering is off). Independent of filtering; counts cover all bookmarks.
       {
         const st = this.getActionRowState();
-        // At rest, show coverage (validated / all bookmarked files); during a scan,
-        // show the live progress reported by the scan queue.
+        // At rest, show coverage (validated / all bookmarks); during a scan,
+        // show the live progress reported by the scan queue. Counts are in
+        // bookmark units — each file contributes its bookmark count.
         let scanned: number;
         let total: number;
         if (st.scanPhase === 'idle') {
-          total = bookmarkedFsPaths.size;
+          total = 0;
           scanned = 0;
-          for (const p of bookmarkedFsPaths) if (this.isFileValidated(p)) scanned++;
+          for (const [p, count] of bookmarksPerFsPath) {
+            total += count;
+            if (this.isFileValidated(p)) scanned += count;
+          }
         } else {
           total = st.scanRunningTotal;
           scanned = st.scanRunningScanned;

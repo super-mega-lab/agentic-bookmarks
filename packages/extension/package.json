@@ -17,7 +17,7 @@
   },
   "license": "LicenseRef-PolyForm-Shield-1.0.0",
   "icon": "icon512.png",
-  "version": "0.8.2",
+  "version": "0.8.14",
   "engines": {
     "vscode": "^1.92.0"
   },
@@ -838,6 +838,70 @@
         "command": "agenticBookmarks.openGettingStarted",
         "title": "Open Getting Started Guide",
         "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.openHelp.allBookmarks",
+        "title": "Help: All Bookmarks View",
+        "icon": "$(question)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.openHelp.settings",
+        "title": "Help: Settings View",
+        "icon": "$(question)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.openHelp.filesGroups",
+        "title": "Help: Files + Groups View",
+        "icon": "$(question)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.openHelp.agentConnections",
+        "title": "Help: Agent Connections",
+        "icon": "$(question)",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.uninstallClaude",
+        "title": "Uninstall Claude Code MCP",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.uninstallCursor",
+        "title": "Uninstall Cursor MCP",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.uninstallCodex",
+        "title": "Uninstall Codex MCP",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.agentConnections.showRowActions",
+        "title": "Agent Connections: Show Row Actions",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.agentConnections.connectAnother",
+        "title": "Agent Connections: Connect Another Agent…",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.agentConnections.smartUpdate",
+        "title": "Agent Connections: Update MCP",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.agentConnections.updateAllOutdated",
+        "title": "Agent Connections: Update All Outdated",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.welcome.toggleSection",
+        "title": "Welcome: Toggle Section",
+        "category": "Agentic Bookmarks"
       }
     ],
     "menus": {
@@ -885,6 +949,21 @@
           "command": "agenticBookmarks.newFile",
           "when": "view == agenticBookmarks.filesGroups",
           "group": "navigation@1"
+        },
+        {
+          "command": "agenticBookmarks.openHelp.allBookmarks",
+          "when": "view == agenticBookmarks.view",
+          "group": "navigation@99"
+        },
+        {
+          "command": "agenticBookmarks.openHelp.filesGroups",
+          "when": "view == agenticBookmarks.filesGroups",
+          "group": "navigation@99"
+        },
+        {
+          "command": "agenticBookmarks.openHelp.settings",
+          "when": "view == agenticBookmarks.settings",
+          "group": "navigation@99"
         }
       ],
       "view/item/context": [
@@ -1270,6 +1349,18 @@
         },
         {
           "command": "agenticBookmarks.copyRepairPrompt",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.agentConnections.showRowActions",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.agentConnections.smartUpdate",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.welcome.toggleSection",
           "when": "false"
         }
       ]

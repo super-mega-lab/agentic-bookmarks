@@ -4,7 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { ScanQueue, type ScanTarget } from './scanQueue';
 import type { ScanResultEntry } from './scanValidate';
 
-const T = (fsPath: string, uri: string): ScanTarget => ({ fsPath, uri });
+const T = (fsPath: string, uri: string, bookmarkCount = 1): ScanTarget => ({ fsPath, uri, bookmarkCount });
 const broken = (bookmarkId: string, uri: string): ScanResultEntry =>
   ({ bookmarkId, uri, status: 'broken', errorCode: 'not_found', errorDetails: null, score: null });
 const valid = (bookmarkId: string, uri: string): ScanResultEntry =>
