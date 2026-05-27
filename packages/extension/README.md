@@ -1,6 +1,6 @@
 # Agentic Bookmarks
 
-Your AI coding agent loses context every session. **Agentic Bookmarks** fixes that: durable, self-healing bookmarks that agents can read, place, and repair through a bundled MCP server. They survive refactors, check into git, and give your whole team — humans and agents — persistent codebase knowledge.
+Your AI coding agent loses context every session. **Agentic Bookmarks** fixes that: durable, self-healing bookmarks that agents can read, place, and repair through a bundled MCP server. They survive refactors, survive Prettier, survive branch merges — and check into git so your whole team shares persistent codebase knowledge.
 
 ---
 
@@ -57,7 +57,7 @@ The MCP server runs **locally on your machine**. Agents you connect to it get wh
 
 ### Survives every refactor
 
-Smart anchors store surrounding context — not line numbers — so bookmarks survive renames, moves, and formatting passes. Self-healing keeps them correct as code drifts; agent-assisted repair handles the hard cases.
+Smart anchors store surrounding context — not line numbers — so durable bookmarks survive renames, moves, Prettier runs, and formatting passes. Self-healing keeps them correct as code drifts; agent-assisted repair handles the hard cases.
 
 - Context-based matching, not line numbers
 - Background self-healing on file changes
@@ -67,12 +67,12 @@ Repair is layered: manual relocation (always available) → background auto-repa
 
 ### Knowledge that compounds
 
-Shared bookmarks commit to git like code. New team members and agents inherit the map on clone. Groups, labels, and notes turn bookmarks into living documentation.
+Shared team bookmarks commit to git like code. New team members and agents inherit the map on clone. Bookmark groups, labeled bookmarks, and notes turn bookmarks into living documentation.
 
 - **Local bookmarks** — personal scratch, stored under `.bookmarks/local/` (gitignored)
 - **Shared bookmarks** — team knowledge, stored under `.bookmarks/shared/` (committed)
 - Merge-conflict-friendly storage format
-- Groups and labels for organization
+- Bookmark groups and labels for organization
 
 ---
 
