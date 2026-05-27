@@ -264,6 +264,12 @@
           "visibility": "visible"
         },
         {
+          "id": "agenticBookmarks.agents",
+          "type": "webview",
+          "name": "Agents",
+          "visibility": "visible"
+        },
+        {
           "id": "agenticBookmarks.view",
           "name": "All Bookmarks",
           "icon": "media/bookmarks-icon.svg",
@@ -835,6 +841,11 @@
         "icon": "$(gear)"
       },
       {
+        "command": "agenticBookmarks.runSkill",
+        "title": "Run Skill",
+        "category": "Agentic Bookmarks"
+      },
+      {
         "command": "agenticBookmarks.openGettingStarted",
         "title": "Open Getting Started Guide",
         "category": "Agentic Bookmarks"
@@ -901,6 +912,11 @@
       {
         "command": "agenticBookmarks.welcome.toggleSection",
         "title": "Welcome: Toggle Section",
+        "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.agents.toggleSection",
+        "title": "Agents: Toggle Section",
         "category": "Agentic Bookmarks"
       }
     ],
@@ -1361,6 +1377,10 @@
         },
         {
           "command": "agenticBookmarks.welcome.toggleSection",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.agents.toggleSection",
           "when": "false"
         }
       ]

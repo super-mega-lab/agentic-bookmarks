@@ -1,5 +1,5 @@
 // ABOUTME: VS Code glue registering Repair All (agent launch) + its gear settings.
-// ABOUTME: Decision logic lives in agent-repair-helpers; persistence in repair-agent-state.
+// ABOUTME: Decision logic lives in agent-repair-helpers; launch flow in agent-launch.
 import * as vscode from 'vscode';
 import type { BookmarkNode } from '../treeProvider';
 import {
@@ -7,25 +7,22 @@ import {
   getMcpInstallRecords,
   type McpAgent,
 } from './mcp-install-state';
-import {
-  pickAgentToLaunch,
-  buildAgentLaunch,
-  buildRepairPrompt,
-  type RepairTarget,
-} from './agent-repair-helpers';
+import { buildRepairPrompt, type RepairTarget } from './agent-repair-helpers';
 import {
   getRepairAgentDefault,
   setRepairAgentDefault,
-  hasRepairConsent,
-  recordRepairConsent,
 } from './repair-agent-state';
+import { launchAgentWithPrompt, type AgentLaunchDeps } from './agent-launch';
 
 export interface AgentRepairDeps {
   context: vscode.ExtensionContext;
   workspaceRoot: string;
   log: { info(m: string): void; error(m: string): void };
-  /** Current count of known-broken anchors (drives the no-broken guard). */
   getBrokenCount: () => number;
+}
+
+function connectedAgents(context: vscode.ExtensionContext): McpAgent[] {
+  return Array.from(new Set(getMcpInstallRecords(context).map((e) => e.agent)));
 }
 
 const SETUP_COMMAND: Record<McpAgent, string> = {
@@ -33,50 +30,6 @@ const SETUP_COMMAND: Record<McpAgent, string> = {
   cursor: 'agenticBookmarks.setupCursor',
   codex: 'agenticBookmarks.setupCodex',
 };
-
-function connectedAgents(context: vscode.ExtensionContext): McpAgent[] {
-  return Array.from(new Set(getMcpInstallRecords(context).map((e) => e.agent)));
-}
-
-async function ensureConsent(context: vscode.ExtensionContext): Promise<boolean> {
-  if (hasRepairConsent(context)) return true;
-  const proceed = 'Run repair';
-  const choice = await vscode.window.showInformationMessage(
-    'Repairing broken bookmarks runs a local AI agent of your choice — you’ll see it run in a terminal. ' +
-      'It uses your agent’s own billing. Agentic Bookmarks sends no code or telemetry to the cloud.',
-    { modal: true },
-    proceed,
-  );
-  if (choice !== proceed) return false;
-  await recordRepairConsent(context);
-  return true;
-}
-
-async function launchAgent(deps: AgentRepairDeps, agent: McpAgent, prompt: string): Promise<void> {
-  const launch = buildAgentLaunch(agent, prompt);
-  if (launch.method === 'terminal') {
-    const terminal = vscode.window.createTerminal({
-      name: `Repair Bookmarks (${AGENT_DISPLAY_NAMES[agent]})`,
-      cwd: deps.workspaceRoot, // so the agent's MCP stdio discovery finds .bookmarks
-    });
-    terminal.show();
-    terminal.sendText(launch.command, true);
-    deps.log.info(`[repairAll] launched ${agent} in terminal`);
-  } else {
-    await vscode.env.clipboard.writeText(launch.text);
-    vscode.window.showInformationMessage(
-      `Repair prompt copied to clipboard — paste it into ${AGENT_DISPLAY_NAMES[agent]}.`,
-    );
-  }
-}
-
-async function chooseAgent(agents: McpAgent[]): Promise<McpAgent | undefined> {
-  const pick = await vscode.window.showQuickPick(
-    agents.map((a) => ({ label: AGENT_DISPLAY_NAMES[a], agent: a })),
-    { placeHolder: 'Choose an agent to repair broken bookmarks' },
-  );
-  return pick?.agent;
-}
 
 async function offerConnect(): Promise<void> {
   const pick = await vscode.window.showQuickPick(
@@ -88,10 +41,8 @@ async function offerConnect(): Promise<void> {
 
 export function registerAgentRepairCommands(deps: AgentRepairDeps): vscode.Disposable[] {
   const { context } = deps;
+  const launchDeps: AgentLaunchDeps = { context, workspaceRoot: deps.workspaceRoot, log: deps.log };
 
-  // Run the agent-repair launch flow for a target (every broken anchor, or a
-  // specific list of bookmark ids). The no-broken guard only applies to the
-  // 'all' target; a targeted repair always names a concrete broken bookmark.
   async function runAgentRepair(target: RepairTarget, opts: { force: boolean }): Promise<void> {
     if (target.kind === 'all' && !opts.force && deps.getBrokenCount() === 0) {
       vscode.window.showInformationMessage(
@@ -99,28 +50,12 @@ export function registerAgentRepairCommands(deps: AgentRepairDeps): vscode.Dispo
       );
       return;
     }
-    const decision = pickAgentToLaunch({
-      connected: connectedAgents(context),
-      preferred: getRepairAgentDefault(context),
-    });
-    if (decision.action === 'connect') { await offerConnect(); return; }
-    if (!(await ensureConsent(context))) return;
-    let agent: McpAgent | undefined;
-    if (decision.action === 'launch') {
-      agent = decision.agent;
-    } else {
-      agent = await chooseAgent(decision.agents);
-      if (agent) await setRepairAgentDefault(context, agent); // remember the choice
-    }
-    if (agent) await launchAgent(deps, agent, buildRepairPrompt(target));
+    await launchAgentWithPrompt(launchDeps, buildRepairPrompt(target));
   }
 
   return [
     vscode.commands.registerCommand('agenticBookmarks.repairAll', () => runAgentRepair({ kind: 'all' }, { force: false })),
     vscode.commands.registerCommand('agenticBookmarks.repairAllForce', () => runAgentRepair({ kind: 'all' }, { force: true })),
-
-    // Wrench on a single broken bookmark — launch the same agent-repair flow,
-    // scoped to just this bookmark's id.
     vscode.commands.registerCommand('agenticBookmarks.autoRepairBookmark', async (node: BookmarkNode) => {
       if (!node) {
         vscode.window.showWarningMessage('Select a broken bookmark first.');
@@ -128,7 +63,6 @@ export function registerAgentRepairCommands(deps: AgentRepairDeps): vscode.Dispo
       }
       await runAgentRepair({ kind: 'ids', ids: [node.id] }, { force: true });
     }),
-
     vscode.commands.registerCommand('agenticBookmarks.repairAllSettings', async () => {
       const connected = connectedAgents(context);
       const current = getRepairAgentDefault(context);
