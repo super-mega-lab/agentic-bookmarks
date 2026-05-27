@@ -1,14 +1,6 @@
 import * as vscode from 'vscode';
-import { renderWelcomeHtml, WELCOME_SECTION_IDS, type AgentConnectionDescriptor, type WelcomeSectionId } from './welcomeHtml';
+import { renderWelcomeHtml, WELCOME_SECTION_IDS, type WelcomeSectionId } from './welcomeHtml';
 import { shouldOfferGitignoreLine } from './needsGitignore';
-import {
-  getAgentMcpState,
-  getAllConfiguredAgents,
-  AGENT_DISPLAY_NAMES,
-  AGENT_SCOPES,
-  scopeDisplayLabel,
-  type McpAgent,
-} from '../../commands/mcp-install-state';
 
 const COLLAPSED_SECTIONS_KEY = 'agenticBookmarks.welcomeSectionCollapsed';
 
@@ -59,30 +51,6 @@ export class WelcomeViewProvider implements vscode.WebviewViewProvider {
     void this.render();
   }
 
-  private currentVersion(): string {
-    return (this.context.extension?.packageJSON?.version as string | undefined) ?? '';
-  }
-
-  private buildAgentDescriptors(): AgentConnectionDescriptor[] {
-    const currentVersion = this.currentVersion();
-    return getAllConfiguredAgents().map((agent: McpAgent) => {
-      const { installs } = getAgentMcpState(this.context, agent);
-      const installedScopes = Object.keys(installs) as Array<keyof typeof installs>;
-      const isOutdated = installedScopes.length > 0 && installedScopes.some((s) => {
-        const v = installs[s]?.installedVersion;
-        return !v || v !== currentVersion;
-      });
-      return {
-        agent,
-        displayName: AGENT_DISPLAY_NAMES[agent],
-        installs,
-        scopes: AGENT_SCOPES[agent],
-        scopeLabel: scopeDisplayLabel,
-        isOutdated,
-      };
-    });
-  }
-
   private async render(): Promise<void> {
     if (!this.view) return;
     const webview = this.view.webview;
@@ -102,7 +70,6 @@ export class WelcomeViewProvider implements vscode.WebviewViewProvider {
         .toString(),
       cspSource: webview.cspSource,
       nonce: getNonce(),
-      agents: this.buildAgentDescriptors(),
       collapsedSections: this.getCollapsedSections(),
     });
   }

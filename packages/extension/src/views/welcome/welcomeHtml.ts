@@ -1,23 +1,8 @@
 // ABOUTME: Renders the welcome panel webview HTML for the Agentic Bookmarks VS Code extension.
 // ABOUTME: Produces a static HTML string with embedded CSS; no scripts are used.
 
-import type { McpAgent, AnyScope } from '../../commands/mcp-install-state';
-
-export const WELCOME_SECTION_IDS = ['learn', 'agentConnections', 'community'] as const;
+export const WELCOME_SECTION_IDS = ['learn', 'community'] as const;
 export type WelcomeSectionId = typeof WELCOME_SECTION_IDS[number];
-
-export interface AgentConnectionDescriptor {
-  agent: McpAgent;
-  displayName: string;
-  /** Map of scope → installed version (if any). Empty when not installed at all. */
-  installs: Partial<Record<AnyScope, { installedVersion?: string }>>;
-  /** Scope pair this agent uses, in agent-native vocabulary. */
-  scopes: { workspace: AnyScope; global: AnyScope };
-  /** Per-scope label as the agent natively calls it (e.g. "Local" vs "Project"). */
-  scopeLabel: (scope: AnyScope) => string;
-  /** True iff any installed scope is at a version other than the current extension version. */
-  isOutdated: boolean;
-}
 
 export interface WelcomeHtmlOptions {
   /** Whether at least one workspace folder is open. */
@@ -33,8 +18,6 @@ export interface WelcomeHtmlOptions {
    * `hasFolder` is true — the no-folder view performs no workspace evaluation.
    */
   needsGitignore?: boolean;
-  /** Ordered list of all known agents and their current install state. */
-  agents?: AgentConnectionDescriptor[];
   /**
    * Per-section collapsed state. Missing entries default to expanded.
    * Persisted in globalState by WelcomeViewProvider.
@@ -88,108 +71,20 @@ function gitignoreBanner(): string {
   </section>`;
 }
 
-function setupCommandFor(agent: McpAgent): string {
-  return `agenticBookmarks.setup${agent.charAt(0).toUpperCase()}${agent.slice(1)}`;
-}
-
-function sectionHeader(id: WelcomeSectionId, title: string, collapsed: boolean, extras = ''): string {
-  const chevron = collapsed ? '▶' : '▼';
-  const ariaLabel = collapsed ? `Expand ${title} section` : `Collapse ${title} section`;
+function sectionHeader(_id: WelcomeSectionId, title: string, _collapsed: boolean, extras = ''): string {
+  // Collapse toggling disabled — sections are always expanded for now.
+  // const chevron = collapsed ? '▶' : '▼';
+  // const ariaLabel = collapsed ? `Expand ${title} section` : `Collapse ${title} section`;
   return /* html */ `
     <div class="section-header">
-      <a class="section-toggle" title="${escapeHtml(ariaLabel)}" href="${runCmdWithArg('agenticBookmarks.welcome.toggleSection', id)}">
-        <span class="section-chevron">${chevron}</span>
+      <span class="section-label">
         <span class="section-title">${escapeHtml(title)}</span>
-      </a>${extras}
+      </span>${extras}
     </div>`;
 }
 
-function renderAgentRow(desc: AgentConnectionDescriptor): string {
-  const installedScopes = (Object.keys(desc.installs) as AnyScope[]).filter((s) => desc.installs[s]);
-  const versions = installedScopes
-    .map((s) => desc.installs[s]?.installedVersion)
-    .filter((v): v is string => typeof v === 'string' && v.length > 0);
-  const uniqueVersions = Array.from(new Set(versions));
-  const scopesText = installedScopes.map((s) => desc.scopeLabel(s)).join(', ');
-  const versionText =
-    uniqueVersions.length === 0
-      ? 'version unknown'
-      : uniqueVersions.length === 1
-        ? `v${uniqueVersions[0]}`
-        : `v${uniqueVersions.join(', v')}`;
-  const olderTag = desc.isOutdated ? ' <span class="row-status-tag">(older)</span>' : '';
-
-  const primary = desc.isOutdated
-    ? /* html */ `<a class="button row-primary" title="Update the agentic-bookmarks MCP server to match this extension" href="${runCmdWithArg('agenticBookmarks.agentConnections.smartUpdate', desc.agent)}">Update MCP</a>`
-    : /* html */ `<div class="status-pill row-primary" title="All installed scopes are on the current extension version"><span class="status-pill-icon">✓</span> Up to date</div>`;
-
-  return /* html */ `
-  <div class="agent-row">
-    <div class="agent-row-name">${escapeHtml(desc.displayName)}</div>
-    <div class="agent-row-status">Installed (${escapeHtml(scopesText)}) · ${escapeHtml(versionText)}${olderTag}</div>
-    <div class="agent-row-actions">
-      ${primary}
-      <a class="button secondary row-menu" title="More actions" href="${runCmdWithArg('agenticBookmarks.agentConnections.showRowActions', desc.agent)}">⋮</a>
-    </div>
-  </div>`;
-}
-
-function renderAgentConnections(agents: AgentConnectionDescriptor[], collapsed: boolean): string {
-  const connected = agents.filter((d) => Object.keys(d.installs).length > 0);
-  const disconnected = agents.filter((d) => Object.keys(d.installs).length === 0);
-
-  const helpButton = /* html */ `<a class="header-icon" title="Help" href="${runCmd('agenticBookmarks.openHelp.agentConnections')}">?</a>`;
-  const header = sectionHeader('agentConnections', 'Agent connections', collapsed, helpButton);
-
-  if (collapsed) {
-    return /* html */ `
-  <section>
-    ${header}
-  </section>`;
-  }
-
-  if (connected.length === 0) {
-    const buttons = agents
-      .map((d) => `<a class="button" href="${runCmd(setupCommandFor(d.agent))}">Connect to ${escapeHtml(d.displayName)}</a>`)
-      .join('\n      ');
-    return /* html */ `
-  <section>
-    ${header}
-    <div class="button-row">
-      ${buttons}
-    </div>
-  </section>`;
-  }
-
-  const anyOutdated = connected.some((d) => d.isOutdated);
-  const updateAllBanner = anyOutdated
-    ? /* html */ `
-    <div class="button-row update-all-row">
-      <a class="button" title="Update every outdated agent MCP server to match this extension" href="${runCmd('agenticBookmarks.agentConnections.updateAllOutdated')}">Update all MCPs</a>
-    </div>`
-    : '';
-  const rows = connected.map(renderAgentRow).join('\n');
-  const footer =
-    disconnected.length > 0
-      ? /* html */ `
-    <div class="button-row footer-row">
-      <a class="button secondary" href="${runCmd('agenticBookmarks.agentConnections.connectAnother')}">Connect another agent…</a>
-    </div>`
-      : '';
-  return /* html */ `
-  <section>
-    ${header}${updateAllBanner}
-    ${rows}${footer}
-  </section>`;
-}
-
-function learnSection(collapsed: boolean): string {
-  if (collapsed) {
-    return /* html */ `
-  <section>
-    ${sectionHeader('learn', 'Learn', true)}
-  </section>`;
-  }
+function learnSection(_collapsed: boolean): string {
+  // Collapse disabled — always render expanded.
   return /* html */ `
   <section>
     ${sectionHeader('learn', 'Learn', false)}
@@ -216,13 +111,8 @@ function learnSection(collapsed: boolean): string {
   </section>`;
 }
 
-function communitySection(collapsed: boolean): string {
-  if (collapsed) {
-    return /* html */ `
-  <section>
-    ${sectionHeader('community', 'Community & Support', true)}
-  </section>`;
-  }
+function communitySection(_collapsed: boolean): string {
+  // Collapse disabled — always render expanded.
   return /* html */ `
   <section>
     ${sectionHeader('community', 'Community & Support', false)}
@@ -239,7 +129,6 @@ function communitySection(collapsed: boolean): string {
 
 function activeBody(
   needsGitignore: boolean,
-  agents: AgentConnectionDescriptor[],
   collapsedSections: Partial<Record<WelcomeSectionId, boolean>>,
 ): string {
   return /* html */ `${needsGitignore ? gitignoreBanner() : ''}
@@ -251,14 +140,12 @@ function activeBody(
 
 ${learnSection(collapsedSections.learn === true)}
 
-${renderAgentConnections(agents, collapsedSections.agentConnections === true)}
-
 ${communitySection(collapsedSections.community === true)}`;
 }
 
 export function renderWelcomeHtml(opts: WelcomeHtmlOptions): string {
-  const { hasFolder, iconUri, cspSource, nonce, needsGitignore = false, agents = [], collapsedSections = {} } = opts;
-  const body = hasFolder ? activeBody(needsGitignore, agents, collapsedSections) : emptyBody();
+  const { hasFolder, iconUri, cspSource, nonce, needsGitignore = false, collapsedSections = {} } = opts;
+  const body = hasFolder ? activeBody(needsGitignore, collapsedSections) : emptyBody();
 
   return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -330,6 +217,13 @@ export function renderWelcomeHtml(opts: WelcomeHtmlOptions): string {
       text-decoration: none;
       color: inherit;
       cursor: pointer;
+    }
+    .section-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      flex: 1 1 auto;
+      padding: 2px 0;
     }
     .section-chevron {
       display: inline-block;
@@ -432,58 +326,6 @@ export function renderWelcomeHtml(opts: WelcomeHtmlOptions): string {
     }
     .button.secondary:hover {
       background: var(--vscode-button-secondaryHoverBackground);
-    }
-    .agent-row {
-      margin: 0 0 12px;
-    }
-    .agent-row:last-child {
-      margin-bottom: 6px;
-    }
-    .agent-row-name {
-      font-weight: 500;
-    }
-    .agent-row-status {
-      margin: 2px 0 6px;
-      color: var(--vscode-descriptionForeground);
-      font-size: 0.85em;
-    }
-    .row-status-tag {
-      color: var(--vscode-editorWarning-foreground, var(--vscode-notificationsWarningIcon-foreground, inherit));
-    }
-    .agent-row-actions {
-      display: flex;
-      gap: 4px;
-      align-items: stretch;
-    }
-    .row-primary {
-      flex: 1 1 auto;
-    }
-    .row-menu {
-      flex: 0 0 auto;
-      width: 32px;
-      padding: 6px 0;
-    }
-    .status-pill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border-radius: 2px;
-      font-size: 0.95em;
-      background: rgb(55, 122, 38);
-      color: #fff;
-      border: 1px solid rgb(55, 122, 38);
-      cursor: default;
-    }
-    .status-pill-icon {
-      font-weight: bold;
-    }
-    .update-all-row {
-      margin: 0 0 12px;
-    }
-    .footer-row {
-      margin-top: 10px;
     }
     .card {
       display: block;

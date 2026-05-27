@@ -913,6 +913,11 @@
         "command": "agenticBookmarks.welcome.toggleSection",
         "title": "Welcome: Toggle Section",
         "category": "Agentic Bookmarks"
+      },
+      {
+        "command": "agenticBookmarks.agents.toggleSection",
+        "title": "Agents: Toggle Section",
+        "category": "Agentic Bookmarks"
       }
     ],
     "menus": {
@@ -1372,6 +1377,10 @@
         },
         {
           "command": "agenticBookmarks.welcome.toggleSection",
+          "when": "false"
+        },
+        {
+          "command": "agenticBookmarks.agents.toggleSection",
           "when": "false"
         }
       ]

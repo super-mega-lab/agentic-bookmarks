@@ -100,11 +100,12 @@ export async function activate(context: vscode.ExtensionContext) {
     ),
   );
 
-  // --- Agents webview (skill playbook launcher, workspace-agnostic) ---
+  // --- Agents webview (agent connections + skill playbook launcher, workspace-agnostic) ---
+  const agentsProvider = new AgentsViewProvider(context);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
       AgentsViewProvider.viewId,
-      new AgentsViewProvider(context.extensionUri),
+      agentsProvider,
       { webviewOptions: { retainContextWhenHidden: false } },
     ),
   );
@@ -156,6 +157,9 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('agenticBookmarks.welcome.toggleSection', async (sectionId: string) => {
       await welcomeProvider.toggleSection(sectionId);
     }),
+    vscode.commands.registerCommand('agenticBookmarks.agents.toggleSection', async (sectionId: string) => {
+      await agentsProvider.toggleSection(sectionId);
+    }),
   );
 
   // --- Defer workspace-scoped activation until a folder is present (SML-1394) ---
@@ -168,7 +172,7 @@ export async function activate(context: vscode.ExtensionContext) {
     if (hasScoped) return;
     if (!vscode.workspace.workspaceFolders?.length) return;
     hasScoped = true;
-    await activateForWorkspace(context, log, outputChannel, welcomeProvider);
+    await activateForWorkspace(context, log, outputChannel, welcomeProvider, agentsProvider);
   };
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => { void maybeActivateForWorkspace(); }),
@@ -188,6 +192,7 @@ async function activateForWorkspace(
   log: ReturnType<typeof createLogger>,
   outputChannel: vscode.OutputChannel,
   welcomeProvider: WelcomeViewProvider,
+  agentsProvider: AgentsViewProvider,
 ) {
   if (!vscode.workspace.workspaceFolders?.length) {
     log.error('activateForWorkspace called with no workspace folder; skipping');
@@ -803,7 +808,7 @@ async function activateForWorkspace(
       getUIState,
       setUIState,
       getCatalogCache,
-      refreshWelcomeView: () => welcomeProvider.refresh(),
+      refreshWelcomeView: () => { welcomeProvider.refresh(); agentsProvider.refresh(); },
     }),
   );
 
