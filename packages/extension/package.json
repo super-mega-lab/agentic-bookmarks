@@ -264,6 +264,12 @@
           "visibility": "visible"
         },
         {
+          "id": "agenticBookmarks.agents",
+          "type": "webview",
+          "name": "Agents",
+          "visibility": "visible"
+        },
+        {
           "id": "agenticBookmarks.view",
           "name": "All Bookmarks",
           "icon": "media/bookmarks-icon.svg",
@@ -833,6 +839,11 @@
         "title": "Repair All: Settings",
         "category": "Agentic Bookmarks",
         "icon": "$(gear)"
+      },
+      {
+        "command": "agenticBookmarks.runSkill",
+        "title": "Run Skill",
+        "category": "Agentic Bookmarks"
       },
       {
         "command": "agenticBookmarks.openGettingStarted",
