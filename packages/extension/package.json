@@ -28,13 +28,8 @@
     "bookmarks",
     "mcp",
     "ai",
-    "agents",
-    "claude",
-    "cursor",
-    "codex",
     "code-navigation",
-    "team",
-    "git"
+    "cursor"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
