@@ -63,6 +63,9 @@ import { migrateLocalLayout } from './migrate-local-layout';
 import { maybeShowGitignoreNudge } from './gitignore-nudge';
 import { OrderingService } from './ordering/service';
 import { WelcomeViewProvider } from './views/welcome/welcomeView';
+import { AgentsViewProvider } from './views/agents/agentsView';
+import { SKILLS } from './views/agents/agentsHtml';
+import { launchAgentWithPrompt } from './commands/agent-launch';
 
 // ---------------------------------------------------------------------------
 // activate
@@ -93,6 +96,15 @@ export async function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider(
       WelcomeViewProvider.viewId,
       welcomeProvider,
+      { webviewOptions: { retainContextWhenHidden: false } },
+    ),
+  );
+
+  // --- Agents webview (skill playbook launcher, workspace-agnostic) ---
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      AgentsViewProvider.viewId,
+      new AgentsViewProvider(context.extensionUri),
       { webviewOptions: { retainContextWhenHidden: false } },
     ),
   );
@@ -967,6 +979,14 @@ async function activateForWorkspace(
       provider.refresh();
     }),
     ...registerAgentRepairCommands({ context, workspaceRoot, log, getBrokenCount: () => lastBrokenIds.size }),
+    vscode.commands.registerCommand('agenticBookmarks.runSkill', async (skillId: string) => {
+      const skill = SKILLS.find((s) => s.id === skillId);
+      if (!skill) {
+        log.error(`[runSkill] unknown skill id: ${skillId}`);
+        return;
+      }
+      await launchAgentWithPrompt({ context, workspaceRoot, log }, skill.prompt);
+    }),
   );
 
   // --- Active editor change ---
