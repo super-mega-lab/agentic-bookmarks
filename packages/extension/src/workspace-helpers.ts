@@ -19,6 +19,7 @@ import {
   workspaceRelativeToUri,
   getOrCreateUnsortedGroup,
   addFileToRegistry,
+  discoverSharedBookmarkFiles,
   getDefaultLocalFilePath,
   ensureLocalDir,
   registryPathForRoot,
@@ -577,6 +578,22 @@ export async function bootstrapWorkspaces(deps: BootstrapDeps): Promise<void> {
     }
   } catch (e) {
     log.error(`Failed to ensure default data/registry: ${e}`);
+  }
+
+  // 3.5. Discover shared bookmark files newly arrived on disk (e.g., pulled
+  // from git by other users) and register them in the local registry.
+  // `initializeRegistry` only scans on first-time creation, so without this
+  // step, subsequent activations would miss shared files added later.
+  for (const folder of vscode.workspace.workspaceFolders || []) {
+    try {
+      const dataRoot = getConfiguredDataRoot(folder);
+      const result = await discoverSharedBookmarkFiles(folder.uri.fsPath, { bookmarksDataRoot: dataRoot });
+      if (result.added.length > 0) {
+        log.info(`Discovered ${result.added.length} shared bookmark file(s) at ${folder.uri.fsPath}: ${result.added.map(a => a.path).join(', ')}`);
+      }
+    } catch (e) {
+      log.error(`Failed to discover shared bookmark files for ${folder.uri.fsPath}: ${e}`);
+    }
   }
 
   // 4. Persist the current workspace folder list into registries
