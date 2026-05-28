@@ -9,6 +9,16 @@ they do, that's called out explicitly below.
 
 ---
 
+## [0.8.17] — 2026-05-27
+
+**Agents panel.** Everything about your AI agents now lives in one dedicated sidebar view, alongside ready-to-run skill playbooks.
+
+- **New Agents panel.** A dedicated sidebar view for working with AI agents — separate from the Welcome view, so agent setup and day-to-day agent actions have their own home.
+- **Skill playbook pills.** One-click buttons launch curated bookmark skills (map a codebase, annotate files, audit existing bookmarks, and more) through your connected agent — no need to remember tool names or prompts.
+- **Agent Connections moved here.** The install / update / connect status rows for Claude Code, Cursor, and Codex now live in the Agents panel, keeping all agent-related controls together. The Welcome view stays focused on Getting Started, Learn, and Community.
+
+---
+
 ## [0.8.15] — 2026-05-26
 
 **MCP Control Panel.** Connecting Agentic Bookmarks to your AI agents — and keeping those connections current as the extension updates — is now a one-stop experience.
