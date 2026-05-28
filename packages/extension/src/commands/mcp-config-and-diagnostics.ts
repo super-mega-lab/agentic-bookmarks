@@ -85,6 +85,7 @@ import {
   applyCodexUninstall as applyCodexUninstallPure,
   type FsDeps,
 } from './mcp-uninstall-helpers';
+import { isPathRegistered, resolveNewFileAction } from './new-file-helpers';
 
 const AGENT_DOCS_URLS: Record<McpAgent, string> = {
   claude: 'https://docs.anthropic.com/en/docs/claude-code/mcp',
@@ -1039,6 +1040,47 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
       }
 
       try {
+        // Probe disk: does a file already exist at the target path?
+        let fileExists = false;
+        try {
+          await fsp.stat(fullPath);
+          fileExists = true;
+        } catch {
+          // ENOENT — file doesn't exist, fall through to write path
+        }
+
+        let isRegistered = false;
+        if (fileExists) {
+          try {
+            const registry = await readRegistry(selectedWorkspaceRoot);
+            isRegistered = isPathRegistered(registry, fullPath, selectedWorkspaceRoot);
+          } catch {
+            // Defensive: if registry read fails, assume not registered.
+            // We still won't overwrite (fileExists is true → we'll go through prompt-load-existing branch).
+          }
+        }
+
+        const action = resolveNewFileAction({ fileExists, isRegistered, relativePath });
+
+        if (action.kind === 'error-already-registered') {
+          vscode.window.showErrorMessage(`A bookmark file is already registered at ${relativePath}.`);
+          return;
+        }
+
+        if (action.kind === 'prompt-load-existing') {
+          const choice = await vscode.window.showWarningMessage(
+            `A bookmark file already exists at ${relativePath}. Load the existing file instead of overwriting?`,
+            { modal: true },
+            'Load existing file',
+          );
+          if (choice !== 'Load existing file') return;
+          await addFileToRegistry(selectedWorkspaceRoot, fullPath);
+          vscode.window.showInformationMessage(`Loaded existing bookmarks file: ${relativePath}`);
+          filesGroups.refresh();
+          return;
+        }
+
+        // action.kind === 'write' — original fresh-file path
         await fsp.mkdir(targetDir, { recursive: true });
         const isLocal = isLocalPath(relativePath);
         const empty = emptyFileV2({ isLocal });

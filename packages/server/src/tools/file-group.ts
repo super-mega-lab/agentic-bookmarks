@@ -25,7 +25,15 @@ import {
 export async function handleFileCreate(ctx: ServerContext, args: Record<string, any>) {
   const { path: p, title } = args as { path: string; title?: string };
   const abs = path.resolve(p);
-  try { await fs.stat(abs); return { content: [{ type: 'text', text: `Error: file already exists: ${abs}` }] }; } catch {}
+  try {
+    await fs.stat(abs);
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({ success: false, error: 'File already exists', path: abs }, null, 2)
+      }]
+    };
+  } catch {}
   await fs.mkdir(path.dirname(abs), { recursive: true });
   // Determine if this is a local file based on path (e.g., contains 'local')
   const relativePath = path.relative(ctx.workspaceRoot, abs);
