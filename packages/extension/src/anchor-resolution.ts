@@ -41,7 +41,10 @@ export interface AnchorResolutionDeps {
 }
 
 export interface AnchorResolution {
-  onFileOpened: (document: vscode.TextDocument) => Promise<void>;
+  onFileOpened: (
+    document: vscode.TextDocument,
+    opts?: { deferTreeRefresh?: boolean },
+  ) => Promise<void>;
   revalidateOpenDocuments: () => Promise<void>;
 }
 
@@ -102,7 +105,10 @@ export function createAnchorResolution(deps: AnchorResolutionDeps): AnchorResolu
     debouncedCacheSync,
   } = deps;
 
-  async function onFileOpened(document: vscode.TextDocument): Promise<void> {
+  async function onFileOpened(
+    document: vscode.TextDocument,
+    opts?: { deferTreeRefresh?: boolean },
+  ): Promise<void> {
     // Skip non-file documents
     if (document.uri.scheme !== 'file') return;
 
@@ -163,8 +169,10 @@ export function createAnchorResolution(deps: AnchorResolutionDeps): AnchorResolu
       registerBookmarkUri(docUri, bookmark.id, bookmark.targetUri);
     }
 
-    // Refresh tree view to reflect broken anchor status
-    refreshTree();
+    // Refresh tree view to reflect broken anchor status. The bulk revalidate
+    // path defers this and refreshes once after its loop, so the bookmarks tree
+    // is rebuilt once per pulse instead of once per open document (SML-1497).
+    if (!opts?.deferTreeRefresh) refreshTree();
 
     // Enqueue broken anchors for background auto-repair (gated by autoRepair setting)
     getRepairQueue()?.enqueue(docUri);
@@ -178,11 +186,16 @@ export function createAnchorResolution(deps: AnchorResolutionDeps): AnchorResolu
   }
 
   async function revalidateOpenDocuments(): Promise<void> {
+    let revalidatedAny = false;
     for (const document of vscode.workspace.textDocuments) {
       if (document.uri.scheme !== 'file') continue;
       if (!hasStateForFile(document.uri.toString())) continue;
-      await onFileOpened(document);
+      await onFileOpened(document, { deferTreeRefresh: true });
+      revalidatedAny = true;
     }
+    // Single tree refresh after the bulk re-resolve instead of one per document
+    // (SML-1497) — avoids O(N) refreshTree() calls with N open editors.
+    if (revalidatedAny) refreshTree();
   }
 
   return { onFileOpened, revalidateOpenDocuments };
