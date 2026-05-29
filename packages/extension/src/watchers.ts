@@ -84,10 +84,14 @@ export function createWatcherManager(
       // Refresh both bookmark and groups trees on pulse changes
       refreshBookmarkTrees();
       refreshCodeLens();
-      await updateDecorations();
-      // Re-resolve anchors for open docs so stale broken/warning
-      // indicators are cleared after MCP repairs update bookmark data
+      // Re-resolve anchors for open docs FIRST so stale broken/warning
+      // indicators are cleared after MCP repairs update bookmark data, THEN
+      // repaint decorations against the refreshed state. Ordering matters:
+      // painting before revalidation leaves the broken "!" gutter overlay
+      // until the file is reopened (SML-1491). Matches the revalidate→decorate
+      // order used in extension.ts onDidOpenTextDocument / onDidRenameFiles.
       await revalidateOpenDocuments();
+      await updateDecorations();
     });
 
     const dataRoot = getBookmarksDataRoot(reg);
