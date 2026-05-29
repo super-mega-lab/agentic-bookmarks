@@ -1,6 +1,7 @@
-// ABOUTME: Regression test for the data-file pulse refresh in watchers.ts — after a
-// ABOUTME: repair-driven pulse, open documents must be re-resolved BEFORE the gutter
-// ABOUTME: decorations repaint, otherwise the broken "!" overlay lingers (SML-1491).
+// ABOUTME: Regression test for the data-file pulse refresh in watchers.ts — a repair-driven
+// ABOUTME: pulse routes anchor re-resolution + repaint through the centralized
+// ABOUTME: revalidateAndRepaint (its ordering + error guard are unit-tested in
+// ABOUTME: revalidate-and-repaint.test.ts); here we assert it's invoked alongside the tree refreshes.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -69,7 +70,7 @@ function makeDeps(calls: string[]): WatcherDeps {
     refreshTrees: vi.fn(() => {}),
     refreshBookmarkTrees: vi.fn(() => { calls.push('refreshBookmarkTrees'); }),
     refreshCodeLens: vi.fn(() => { calls.push('refreshCodeLens'); }),
-    revalidateOpenDocuments: vi.fn(async () => { calls.push('revalidateOpenDocuments'); }),
+    revalidateAndRepaint: vi.fn(async () => { calls.push('revalidateAndRepaint'); }),
     onMcpToExtensionPulse: vi.fn(),
   };
 }
@@ -80,7 +81,7 @@ describe('watchers — data-file pulse refresh (SML-1491)', () => {
     vi.clearAllMocks();
   });
 
-  it('re-resolves open documents before repainting decorations, and still refreshes trees + codelens', async () => {
+  it('routes the pulse refresh through revalidateAndRepaint, and still refreshes trees + codelens', async () => {
     vi.useFakeTimers();
     try {
       const calls: string[] = [];
@@ -99,43 +100,14 @@ describe('watchers — data-file pulse refresh (SML-1491)', () => {
       pulse.onDidChange[0]!();
       await vi.advanceTimersByTimeAsync(100);
 
-      expect(calls).toContain('revalidateOpenDocuments');
-      expect(calls).toContain('updateDecorations');
-      expect(calls.indexOf('revalidateOpenDocuments')).toBeLessThan(
-        calls.indexOf('updateDecorations'),
-      );
+      // The centralized revalidate→decorate helper is invoked once; its internal
+      // ordering + error guard are covered by revalidate-and-repaint.test.ts.
+      expect(deps.revalidateAndRepaint).toHaveBeenCalledTimes(1);
+      expect(calls).toContain('revalidateAndRepaint');
 
       // Existing refresh behavior preserved.
       expect(deps.refreshBookmarkTrees).toHaveBeenCalledTimes(1);
       expect(deps.refreshCodeLens).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('still repaints decorations when revalidateOpenDocuments rejects (error caught, no unhandled rejection)', async () => {
-    vi.useFakeTimers();
-    try {
-      const calls: string[] = [];
-      const deps = makeDeps(calls);
-      // Simulate a transient resolution failure on this pulse. Set before
-      // createWatcherManager, which destructures revalidateOpenDocuments.
-      deps.revalidateOpenDocuments = vi.fn(async () => {
-        throw new Error('revalidate boom');
-      });
-      const mgr = createWatcherManager(deps, () => -100000);
-
-      await mgr.setupWatchers();
-      const pulse = createdWatchers[0];
-      pulse.onDidChange[0]!();
-      await vi.advanceTimersByTimeAsync(100);
-
-      // revalidate was attempted and threw; the repaint must STILL run.
-      // updateDecorations being called after the throw proves the catch
-      // worked (otherwise the rejection would skip it and escape unhandled).
-      expect(deps.revalidateOpenDocuments).toHaveBeenCalledTimes(1);
-      expect(deps.updateDecorations).toHaveBeenCalledTimes(1);
-      expect(calls).toContain('updateDecorations');
     } finally {
       vi.useRealTimers();
     }
