@@ -57,19 +57,20 @@ vi.mock('./ipc-paths', () => ({
 }));
 
 import { createWatcherManager, type WatcherDeps } from './watchers';
+import { invalidateFileCache } from '@agentic-bookmarks/core';
 
-function makeDeps(calls: string[]): WatcherDeps {
+function makeDeps(): WatcherDeps {
   const log = { debug() {}, info() {}, warn() {}, error() {}, trace() {} } as unknown as WatcherDeps['log'];
   return {
     workspaceRoot: '/ws',
     log,
     context: { subscriptions: [] } as any,
-    updateDecorations: vi.fn(async () => { calls.push('updateDecorations'); }),
+    updateDecorations: vi.fn(async () => {}),
     refreshDecorationAppearance: vi.fn(async () => {}),
     refreshTrees: vi.fn(() => {}),
-    refreshBookmarkTrees: vi.fn(() => { calls.push('refreshBookmarkTrees'); }),
-    refreshCodeLens: vi.fn(() => { calls.push('refreshCodeLens'); }),
-    revalidateOpenDocuments: vi.fn(async () => { calls.push('revalidateOpenDocuments'); }),
+    refreshBookmarkTrees: vi.fn(() => {}),
+    refreshCodeLens: vi.fn(() => {}),
+    revalidateOpenDocuments: vi.fn(async () => {}),
     onMcpToExtensionPulse: vi.fn(),
   };
 }
@@ -83,8 +84,7 @@ describe('watchers — data-file pulse refresh (SML-1491)', () => {
   it('re-resolves open documents before repainting decorations, and still refreshes trees + codelens', async () => {
     vi.useFakeTimers();
     try {
-      const calls: string[] = [];
-      const deps = makeDeps(calls);
+      const deps = makeDeps();
       // getLastStickyRefreshAt far in the past so the sticky-suppress guard never short-circuits.
       const mgr = createWatcherManager(deps, () => -100000);
 
@@ -99,10 +99,12 @@ describe('watchers — data-file pulse refresh (SML-1491)', () => {
       pulse.onDidChange[0]!();
       await vi.advanceTimersByTimeAsync(100);
 
-      expect(calls).toContain('revalidateOpenDocuments');
-      expect(calls).toContain('updateDecorations');
-      expect(calls.indexOf('revalidateOpenDocuments')).toBeLessThan(
-        calls.indexOf('updateDecorations'),
+      expect(deps.revalidateOpenDocuments).toHaveBeenCalled();
+      expect(deps.updateDecorations).toHaveBeenCalled();
+      // Ordering: revalidate must run BEFORE the repaint (read straight off the
+      // mocks' global invocation order — no manual call-tracking array needed).
+      expect(vi.mocked(deps.revalidateOpenDocuments).mock.invocationCallOrder[0]!).toBeLessThan(
+        vi.mocked(deps.updateDecorations).mock.invocationCallOrder[0]!,
       );
 
       // Existing refresh behavior preserved.
@@ -116,8 +118,7 @@ describe('watchers — data-file pulse refresh (SML-1491)', () => {
   it('still repaints decorations when revalidateOpenDocuments rejects (error caught, no unhandled rejection)', async () => {
     vi.useFakeTimers();
     try {
-      const calls: string[] = [];
-      const deps = makeDeps(calls);
+      const deps = makeDeps();
       // Simulate a transient resolution failure on this pulse. Set before
       // createWatcherManager, which destructures revalidateOpenDocuments.
       deps.revalidateOpenDocuments = vi.fn(async () => {
@@ -135,7 +136,37 @@ describe('watchers — data-file pulse refresh (SML-1491)', () => {
       // worked (otherwise the rejection would skip it and escape unhandled).
       expect(deps.revalidateOpenDocuments).toHaveBeenCalledTimes(1);
       expect(deps.updateDecorations).toHaveBeenCalledTimes(1);
-      expect(calls).toContain('updateDecorations');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('on data-file delete, invalidates the read cache synchronously and schedules a (debounced) refresh', async () => {
+    vi.useFakeTimers();
+    try {
+      const deps = makeDeps();
+      const mgr = createWatcherManager(deps, () => -100000);
+
+      await mgr.setupWatchers();
+
+      // Per enabled file, setupWatchers creates the pulse watcher first (index 0)
+      // and the data-file delete watcher second (index 1).
+      expect(createdWatchers.length).toBeGreaterThanOrEqual(2);
+      const dataWatcher = createdWatchers[1];
+      expect(dataWatcher.onDidDelete).toHaveLength(1);
+
+      // Fire the data-file delete handler.
+      dataWatcher.onDidDelete[0]!();
+
+      // Cache invalidation runs synchronously; the refresh is fire-and-forget
+      // (debounced), so the repaint must NOT have happened yet.
+      expect(invalidateFileCache).toHaveBeenCalledTimes(1);
+      expect(deps.updateDecorations).not.toHaveBeenCalled();
+
+      // Flush the 100ms debounce — the scheduled refresh now runs.
+      await vi.advanceTimersByTimeAsync(100);
+      expect(deps.revalidateOpenDocuments).toHaveBeenCalledTimes(1);
+      expect(deps.updateDecorations).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
