@@ -260,33 +260,25 @@ export function createDecorationManager(deps: DecorationDeps) {
     }
   }
 
-  async function updateDecorations(): Promise<void> {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      log.debug('No active editor, clearing context');
-      try {
-        const glyph = vscode.workspace.getConfiguration('editor').get('glyphMargin');
-        log.debug(`editor.glyphMargin=${glyph}`);
-      } catch {}
-      await vscode.commands.executeCommand('setContext', 'agenticBookmarks.linesForActiveDoc', []);
-      return;
-    }
-
+  /**
+   * Paint bookmark gutter / note decorations for a single editor and return the
+   * 1-based bookmark line numbers found in it (used to drive the active-editor
+   * context menu). Returns [] for non-file editors or files outside a workspace.
+   */
+  async function updateDecorationsForEditor(editor: vscode.TextEditor): Promise<number[]> {
     const currentUri = editor.document.uri.toString();
     const currentFs = vscode.Uri.parse(currentUri).fsPath;
     // Skip non-file editors (e.g., Output, Debug Console)
     if (editor.document.uri.scheme !== 'file') {
-      await vscode.commands.executeCommand('setContext', 'agenticBookmarks.linesForActiveDoc', []);
-      return;
+      return [];
     }
     log.debug(`Updating decorations for: ${currentUri}`);
 
-    // Determine the workspace for the active editor
+    // Determine the workspace for the editor
     const editorWorkspace = vscode.workspace.getWorkspaceFolder(editor.document.uri);
     if (!editorWorkspace) {
       log.error(`[Bookmarks] No workspace folder for: ${currentFs}`);
-      await vscode.commands.executeCommand('setContext', 'agenticBookmarks.linesForActiveDoc', []);
-      return;
+      return [];
     }
     const editorWorkspaceRoot = editorWorkspace.uri.fsPath;
     log.debug(`[Bookmarks] Editor workspace: ${editorWorkspaceRoot}`);
@@ -633,9 +625,29 @@ export function createDecorationManager(deps: DecorationDeps) {
       }, 150);
     }
 
-    // Update context for when clauses (1-based line numbers for menu)
-    await vscode.commands.executeCommand('setContext', 'agenticBookmarks.linesForActiveDoc', lines);
-    log.trace(`Set context with lines: [${lines.join(', ')}]`);
+    log.trace(`Decorations for ${currentUri}: lines [${lines.join(', ')}]`);
+    return lines;
+  }
+
+  /**
+   * Repaint decorations for every visible editor (not just the active one) so a
+   * data change — e.g. an anchor repair — clears stale broken/warning overlays
+   * in all open editors immediately, without requiring a reopen (SML-1491). The
+   * when-clause context (`linesForActiveDoc`) still tracks the active editor only.
+   */
+  async function updateDecorations(): Promise<void> {
+    const visibleEditors = vscode.window.visibleTextEditors;
+    const activeEditor = vscode.window.activeTextEditor;
+    let activeLines: number[] = [];
+    for (const editor of visibleEditors) {
+      const lines = await updateDecorationsForEditor(editor);
+      if (activeEditor && editor.document === activeEditor.document) {
+        activeLines = lines;
+      }
+    }
+    // Update context for when clauses (1-based line numbers for the active doc's menu)
+    await vscode.commands.executeCommand('setContext', 'agenticBookmarks.linesForActiveDoc', activeLines);
+    log.trace(`Set context with active-doc lines: [${activeLines.join(', ')}]`);
   }
 
   return { updateDecorations, refreshDecorationAppearance };
