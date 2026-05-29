@@ -48,18 +48,20 @@ export function createRevalidateAndRepaint(deps: RevalidateAndRepaintDeps): Reva
 
   // Re-resolve anchors via `resolve` (guarded), THEN repaint exactly once.
   // The guard wraps only the resolve step so the repaint always runs even when
-  // resolution throws (SML-1491/SML-1495).
-  async function repaintAfter(resolve: () => Promise<void>): Promise<void> {
+  // resolution throws (SML-1491/SML-1495). `context` names the failing step
+  // (and the document, for the open path) so a logged failure stays triageable.
+  async function repaintAfter(resolve: () => Promise<void>, context: string): Promise<void> {
     try {
       await resolve();
     } catch (err) {
-      log.error(`[revalidateAndRepaint] resolve step failed: ${err}`);
+      log.error(`[revalidateAndRepaint] ${context} failed: ${err}`);
     }
     await updateDecorations();
   }
 
   return {
-    revalidateAndRepaint: () => repaintAfter(revalidateOpenDocuments),
-    openAndRepaint: (document) => repaintAfter(() => onFileOpened(document)),
+    revalidateAndRepaint: () => repaintAfter(revalidateOpenDocuments, 'revalidateOpenDocuments'),
+    openAndRepaint: (document) =>
+      repaintAfter(() => onFileOpened(document), `onFileOpened(${document.uri})`),
   };
 }

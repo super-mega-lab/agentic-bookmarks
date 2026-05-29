@@ -65,7 +65,10 @@ function makeDeps(calls: string[]): WatcherDeps {
     workspaceRoot: '/ws',
     log,
     context: { subscriptions: [] } as any,
-    updateDecorations: vi.fn(async () => { calls.push('updateDecorations'); }),
+    // Not driven by the pulse path (which routes through revalidateAndRepaint);
+    // present only to satisfy WatcherDeps. The registry-watcher path that uses it
+    // is not exercised here.
+    updateDecorations: vi.fn(async () => {}),
     refreshDecorationAppearance: vi.fn(async () => {}),
     refreshTrees: vi.fn(() => {}),
     refreshBookmarkTrees: vi.fn(() => { calls.push('refreshBookmarkTrees'); }),

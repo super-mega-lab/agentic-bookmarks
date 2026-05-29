@@ -68,10 +68,13 @@ describe('revalidate-and-repaint — centralized revalidate→decorate invariant
     expect(deps.updateDecorations).toHaveBeenCalledTimes(1);
   });
 
-  it('revalidateAndRepaint still repaints when revalidateOpenDocuments rejects', async () => {
+  it('revalidateAndRepaint still repaints (after the failed resolve) when revalidateOpenDocuments rejects', async () => {
     const calls: string[] = [];
     const deps = makeDeps(calls);
-    deps.revalidateOpenDocuments = vi.fn(async () => { throw new Error('revalidate boom'); });
+    deps.revalidateOpenDocuments = vi.fn(async () => {
+      calls.push('revalidateOpenDocuments');
+      throw new Error('revalidate boom');
+    });
     const { revalidateAndRepaint } = createRevalidateAndRepaint(deps);
 
     // The returned promise must NOT reject (no unhandled rejection).
@@ -80,12 +83,19 @@ describe('revalidate-and-repaint — centralized revalidate→decorate invariant
     expect(deps.revalidateOpenDocuments).toHaveBeenCalledTimes(1);
     expect(deps.updateDecorations).toHaveBeenCalledTimes(1);
     expect(deps.log.error).toHaveBeenCalledTimes(1);
+    // Repaint still runs AFTER the failed resolve — ordering holds on the error path too.
+    expect(calls.indexOf('revalidateOpenDocuments')).toBeLessThan(
+      calls.indexOf('updateDecorations'),
+    );
   });
 
-  it('openAndRepaint still repaints when onFileOpened rejects', async () => {
+  it('openAndRepaint still repaints (after the failed resolve) when onFileOpened rejects', async () => {
     const calls: string[] = [];
     const deps = makeDeps(calls);
-    deps.onFileOpened = vi.fn(async () => { throw new Error('open boom'); });
+    deps.onFileOpened = vi.fn(async () => {
+      calls.push('onFileOpened');
+      throw new Error('open boom');
+    });
     const { openAndRepaint } = createRevalidateAndRepaint(deps);
 
     await expect(openAndRepaint({} as any)).resolves.toBeUndefined();
@@ -93,5 +103,8 @@ describe('revalidate-and-repaint — centralized revalidate→decorate invariant
     expect(deps.onFileOpened).toHaveBeenCalledTimes(1);
     expect(deps.updateDecorations).toHaveBeenCalledTimes(1);
     expect(deps.log.error).toHaveBeenCalledTimes(1);
+    expect(calls.indexOf('onFileOpened')).toBeLessThan(
+      calls.indexOf('updateDecorations'),
+    );
   });
 });

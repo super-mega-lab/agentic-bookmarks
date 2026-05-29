@@ -635,9 +635,7 @@ async function activateForWorkspace(
 
   // --- Document lifecycle ---
   context.subscriptions.push(
-    vscode.workspace.onDidOpenTextDocument(async (document) => {
-      await openAndRepaint(document);
-    })
+    vscode.workspace.onDidOpenTextDocument(openAndRepaint)
   );
   context.subscriptions.push(
     vscode.workspace.onDidCloseTextDocument((document) => {
