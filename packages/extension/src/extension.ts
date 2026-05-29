@@ -542,7 +542,7 @@ async function activateForWorkspace(
   await refreshDecorationAppearance();
 
   // Single owner of the revalidate→decorate ordering invariant (SML-1496).
-  const { revalidateAndRepaint, openAndRepaint } = createRevalidateAndRepaint({
+  const { revalidateAndRepaint, openAndRepaint, repaintAfter } = createRevalidateAndRepaint({
     revalidateOpenDocuments,
     onFileOpened,            // the WRAPPED onFileOpened (markFileValidated), defined above
     updateDecorations,
@@ -842,10 +842,13 @@ async function activateForWorkspace(
   log.info('Commands registered');
 
   // --- Initialize anchor state for already-open documents ---
-  for (const editor of vscode.window.visibleTextEditors) {
-    await onFileOpened(editor.document);
-  }
-  await updateDecorations();
+  // N:1 (resolve-many → paint-once) routed through the invariant helper so the
+  // resolve→repaint order and the resolve/repaint guards hold here too (SML-1499).
+  await repaintAfter(async () => {
+    for (const editor of vscode.window.visibleTextEditors) {
+      await onFileOpened(editor.document);
+    }
+  }, 'activation: initialize anchor state for open documents');
 
   // --- Background repair queue ---
   repairQueue = new AnchorRepairQueue({
@@ -1009,10 +1012,15 @@ async function activateForWorkspace(
         return;
       }
       const docUri = ed.document.uri.toString();
-      if (!hasStateForFile(docUri)) {
-        await onFileOpened(ed.document);
-      }
-      updateDecorations();
+      // Conditional resolve (only the first time we see this doc) but always
+      // repaint — routed through the invariant helper so the order and the
+      // resolve/repaint guards hold (SML-1499). openAndRepaint can't express
+      // this shape because it always resolves.
+      await repaintAfter(async () => {
+        if (!hasStateForFile(docUri)) {
+          await onFileOpened(ed.document);
+        }
+      }, `onDidChangeActiveTextEditor(${ed.document.uri})`);
     })
   );
 
@@ -1022,8 +1030,8 @@ async function activateForWorkspace(
       if (doc.uri.scheme !== 'file') return;
       const docUri = doc.uri.toString();
       if (!hasStateForFile(docUri)) return;
-      await onFileOpened(doc);
-      updateDecorations();
+      // Resolve-one → repaint, via the invariant helper (SML-1499).
+      await openAndRepaint(doc);
     })
   );
 

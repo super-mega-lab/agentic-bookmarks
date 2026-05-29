@@ -107,4 +107,57 @@ describe('revalidate-and-repaint — centralized revalidate→decorate invariant
       calls.indexOf('updateDecorations'),
     );
   });
+
+  // --- repaintAfter: the generic guarded primitive (SML-1499) ---
+
+  it('repaintAfter runs the resolve step before updateDecorations and repaints exactly once', async () => {
+    const calls: string[] = [];
+    const deps = makeDeps(calls);
+    const { repaintAfter } = createRevalidateAndRepaint(deps);
+
+    await repaintAfter(async () => { calls.push('resolve'); }, 'custom');
+
+    expect(calls).toEqual(['resolve', 'updateDecorations']);
+    expect(deps.updateDecorations).toHaveBeenCalledTimes(1);
+  });
+
+  it('repaintAfter still repaints (after the failed resolve) without rejecting', async () => {
+    const calls: string[] = [];
+    const deps = makeDeps(calls);
+    const { repaintAfter } = createRevalidateAndRepaint(deps);
+
+    await expect(
+      repaintAfter(async () => { calls.push('resolve'); throw new Error('resolve boom'); }, 'custom'),
+    ).resolves.toBeUndefined();
+
+    expect(calls).toEqual(['resolve', 'updateDecorations']);
+    expect(deps.log.error).toHaveBeenCalledTimes(1);
+  });
+
+  it('repaintAfter swallows and logs a failing repaint (no unhandled rejection)', async () => {
+    const calls: string[] = [];
+    const deps = makeDeps(calls);
+    deps.updateDecorations = vi.fn(async () => {
+      calls.push('updateDecorations');
+      throw new Error('repaint boom');
+    });
+    const { repaintAfter } = createRevalidateAndRepaint(deps);
+
+    await expect(
+      repaintAfter(async () => { calls.push('resolve'); }, 'custom'),
+    ).resolves.toBeUndefined();
+
+    expect(deps.updateDecorations).toHaveBeenCalledTimes(1);
+    expect(deps.log.error).toHaveBeenCalledTimes(1);
+  });
+
+  it('revalidateAndRepaint does not reject when the repaint itself throws', async () => {
+    const calls: string[] = [];
+    const deps = makeDeps(calls);
+    deps.updateDecorations = vi.fn(async () => { throw new Error('repaint boom'); });
+    const { revalidateAndRepaint } = createRevalidateAndRepaint(deps);
+
+    await expect(revalidateAndRepaint()).resolves.toBeUndefined();
+    expect(deps.log.error).toHaveBeenCalledTimes(1);
+  });
 });
