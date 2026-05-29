@@ -113,76 +113,90 @@ export function createAnchorResolution(deps: AnchorResolutionDeps): AnchorResolu
     if (document.uri.scheme !== 'file') return;
 
     const docUri = document.uri.toString();
-    log.debug(`[anchorState] onFileOpened: ${docUri}`);
 
-    const fileLines = document.getText().split('\n');
+    // Never-throw for every caller. onFileOpened is reached from the startup scan,
+    // the open/active-editor/save handlers, and the revalidateOpenDocuments loop —
+    // a single failing document (e.g. getText() on a disposing document, or
+    // getAllBookmarksForUri rejecting) must not abort the caller's loop, reject
+    // activate(), or surface as an unhandled rejection. Guarding here, at the shared
+    // choke-point every call site funnels through, means no caller has to remember to
+    // wrap it (SML-1500). Supersedes the per-loop guard removed from
+    // revalidateOpenDocuments (SML-1495) and makes the repaint path's guard
+    // (revalidate-and-repaint.ts) belt-and-suspenders.
+    try {
+      log.debug(`[anchorState] onFileOpened: ${docUri}`);
 
-    // Resolve via the shared resolver (single source of truth — see resolveUriAnchors).
-    const { allBookmarks, results, isLocalMap, showWarningOnShared, enableLocalContextRefresh } =
-      await resolveUriAnchors(docUri, fileLines, { workspaceRoot, getAllBookmarksForUri, getResolutionOptions });
-    log.debug(`[anchorState] found ${allBookmarks.length} bookmarks for file`);
-    if (allBookmarks.length === 0) {
-      clearStateForFile(docUri);
-      return;
-    }
-    log.trace(() => `[anchorState] resolved ${results.length} anchors: ${JSON.stringify(results.map(r => ({ id: r.anchorId, resolved: r.resolved, line: r.line })))}`);
+      const fileLines = document.getText().split('\n');
 
-    // Populate in-memory state
-    initStateForFile(docUri, results, { isLocalMap, showWarningOnShared });
-    log.debug(`[anchorState] state initialized`);
+      // Resolve via the shared resolver (single source of truth — see resolveUriAnchors).
+      const { allBookmarks, results, isLocalMap, showWarningOnShared, enableLocalContextRefresh } =
+        await resolveUriAnchors(docUri, fileLines, { workspaceRoot, getAllBookmarksForUri, getResolutionOptions });
+      log.debug(`[anchorState] found ${allBookmarks.length} bookmarks for file`);
+      if (allBookmarks.length === 0) {
+        clearStateForFile(docUri);
+        return;
+      }
+      log.trace(() => `[anchorState] resolved ${results.length} anchors: ${JSON.stringify(results.map(r => ({ id: r.anchorId, resolved: r.resolved, line: r.line })))}`);
 
-    // Context refresh for local smart anchors — regenerate context when it has drifted
-    if ((enableLocalContextRefresh ?? true) && deps.writeRefreshedAnchors) {
-      const pendingUpdates: Array<{ bookmarkId: string; anchor: any }> = [];
+      // Populate in-memory state
+      initStateForFile(docUri, results, { isLocalMap, showWarningOnShared });
+      log.debug(`[anchorState] state initialized`);
 
-      for (const result of results) {
-        if (!result.resolved || result.line === undefined) continue;
-        const entry = allBookmarks.find(b => b.bookmark.id === result.anchorId);
-        if (!entry || !entry.isLocal) continue;
-        if (entry.bookmark.anchor.kind !== 'smart') continue;
+      // Context refresh for local smart anchors — regenerate context when it has drifted
+      if ((enableLocalContextRefresh ?? true) && deps.writeRefreshedAnchors) {
+        const pendingUpdates: Array<{ bookmarkId: string; anchor: any }> = [];
 
-        const { anchor: refreshed, refreshed: didRefresh } = refreshSmartAnchorContext(
-          entry.bookmark.anchor,
-          result.line,
-          fileLines,
-          { isLocal: true }
-        );
+        for (const result of results) {
+          if (!result.resolved || result.line === undefined) continue;
+          const entry = allBookmarks.find(b => b.bookmark.id === result.anchorId);
+          if (!entry || !entry.isLocal) continue;
+          if (entry.bookmark.anchor.kind !== 'smart') continue;
 
-        if (didRefresh) {
-          pendingUpdates.push({ bookmarkId: entry.bookmark.id, anchor: refreshed });
-          log.debug(`[contextRefresh] Refreshed context for ${entry.bookmark.id}`);
+          const { anchor: refreshed, refreshed: didRefresh } = refreshSmartAnchorContext(
+            entry.bookmark.anchor,
+            result.line,
+            fileLines,
+            { isLocal: true }
+          );
+
+          if (didRefresh) {
+            pendingUpdates.push({ bookmarkId: entry.bookmark.id, anchor: refreshed });
+            log.debug(`[contextRefresh] Refreshed context for ${entry.bookmark.id}`);
+          }
+        }
+
+        if (pendingUpdates.length > 0) {
+          try {
+            await deps.writeRefreshedAnchors(pendingUpdates);
+            log.info(`[contextRefresh] Wrote ${pendingUpdates.length} refreshed anchors`);
+          } catch (err: any) {
+            log.error(`[contextRefresh] Failed to write: ${err?.message || err}`);
+          }
         }
       }
 
-      if (pendingUpdates.length > 0) {
-        try {
-          await deps.writeRefreshedAnchors(pendingUpdates);
-          log.info(`[contextRefresh] Wrote ${pendingUpdates.length} refreshed anchors`);
-        } catch (err: any) {
-          log.error(`[contextRefresh] Failed to write: ${err?.message || err}`);
-        }
+      // Register bookmark URIs for broken-anchors cache sync
+      for (const { bookmark } of allBookmarks) {
+        registerBookmarkUri(docUri, bookmark.id, bookmark.targetUri);
       }
+
+      // Refresh tree view to reflect broken anchor status. The bulk revalidate
+      // path defers this and refreshes once after its loop, so the bookmarks tree
+      // is rebuilt once per pulse instead of once per open document (SML-1497).
+      if (!opts?.deferTreeRefresh) refreshTree();
+
+      // Enqueue broken anchors for background auto-repair (gated by autoRepair setting)
+      getRepairQueue()?.enqueue(docUri);
+
+      // Always enqueue for deep-flex position check (NOT gated by autoRepair —
+      // updates in-memory display state so bookmarks show at the right line)
+      getRepairQueue()?.enqueueDeepFlexOnly(docUri);
+
+      // Sync broken anchors cache to disk
+      debouncedCacheSync();
+    } catch (err: any) {
+      log.error(`[anchorState] onFileOpened failed for ${docUri}: ${err?.message || err}`);
     }
-
-    // Register bookmark URIs for broken-anchors cache sync
-    for (const { bookmark } of allBookmarks) {
-      registerBookmarkUri(docUri, bookmark.id, bookmark.targetUri);
-    }
-
-    // Refresh tree view to reflect broken anchor status. The bulk revalidate
-    // path defers this and refreshes once after its loop, so the bookmarks tree
-    // is rebuilt once per pulse instead of once per open document (SML-1497).
-    if (!opts?.deferTreeRefresh) refreshTree();
-
-    // Enqueue broken anchors for background auto-repair (gated by autoRepair setting)
-    getRepairQueue()?.enqueue(docUri);
-
-    // Always enqueue for deep-flex position check (NOT gated by autoRepair —
-    // updates in-memory display state so bookmarks show at the right line)
-    getRepairQueue()?.enqueueDeepFlexOnly(docUri);
-
-    // Sync broken anchors cache to disk
-    debouncedCacheSync();
   }
 
   async function revalidateOpenDocuments(): Promise<void> {
@@ -190,15 +204,12 @@ export function createAnchorResolution(deps: AnchorResolutionDeps): AnchorResolu
     for (const document of vscode.workspace.textDocuments) {
       if (document.uri.scheme !== 'file') continue;
       if (!hasStateForFile(document.uri.toString())) continue;
-      const docUri = document.uri.toString();
-      try {
-        // Defer the per-doc tree refresh; we refresh once after the loop (SML-1497).
-        // Guard each doc so one failing re-resolve doesn't abort the rest (SML-1495).
-        await onFileOpened(document, { deferTreeRefresh: true });
-        revalidatedAny = true;
-      } catch (err: any) {
-        log.error(`[anchorState] revalidate failed for ${docUri}: ${err?.message || err}`);
-      }
+      // Defer the per-doc tree refresh; we refresh once after the loop (SML-1497).
+      // onFileOpened guards its own body and never throws (SML-1500), so one failing
+      // re-resolve can't abort the rest — the per-loop try/catch (SML-1495) is no
+      // longer needed here.
+      await onFileOpened(document, { deferTreeRefresh: true });
+      revalidatedAny = true;
     }
     // Single tree refresh after the bulk re-resolve instead of one per document
     // (SML-1497) — avoids O(N) refreshTree() calls with N open editors.

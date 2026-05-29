@@ -1,6 +1,6 @@
 // ABOUTME: Unit tests for revalidateOpenDocuments / onFileOpened in anchor-resolution.ts — the
 // ABOUTME: bulk re-resolve refreshes the bookmarks tree ONCE not once per open document (SML-1497),
-// ABOUTME: and a single document whose re-resolution throws must NOT abort the loop (SML-1495).
+// ABOUTME: and a single failing document must NOT abort the loop or escape onFileOpened (SML-1495/1500).
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -34,6 +34,7 @@ vi.mock('./brokenAnchorsSync', () => ({
 }));
 
 import { createAnchorResolution, type AnchorResolutionDeps } from './anchor-resolution';
+import { hasStateForFile } from './anchorState';
 
 describe('anchor-resolution — batched tree refresh (SML-1497)', () => {
   function fakeDoc(uri: string) {
@@ -179,5 +180,93 @@ describe('anchor-resolution — revalidateOpenDocuments resilience (SML-1495)', 
 
     await expect(revalidateOpenDocuments()).resolves.toBeUndefined();
     expect(deps.log.error).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('anchor-resolution — onFileOpened never-throw guard (SML-1500)', () => {
+  function makeDeps(): AnchorResolutionDeps {
+    return {
+      workspaceRoot: '/ws',
+      log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), trace: vi.fn() } as any,
+      // Empty bookmark list -> onFileOpened takes its early return after this call.
+      getAllBookmarksForUri: vi.fn(async () => []),
+      getResolutionOptions: vi.fn(async () => ({} as any)),
+      refreshTree: vi.fn(),
+      getRepairQueue: () => null,
+      debouncedCacheSync: vi.fn(),
+    };
+  }
+
+  beforeEach(() => {
+    mockState.textDocuments = [];
+    mockState.hasState = true;
+    vi.clearAllMocks();
+    // clearAllMocks keeps implementations; restore the default so a per-test
+    // override below cannot leak into a later test.
+    vi.mocked(hasStateForFile).mockImplementation(() => mockState.hasState);
+  });
+
+  it('swallows and logs (does not throw) when getText() throws', async () => {
+    const deps = makeDeps();
+    const { onFileOpened } = createAnchorResolution(deps);
+    const doc = {
+      uri: { scheme: 'file', toString: () => 'file:///gone.ts', fsPath: '/gone.ts' },
+      getText: () => { throw new Error('document disposed'); },
+    } as any;
+
+    // The throw must be caught inside onFileOpened, not propagate to the caller
+    // (startup scan / open / active / save / revalidate loop) — SML-1500.
+    await expect(onFileOpened(doc)).resolves.toBeUndefined();
+
+    expect(deps.log.error).toHaveBeenCalledTimes(1);
+    const msg = (deps.log.error as any).mock.calls[0][0] as string;
+    expect(msg).toContain('file:///gone.ts');
+    expect(msg).toContain('document disposed');
+    // It threw before reaching the tree refresh.
+    expect(deps.refreshTree).not.toHaveBeenCalled();
+  });
+
+  it('ignores non-file-scheme documents (early return before the guarded body)', async () => {
+    const deps = makeDeps();
+    const { onFileOpened } = createAnchorResolution(deps);
+    const doc = {
+      uri: { scheme: 'untitled', toString: () => 'untitled:Untitled-1' },
+      getText: () => 'x',
+    } as any;
+
+    await onFileOpened(doc);
+
+    expect(deps.getAllBookmarksForUri).not.toHaveBeenCalled();
+    expect(deps.refreshTree).not.toHaveBeenCalled();
+    expect(deps.log.error).not.toHaveBeenCalled();
+  });
+
+  it('revalidateOpenDocuments skips non-file-scheme documents', async () => {
+    mockState.textDocuments = [
+      { uri: { scheme: 'untitled', toString: () => 'untitled:Untitled-1' }, getText: () => 'x' } as any,
+    ];
+    const deps = makeDeps();
+    const { revalidateOpenDocuments } = createAnchorResolution(deps);
+
+    await revalidateOpenDocuments();
+
+    expect(deps.getAllBookmarksForUri).not.toHaveBeenCalled();
+    expect(deps.refreshTree).not.toHaveBeenCalled();
+  });
+
+  it('revalidateOpenDocuments skips documents that have no in-memory state', async () => {
+    mockState.textDocuments = [
+      { uri: { scheme: 'file', toString: () => 'file:///stateful.ts' }, getText: () => '' } as any,
+      { uri: { scheme: 'file', toString: () => 'file:///stateless.ts' }, getText: () => '' } as any,
+    ];
+    vi.mocked(hasStateForFile).mockImplementation((uri: string) => uri === 'file:///stateful.ts');
+    const deps = makeDeps();
+    const { revalidateOpenDocuments } = createAnchorResolution(deps);
+
+    await revalidateOpenDocuments();
+
+    // Only the stateful document was re-resolved; the stateless one was skipped.
+    expect(deps.getAllBookmarksForUri).toHaveBeenCalledTimes(1);
+    expect(deps.getAllBookmarksForUri).toHaveBeenCalledWith('file:///stateful.ts', '/ws');
   });
 });
