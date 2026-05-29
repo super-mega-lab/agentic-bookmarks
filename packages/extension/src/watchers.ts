@@ -90,7 +90,14 @@ export function createWatcherManager(
       // painting before revalidation leaves the broken "!" gutter overlay
       // until the file is reopened (SML-1491). Matches the revalidate→decorate
       // order used in extension.ts onDidOpenTextDocument / onDidRenameFiles.
-      await revalidateOpenDocuments();
+      // Guard revalidation so a transient resolution error still lets the
+      // repaint run, and never surfaces as an unhandled rejection (the
+      // debounced callback is fire-and-forget from setTimeout).
+      try {
+        await revalidateOpenDocuments();
+      } catch (err) {
+        log.error(`[pulse] revalidateOpenDocuments failed: ${err}`);
+      }
       await updateDecorations();
     });
 
