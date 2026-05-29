@@ -107,7 +107,7 @@ export interface McpConfigAndDiagnosticsDeps {
   settingsProvider: SettingsProvider;
   codeLensProvider: BookmarkCodeLensProvider | null;
   updateDecorations: () => Promise<void>;
-  revalidateOpenDocuments: () => Promise<void>;
+  revalidateAndRepaint: () => Promise<void>;
   getUIState: () => UIState & { searches?: SearchFilter[] };
   setUIState: (next: UIState & { searches?: SearchFilter[] }) => Promise<void>;
   getCatalogCache: () => { path: string; baseDir: string } | null;
@@ -126,7 +126,7 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     settingsProvider,
     codeLensProvider,
     updateDecorations,
-    revalidateOpenDocuments,
+    revalidateAndRepaint,
     getUIState,
     setUIState,
     getCatalogCache,
@@ -664,10 +664,9 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
       log.info('Refresh command triggered');
       provider.refresh();
       if (codeLensProvider) codeLensProvider.refresh();
-      await updateDecorations();
       filesGroups.refresh();
       settingsProvider.refresh();
-      await revalidateOpenDocuments();
+      await revalidateAndRepaint();
     }),
 
     // Setup Claude Code MCP via `claude mcp add` (modern CLI syntax)

@@ -190,8 +190,15 @@ export function createAnchorResolution(deps: AnchorResolutionDeps): AnchorResolu
     for (const document of vscode.workspace.textDocuments) {
       if (document.uri.scheme !== 'file') continue;
       if (!hasStateForFile(document.uri.toString())) continue;
-      await onFileOpened(document, { deferTreeRefresh: true });
-      revalidatedAny = true;
+      const docUri = document.uri.toString();
+      try {
+        // Defer the per-doc tree refresh; we refresh once after the loop (SML-1497).
+        // Guard each doc so one failing re-resolve doesn't abort the rest (SML-1495).
+        await onFileOpened(document, { deferTreeRefresh: true });
+        revalidatedAny = true;
+      } catch (err: any) {
+        log.error(`[anchorState] revalidate failed for ${docUri}: ${err?.message || err}`);
+      }
     }
     // Single tree refresh after the bulk re-resolve instead of one per document
     // (SML-1497) — avoids O(N) refreshTree() calls with N open editors.
