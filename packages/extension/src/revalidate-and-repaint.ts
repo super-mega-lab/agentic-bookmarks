@@ -6,13 +6,17 @@
  * in-memory state. Painting before revalidating leaves a stale broken "!"
  * gutter overlay until the file is reopened (SML-1491).
  *
- * The resolve step is wrapped in a try/catch so a transient resolution error
- * still lets the repaint run, and never escapes as an unhandled rejection
- * (SML-1495). The repaint itself is intentionally NOT guarded — that matches
- * the behavior at every existing call site, none of which guard the repaint.
+ * Both steps are wrapped in try/catch: a transient resolution error still lets
+ * the repaint run (SML-1491), and a failing repaint is caught + logged rather
+ * than escaping as an unhandled rejection. Guarding the repaint too makes the
+ * "never an unhandled rejection" guarantee total — important because some
+ * callers (e.g. the debounced watcher pulse) invoke this fire-and-forget
+ * (SML-1495/SML-1499).
  *
  * This module owns the invariant so call sites no longer hand-roll (and drift
- * from) the revalidate→guard→repaint sequence (SML-1496).
+ * from) the revalidate→guard→repaint sequence (SML-1496). Sites that don't fit
+ * the 1:1 / all-docs shapes route through the generic `repaintAfter` primitive
+ * rather than re-pairing a raw resolve with a raw `updateDecorations` (SML-1499).
  */
 
 import type * as vscode from 'vscode';
@@ -37,6 +41,13 @@ export interface RevalidateAndRepaint {
   revalidateAndRepaint: () => Promise<void>;
   /** Resolve ONE doc, THEN repaint. For the document-open site. */
   openAndRepaint: (document: vscode.TextDocument) => Promise<void>;
+  /**
+   * Generic guarded primitive: run `resolve` (guarded), THEN repaint exactly
+   * once (also guarded). For sites that don't fit the 1:1 / all-docs shapes —
+   * conditional resolve (active-editor) and N:1 resolve-many→paint-once
+   * (activation init-loop). `context` labels the step for error logs.
+   */
+  repaintAfter: (resolve: () => Promise<void>, context: string) => Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -46,20 +57,27 @@ export interface RevalidateAndRepaint {
 export function createRevalidateAndRepaint(deps: RevalidateAndRepaintDeps): RevalidateAndRepaint {
   const { revalidateOpenDocuments, onFileOpened, updateDecorations, log } = deps;
 
-  // Re-resolve anchors via `resolve` (guarded), THEN repaint exactly once.
-  // The guard wraps only the resolve step so the repaint always runs even when
-  // resolution throws (SML-1491/SML-1495). `context` names the failing step
-  // (and the document, for the open path) so a logged failure stays triageable.
+  // Re-resolve anchors via `resolve` (guarded), THEN repaint exactly once (also
+  // guarded). The resolve guard keeps the repaint running even when resolution
+  // throws (SML-1491); the repaint guard keeps a failing paint from escaping as
+  // an unhandled rejection at fire-and-forget callers (SML-1495/SML-1499).
+  // `context` names the failing step (and the document, for the open path) so a
+  // logged failure stays triageable.
   async function repaintAfter(resolve: () => Promise<void>, context: string): Promise<void> {
     try {
       await resolve();
     } catch (err) {
       log.error(`[revalidateAndRepaint] ${context} failed: ${err}`);
     }
-    await updateDecorations();
+    try {
+      await updateDecorations();
+    } catch (err) {
+      log.error(`[revalidateAndRepaint] repaint after ${context} failed: ${err}`);
+    }
   }
 
   return {
+    repaintAfter,
     revalidateAndRepaint: () => repaintAfter(revalidateOpenDocuments, 'revalidateOpenDocuments'),
     openAndRepaint: (document) =>
       repaintAfter(() => onFileOpened(document), `onFileOpened(${document.uri})`),
