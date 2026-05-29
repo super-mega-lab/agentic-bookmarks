@@ -11,518 +11,110 @@
       "isUnsorted": true
     },
     {
-      "id": "M55oL60u",
-      "name": "Tree Views & UI",
-      "icon": {
-        "svg_style": "bookmark",
-        "svg_color": "#2a669c"
-      },
-      "createdAt": 1779233024990
-    },
-    {
-      "id": "60PfXpij",
-      "name": "Ordering & Drag-and-Drop",
-      "icon": {
-        "svg_style": "bookmark",
-        "svg_color": "#c1efaf"
-      },
-      "createdAt": 1779233034443
-    },
-    {
-      "id": "rlYJa5Gc",
-      "name": "MCP Server",
-      "icon": {
-        "svg_style": "bookmark",
-        "svg_color": "#f7ab1a"
-      },
-      "createdAt": 1779233051652
-    },
-    {
-      "id": "DZUnWdqV",
-      "name": "Licensing",
-      "icon": {
-        "svg_style": "bookmark",
-        "svg_color": "#887eb8"
-      },
-      "createdAt": 1779233042341
-    },
-    {
-      "id": "RMo-Zz_O",
-      "name": "Anchor State & Resolution",
-      "icon": {
-        "svg_style": "bookmark",
-        "svg_color": "#96b703"
-      },
-      "createdAt": 1779233002117
-    },
-    {
-      "id": "Z1qnkugL",
+      "id": "mwbN-Jw2",
       "name": "Extension Lifecycle",
       "icon": {
         "svg_style": "bookmark",
-        "svg_color": "#71450a"
+        "svg_color": "#548a15"
       },
-      "createdAt": 1779232986647
+      "createdAt": 1780019036956
     },
     {
-      "id": "PDlf6A2s",
+      "id": "VT28k546",
+      "name": "Anchor State & Resolution",
+      "icon": {
+        "svg_style": "bookmark",
+        "svg_color": "#40cd08"
+      },
+      "createdAt": 1780019037058
+    },
+    {
+      "id": "x5QuTw2y",
       "name": "Background Repair Queue",
       "icon": {
         "svg_style": "bookmark",
-        "svg_color": "#a4a882"
+        "svg_color": "#852fa9"
       },
-      "createdAt": 1779233016604
+      "createdAt": 1780019037230
     },
     {
-      "id": "grM5t0mU",
-      "name": "work-queue",
+      "id": "n6dbnxi6",
+      "name": "Tree Views & UI",
       "icon": {
         "svg_style": "bookmark",
-        "svg_color": "#96e213"
+        "svg_color": "#bcca19"
       },
-      "createdAt": 1779287002243
+      "createdAt": 1780019037318
+    },
+    {
+      "id": "mbbqwMTZ",
+      "name": "Webview Panels",
+      "icon": {
+        "svg_style": "bookmark",
+        "svg_color": "#90c442"
+      },
+      "createdAt": 1780019037404
+    },
+    {
+      "id": "BgPrc4GR",
+      "name": "Ordering & Drag-and-Drop",
+      "icon": {
+        "svg_style": "bookmark",
+        "svg_color": "#a3b0fb"
+      },
+      "createdAt": 1780019037486
+    },
+    {
+      "id": "Gz7GrSdJ",
+      "name": "Bookmark Commands",
+      "icon": {
+        "svg_style": "bookmark",
+        "svg_color": "#362fd7"
+      },
+      "createdAt": 1780019037564
+    },
+    {
+      "id": "966jJuK0",
+      "name": "MCP Setup & IPC",
+      "icon": {
+        "svg_style": "bookmark",
+        "svg_color": "#26f003"
+      },
+      "createdAt": 1780019037644
+    },
+    {
+      "id": "AGXlY1-O",
+      "name": "Licensing (Extension)",
+      "icon": {
+        "svg_style": "bookmark",
+        "svg_color": "#72ae58"
+      },
+      "createdAt": 1780019037728
+    },
+    {
+      "id": "PWi_Zo3G",
+      "name": "Licensing Package",
+      "icon": {
+        "svg_style": "bookmark",
+        "svg_color": "#8420bd"
+      },
+      "createdAt": 1780019037810
+    },
+    {
+      "id": "L3m_8Oqh",
+      "name": "MCP Server",
+      "icon": {
+        "svg_style": "bookmark",
+        "svg_color": "#c24932"
+      },
+      "createdAt": 1780019037888
     }
   ],
   "bookmarks": [
     {
-      "id": "VwW8AKgv",
+      "id": "ej2kCrO8",
       "fileId": "cPqQBMDw",
-      "groupId": "M55oL60u",
-      "target": {
-        "uri": "packages/extension/src/treeProvider.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export class FileNode extends vscode.TreeItem {",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 21,
-        "nonce": 0
-      },
-      "label": "FileNode — tree item representing a bookmarked file",
-      "createdAt": 1779233024996,
-      "source": "mcp"
-    },
-    {
-      "id": "aTEviCZh",
-      "fileId": "cPqQBMDw",
-      "groupId": "M55oL60u",
-      "target": {
-        "uri": "packages/extension/src/treeProvider.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export class BookmarkNode extends vscode.TreeItem {",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 42,
-        "nonce": 0
-      },
-      "label": "BookmarkNode — tree item for a single bookmark with anchor status",
-      "note": "Carries status/score/errorDetails from anchorState; parent ref needed for TreeView.reveal() and DnD sibling resolution",
-      "createdAt": 1779233027285,
-      "source": "mcp"
-    },
-    {
-      "id": "Db6HG4o_",
-      "fileId": "cPqQBMDw",
-      "groupId": "M55oL60u",
-      "target": {
-        "uri": "packages/extension/src/bookmarkCodeLensProvider.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "import * as vscode from 'vscode';",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 0,
-        "nonce": 0
-      },
-      "label": "BookmarkCodeLensProvider — inline editor lens for bookmarked lines",
-      "createdAt": 1779233028407,
-      "source": "mcp"
-    },
-    {
-      "id": "tI77iwMf",
-      "fileId": "cPqQBMDw",
-      "groupId": "M55oL60u",
-      "target": {
-        "uri": "packages/extension/src/decorations.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "import * as vscode from 'vscode';",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 0,
-        "nonce": 0
-      },
-      "label": "createDecorationManager() — gutter icons and editor decorations",
-      "createdAt": 1779233029361,
-      "source": "mcp"
-    },
-    {
-      "id": "xI9tQDv1",
-      "fileId": "cPqQBMDw",
-      "groupId": "60PfXpij",
-      "target": {
-        "uri": "packages/extension/src/ordering/service.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export class OrderingService {",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 25,
-        "nonce": 0
-      },
-      "label": "OrderingService — in-memory rank store with debounced writes",
-      "note": "One instance per workspace, shared by both tree providers; writes serialized via inflight promise chain to avoid fs races",
-      "createdAt": 1779233034449,
-      "source": "mcp"
-    },
-    {
-      "id": "nQdnVoTe",
-      "fileId": "cPqQBMDw",
-      "groupId": "60PfXpij",
-      "target": {
-        "uri": "packages/extension/src/ordering/service.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "  static async load(cacheDir: string, knownIds?: KnownIds): Promise<OrderingServ",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 36,
-        "nonce": 0
-      },
-      "label": "OrderingService.load() — factory with optional stale-entry pruning",
-      "note": "knownIds param prunes orphaned ranks; currently not passed (TODO in extension.ts:155)",
-      "createdAt": 1779233036347,
-      "updatedAt": 1779235525133,
-      "source": "mcp"
-    },
-    {
-      "id": "kxiTs7is",
-      "fileId": "cPqQBMDw",
-      "groupId": "60PfXpij",
-      "target": {
-        "uri": "packages/extension/src/ordering/service.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "  private scheduleWrite(): void {",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 67,
-        "nonce": 0
-      },
-      "label": "scheduleWrite() — serialized write chain prevents concurrent fs.writeFile",
-      "createdAt": 1779233037483,
-      "source": "mcp"
-    },
-    {
-      "id": "Rpk_r-M2",
-      "fileId": "cPqQBMDw",
-      "groupId": "60PfXpij",
-      "target": {
-        "uri": "packages/extension/src/ordering/rank.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export const RANK_STEP = 100;",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 0,
-        "nonce": 0
-      },
-      "label": "rank.ts — fractional ranking algorithm for stable DnD reorder",
-      "createdAt": 1779233038645,
-      "source": "mcp"
-    },
-    {
-      "id": "ap95tFDl",
-      "fileId": "cPqQBMDw",
-      "groupId": "rlYJa5Gc",
-      "target": {
-        "uri": "packages/server/src/server-context.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export interface ServerContext {",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 2,
-        "nonce": 0
-      },
-      "label": "ServerContext — mutable request-session state bag",
-      "note": "Holds multi-workspace list + legacy single-root fallback; mutated by Initialize handler and per-request rootUris",
-      "createdAt": 1779233051658,
-      "source": "mcp"
-    },
-    {
-      "id": "EY5nur65",
-      "fileId": "cPqQBMDw",
-      "groupId": "rlYJa5Gc",
-      "target": {
-        "uri": "packages/server/src/index.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "const server = new Server(",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 62,
-        "nonce": 0
-      },
-      "label": "Server + capabilities declaration",
-      "createdAt": 1779233052870,
-      "source": "mcp"
-    },
-    {
-      "id": "ipfsI9tJ",
-      "fileId": "cPqQBMDw",
-      "groupId": "rlYJa5Gc",
-      "target": {
-        "uri": "packages/server/src/index.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "server.setRequestHandler(InitializeRequestSchema, async (request) => {",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 83,
-        "nonce": 0
-      },
-      "label": "Initialize handler — workspace discovery and multi-workspace merge",
-      "note": "Priority: init meta rootUris → MCP_BOOKMARKS_WORKSPACES env → registry loadedWorkspaceFolders → BOOKMARKS_DIR/cwd fallback",
-      "createdAt": 1779233055158,
-      "source": "mcp"
-    },
-    {
-      "id": "KYPNabxo",
-      "fileId": "cPqQBMDw",
-      "groupId": "rlYJa5Gc",
-      "target": {
-        "uri": "packages/server/src/index.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "server.setRequestHandler(CallToolRequestSchema, async (request) => {",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 163,
-        "nonce": 0
-      },
-      "label": "Tool dispatch switch — all 20+ tool handlers routed here",
-      "createdAt": 1779233056310,
-      "source": "mcp"
-    },
-    {
-      "id": "7DaWAG-S",
-      "fileId": "cPqQBMDw",
-      "groupId": "rlYJa5Gc",
-      "target": {
-        "uri": "packages/server/src/resource-handlers.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export const SKILL_RESOURCES: Record<string, string> = {",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 19,
-        "nonce": 0
-      },
-      "label": "SKILL_RESOURCES map — skill URI → markdown content registry",
-      "note": "Add here AND in handleListResources() below when adding a new skill resource",
-      "createdAt": 1779233058102,
-      "source": "mcp"
-    },
-    {
-      "id": "eUyCqhIY",
-      "fileId": "cPqQBMDw",
-      "groupId": "DZUnWdqV",
-      "target": {
-        "uri": "packages/licensing/src/types.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export type Tier = 'free' | 'pro' | 'trial';",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 0,
-        "nonce": 0
-      },
-      "label": "Core types — Tier, LicenseStatus, FeatureAccess, TrialRecord",
-      "createdAt": 1779233042348,
-      "source": "mcp"
-    },
-    {
-      "id": "4E1lTxh0",
-      "fileId": "cPqQBMDw",
-      "groupId": "DZUnWdqV",
-      "target": {
-        "uri": "packages/licensing/src/feature-gate.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export function checkFeature(name: FeatureName, deps: FeatureGateDeps): FeatureA",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 8,
-        "nonce": 0
-      },
-      "label": "checkFeature() — public/local repos always pass; private requires pro/trial",
-      "note": "Repo visibility is the primary gate — license tier only matters for private repos",
-      "createdAt": 1779233044544,
-      "source": "mcp"
-    },
-    {
-      "id": "8Kaz4ehG",
-      "fileId": "cPqQBMDw",
-      "groupId": "DZUnWdqV",
-      "target": {
-        "uri": "packages/licensing/src/trial-timer.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export function startTrial(deps: StartTrialDeps): TrialRecord {",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 13,
-        "nonce": 0
-      },
-      "label": "startTrial() / evaluateTrial() — trial lifecycle logic",
-      "note": "startTrial is idempotent — returns existing record unchanged; evaluateTrial derives daysLeft from stored timestamp",
-      "createdAt": 1779233046457,
-      "source": "mcp"
-    },
-    {
-      "id": "NS_Qm-Xv",
-      "fileId": "cPqQBMDw",
-      "groupId": "DZUnWdqV",
-      "target": {
-        "uri": "packages/licensing/src/index.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export * from './types';",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 0,
-        "nonce": 0
-      },
-      "label": "Package public exports",
-      "createdAt": 1779233047111,
-      "source": "mcp"
-    },
-    {
-      "id": "MCWJTfJz",
-      "fileId": "cPqQBMDw",
-      "groupId": "RMo-Zz_O",
-      "target": {
-        "uri": "packages/extension/src/anchorState.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "const anchorState = new Map<string, Map<string, InMemoryAnchorState>>();",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 36,
-        "nonce": 0
-      },
-      "label": "Module-level anchor state Map — session-only, not persisted",
-      "note": "docUri → bookmarkId → InMemoryAnchorState; cleared on file close",
-      "createdAt": 1779233002123,
-      "source": "mcp"
-    },
-    {
-      "id": "YR-b62ZS",
-      "fileId": "cPqQBMDw",
-      "groupId": "RMo-Zz_O",
-      "target": {
-        "uri": "packages/extension/src/anchorState.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export function initStateForFile(",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 49,
-        "nonce": 0
-      },
-      "label": "initStateForFile() — maps resolution results to display state",
-      "note": "Handles lineCacheOnly (warning), low-confidence (warning), broken, and shared bookmark warning suppression",
-      "createdAt": 1779233004013,
-      "source": "mcp"
-    },
-    {
-      "id": "M1-uCzp6",
-      "fileId": "cPqQBMDw",
-      "groupId": "RMo-Zz_O",
-      "target": {
-        "uri": "packages/extension/src/anchorState.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": " */",
-        "contextBefore": [
-          " * Update positions after document edit."
-        ],
-        "contextAfter": [
-          "export function applyEditDelta("
-        ],
-        "lastUpdatedLine": 103,
-        "nonce": 0
-      },
-      "label": "applyEditDelta() — shifts anchor positions on document edit",
-      "createdAt": 1779233005162,
-      "source": "mcp"
-    },
-    {
-      "id": "DGAOlJYT",
-      "fileId": "cPqQBMDw",
-      "groupId": "RMo-Zz_O",
-      "target": {
-        "uri": "packages/extension/src/anchorState.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export function getDeepFlexAnchors(docUri: string): InMemoryAnchorState[] {",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 213,
-        "nonce": 0
-      },
-      "label": "getDeepFlexAnchors() — finds anchors needing wide-window context check",
-      "note": "Returns anchors where lineCache was found uniquely but context didn't match within flex=5; only returns entries where lastDeepFlexAt < lastValidatedAt",
-      "createdAt": 1779233007665,
-      "source": "mcp"
-    },
-    {
-      "id": "u33kGaTp",
-      "fileId": "cPqQBMDw",
-      "groupId": "RMo-Zz_O",
-      "target": {
-        "uri": "packages/extension/src/anchor-resolution.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export function createAnchorResolution(deps: AnchorResolutionDeps): AnchorResolu",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 51,
-        "nonce": 0
-      },
-      "label": "createAnchorResolution() — factory producing onFileOpened + revalidateOpenDocuments",
-      "note": "Drives anchor state on every document open/save/revalidate; also triggers repair queue and debounced cache sync",
-      "createdAt": 1779233012441,
-      "source": "mcp"
-    },
-    {
-      "id": "mNLNHDWr",
-      "fileId": "cPqQBMDw",
-      "groupId": "Z1qnkugL",
+      "groupId": "mwbN-Jw2",
       "target": {
         "uri": "packages/extension/src/extension.ts"
       },
@@ -531,122 +123,98 @@
         "lineCache": "export async function activate(context: vscode.ExtensionContext) {",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 61,
+        "lastUpdatedLine": 73,
         "nonce": 0
       },
       "label": "activate() — extension entry point",
-      "note": "Orchestrates all subsystem setup: migration, licensing, trees, commands, repair queue, MCP registration",
-      "createdAt": 1779232986659,
+      "note": "Top-level VS Code activation: sets up logging, output channel, welcome/agents providers, then defers workspace-scoped work via maybeActivateForWorkspace",
+      "createdAt": 1780021317376,
       "source": "mcp"
     },
     {
-      "id": "q4ixr-hC",
+      "id": "_5UhsZ6M",
       "fileId": "cPqQBMDw",
-      "groupId": "Z1qnkugL",
+      "groupId": "mwbN-Jw2",
       "target": {
         "uri": "packages/extension/src/extension.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "  // Runs before path resolution so subsequent helpers see the new layout.",
+        "lineCache": "async function activateForWorkspace(",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 85,
+        "lastUpdatedLine": 189,
         "nonce": 0
       },
-      "label": "Local layout migration — runs before path resolution",
-      "note": "Must run first so all subsequent path helpers see the post-migration layout",
-      "createdAt": 1779232986756,
+      "label": "activateForWorkspace() — workspace-scoped second phase",
+      "note": "Runs once a folder is available; owns all file-level wiring: resolution, sticky, scan, repair queue, MCP registration",
+      "createdAt": 1780021319222,
       "source": "mcp"
     },
     {
-      "id": "TjuS5lYS",
+      "id": "BAY4S8Tr",
       "fileId": "cPqQBMDw",
-      "groupId": "Z1qnkugL",
+      "groupId": "mwbN-Jw2",
       "target": {
         "uri": "packages/extension/src/extension.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "  // --- Anchor resolution (onFileOpened + revalidateOpenDocuments) ---",
+        "lineCache": "    vscode.workspace.onDidRenameFiles(async (e) => {",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 306,
+        "lastUpdatedLine": 645,
         "nonce": 0
       },
-      "label": "createAnchorResolution() wired to file lifecycle",
-      "note": "Returns onFileOpened + revalidateOpenDocuments; writes refreshed context anchors back to disk",
-      "createdAt": 1779232986861,
+      "label": "onDidRenameFiles — bookmark URI update on file rename",
+      "note": "Updates stored bookmark URIs then cancels stale repair-queue entries for the old URI",
+      "createdAt": 1780021321076,
       "source": "mcp"
     },
     {
-      "id": "oSCgo4x0",
+      "id": "taIKl8lx",
       "fileId": "cPqQBMDw",
-      "groupId": "Z1qnkugL",
+      "groupId": "mwbN-Jw2",
       "target": {
         "uri": "packages/extension/src/extension.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "  context.subscriptions.push(",
-        "contextBefore": [
-          "  // --- File rename tracking ---"
-        ],
-        "contextAfter": [
-          "    vscode.workspace.onDidRenameFiles(async (e) => {"
-        ],
-        "lastUpdatedLine": 441,
-        "nonce": 0
-      },
-      "label": "File rename tracking → live bookmark URI update",
-      "note": "Handles both file and directory renames; detects dir via fs.stat; gated by enableLiveRenameTracking setting",
-      "createdAt": 1779232991619,
-      "source": "mcp"
-    },
-    {
-      "id": "_TqNajjR",
-      "fileId": "cPqQBMDw",
-      "groupId": "Z1qnkugL",
-      "target": {
-        "uri": "packages/extension/src/extension.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "  // --- Background repair queue ---",
+        "lineCache": "  repairQueue = new AnchorRepairQueue({",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 640,
+        "lastUpdatedLine": 845,
         "nonce": 0
       },
-      "label": "Background repair queue initialization",
-      "note": "Created after anchor resolution so repairQueue ref is available to onFileOpened via closure",
-      "createdAt": 1779232993151,
+      "label": "repairQueue = new AnchorRepairQueue — repair queue init + dep injection",
+      "note": "Created after resolution and sticky are wired; deps tie it to the live registry and in-memory anchor state",
+      "createdAt": 1780021323307,
       "source": "mcp"
     },
     {
-      "id": "A-UpgjTA",
+      "id": "GOHCJIZK",
       "fileId": "cPqQBMDw",
-      "groupId": "Z1qnkugL",
+      "groupId": "mwbN-Jw2",
       "target": {
         "uri": "packages/extension/src/extension.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "  // --- MCP server registration ---",
+        "lineCache": "      const registration = vscodeLm.registerMcpServerDefinitionProvider('agentic_bookmarks', {",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 709,
+        "lastUpdatedLine": 1050,
         "nonce": 0
       },
-      "label": "MCP server registration via vscode.lm API",
-      "note": "Spawns server-bundle/index.js; passes BOOKMARKS_DIR + MCP_BOOKMARKS_WORKSPACES env vars; guarded for older VS Code versions that lack the API",
-      "createdAt": 1779232995481,
+      "label": "registerMcpServerDefinitionProvider — MCP server registration via vscode.lm",
+      "note": "Gracefully skips if the vscode.lm API is absent (older VS Code versions)",
+      "createdAt": 1780021324443,
       "source": "mcp"
     },
     {
-      "id": "hPF3iNpY",
+      "id": "8i5mum3u",
       "fileId": "cPqQBMDw",
-      "groupId": "Z1qnkugL",
+      "groupId": "mwbN-Jw2",
       "target": {
         "uri": "packages/extension/src/ext-context.ts"
       },
@@ -658,114 +226,332 @@
         "lastUpdatedLine": 41,
         "nonce": 0
       },
-      "label": "ExtCtx — 4-layer shared context bag",
-      "note": "Layers: vsc (framework), workspace (data paths), ui (tree providers), ops (shared behaviors). Passed to every extracted module",
-      "createdAt": 1779232997658,
+      "label": "ExtCtx interface — shared extension context contract",
+      "note": "Single object threaded through all subsystems; avoids coupling to vscode.ExtensionContext directly",
+      "createdAt": 1780021326290,
       "source": "mcp"
     },
     {
-      "id": "Dr9KLJPX",
+      "id": "0VwGNHDj",
       "fileId": "cPqQBMDw",
-      "groupId": "PDlf6A2s",
+      "groupId": "mwbN-Jw2",
       "target": {
-        "uri": "packages/extension/src/repairQueue.ts"
+        "uri": "packages/extension/src/ext-context.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "export class AnchorRepairQueue implements vscode.Disposable {",
+        "lineCache": "export function createExtCtx(parts: {",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 57,
+        "lastUpdatedLine": 94,
         "nonce": 0
       },
-      "label": "AnchorRepairQueue class — debounced background repair dispatcher",
-      "note": "Maintains separate queues for full repair and deep-flex-only checks; 500ms debounce, 3s per-file timeout",
-      "createdAt": 1779233016611,
+      "label": "createExtCtx() — factory that assembles ExtCtx",
+      "createdAt": 1780021327736,
       "source": "mcp"
     },
     {
-      "id": "bZSXEus-",
+      "id": "Ph137qNm",
       "fileId": "cPqQBMDw",
-      "groupId": "PDlf6A2s",
+      "groupId": "mwbN-Jw2",
       "target": {
-        "uri": "packages/extension/src/repairQueue.ts"
+        "uri": "packages/extension/src/workspace-helpers.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "  enqueue(docUri: string): void {",
+        "lineCache": "export async function syncDataRootSetting(workspaceRoot: string): Promise<void> {",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 72,
+        "lastUpdatedLine": 39,
         "nonce": 0
       },
-      "label": "enqueue() — gated by agenticBookmarks.autoRepair setting",
-      "createdAt": 1779233018115,
+      "label": "syncDataRootSetting() — persists configured data root into registry",
+      "note": "Standalone; safe to call from scan and MCP paths",
+      "createdAt": 1780021329586,
       "source": "mcp"
     },
     {
-      "id": "VQxFmj-B",
+      "id": "RV4v-YAk",
       "fileId": "cPqQBMDw",
-      "groupId": "PDlf6A2s",
+      "groupId": "mwbN-Jw2",
       "target": {
-        "uri": "packages/extension/src/repairQueue.ts"
+        "uri": "packages/extension/src/watchers.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "  enqueueDeepFlexOnly(docUri: string): void {",
+        "lineCache": "export function createWatcherManager(",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 97,
+        "lastUpdatedLine": 38,
         "nonce": 0
       },
-      "label": "enqueueDeepFlexOnly() — NOT gated by autoRepair; display-state only",
-      "note": "Always runs to update in-memory display position; disk writes inside still gated by autoRepair",
-      "createdAt": 1779233020007,
+      "label": "createWatcherManager() — FS watchers for data files + registry",
+      "note": "Returns a manager that can restart watchers when the registry or data root changes",
+      "createdAt": 1780021331464,
       "source": "mcp"
     },
     {
-      "id": "HhWgazqV",
+      "id": "FRbyuc0D",
       "fileId": "cPqQBMDw",
-      "groupId": "PDlf6A2s",
+      "groupId": "mwbN-Jw2",
       "target": {
-        "uri": "packages/extension/src/repairQueue.ts"
+        "uri": "packages/extension/src/migrate-local-layout.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "  private async processFile(docUri: string): Promise<void> {",
+        "lineCache": "export async function migrateLocalLayout(workspaceRoot: string): Promise<void> {",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 176,
+        "lastUpdatedLine": 52,
         "nonce": 0
       },
-      "label": "processFile() — core repair loop with per-file deadline",
-      "note": "Skips files edited since enqueue; runs standard repair then deep-flex pass (flex=100) in sequence",
-      "createdAt": 1779233021551,
+      "label": "migrateLocalLayout() — pre-0.5 layout auto-migration",
+      "note": "Moves files out of .vscode/ into .bookmarks/local/; idempotent and never deletes .vscode/ itself",
+      "createdAt": 1780021333422,
       "source": "mcp"
     },
     {
-      "id": "DyaXpecB",
+      "id": "dJ_oE_S0",
       "fileId": "cPqQBMDw",
-      "groupId": "grM5t0mU",
+      "groupId": "mwbN-Jw2",
       "target": {
-        "uri": "packages/extension/src/repairQueue.ts"
+        "uri": "packages/extension/src/logger.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "export class AnchorRepairQueue implements vscode.Disposable {",
+        "lineCache": "export interface Logger {",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 57,
+        "lastUpdatedLine": 4,
         "nonce": 0
       },
-      "label": "AnchorRepairQueue — the main background work queue",
-      "note": "PRIMARY work queue. Defers git-history-based smart-anchor repair OFF the file-open hot path so it doesn't burn CPU or block the UI. Lives in the EXTENSION (not core). Implements vscode.Disposable. Holds TWO internal queues: `pending` (full repairs, gated by the `agenticBookmarks.autoRepair` setting) and `pendingDeepFlex` (display-only deep-flex position checks, NOT gated by autoRepair). CPU-friendly mechanisms: 500ms debounce, 3000ms per-file timeout, sequential processing yielding to the event loop (setTimeout 0) between every file AND every anchor, and cancellation when files are closed or edited.",
-      "createdAt": 1779287002259,
+      "label": "Logger interface — structured log-level interface",
+      "createdAt": 1780021334760,
       "source": "mcp"
     },
     {
-      "id": "C7QamjIw",
+      "id": "kis-giW_",
       "fileId": "cPqQBMDw",
-      "groupId": "grM5t0mU",
+      "groupId": "VT28k546",
+      "target": {
+        "uri": "packages/extension/src/anchorState.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export interface InMemoryAnchorState {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 14,
+        "nonce": 0
+      },
+      "label": "InMemoryAnchorState interface — per-anchor in-memory record",
+      "note": "Holds resolved line, status, score, deepFlex flag; keyed by bookmarkId inside a per-file Map",
+      "createdAt": 1780021336651,
+      "source": "mcp"
+    },
+    {
+      "id": "-3_NgRgX",
+      "fileId": "cPqQBMDw",
+      "groupId": "VT28k546",
+      "target": {
+        "uri": "packages/extension/src/anchorState.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "const anchorState = new Map<string, Map<string, InMemoryAnchorState>>();",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 36,
+        "nonce": 0
+      },
+      "label": "anchorState Map — module-level in-memory store (docUri → bookmarkId → state)",
+      "note": "Module singleton; all access goes through exported accessors",
+      "createdAt": 1780021338524,
+      "source": "mcp"
+    },
+    {
+      "id": "WZNPT4ri",
+      "fileId": "cPqQBMDw",
+      "groupId": "VT28k546",
+      "target": {
+        "uri": "packages/extension/src/anchorState.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function classifyAnchorStatus(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 55,
+        "nonce": 0
+      },
+      "label": "classifyAnchorStatus() — shared status classifier (valid/warning/broken)",
+      "note": "Shared between open-file path and background scan path for identical classification",
+      "createdAt": 1780021340412,
+      "source": "mcp"
+    },
+    {
+      "id": "mYgF8bBb",
+      "fileId": "cPqQBMDw",
+      "groupId": "VT28k546",
+      "target": {
+        "uri": "packages/extension/src/anchorState.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function initStateForFile(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 76,
+        "nonce": 0
+      },
+      "label": "initStateForFile() — populate anchor state from resolution results on file open",
+      "createdAt": 1780021341817,
+      "source": "mcp"
+    },
+    {
+      "id": "fzN6XMWG",
+      "fileId": "cPqQBMDw",
+      "groupId": "VT28k546",
+      "target": {
+        "uri": "packages/extension/src/anchorState.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function getDeepFlexAnchors(docUri: string): InMemoryAnchorState[] {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 229,
+        "nonce": 0
+      },
+      "label": "getDeepFlexAnchors() — anchors needing deep-flex background recheck",
+      "note": "Scopes enqueueDeepFlexOnly work to confidence-borderline anchors",
+      "createdAt": 1780021343709,
+      "source": "mcp"
+    },
+    {
+      "id": "1TljKmho",
+      "fileId": "cPqQBMDw",
+      "groupId": "VT28k546",
+      "target": {
+        "uri": "packages/extension/src/anchor-resolution.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function resolveUriAnchors(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 68,
+        "nonce": 0
+      },
+      "label": "resolveUriAnchors() — single source-of-truth resolver for a file's anchors",
+      "note": "Used by both editor-open and background scan paths; result feeds initStateForFile",
+      "createdAt": 1780021345804,
+      "source": "mcp"
+    },
+    {
+      "id": "xJ4xzLv9",
+      "fileId": "cPqQBMDw",
+      "groupId": "VT28k546",
+      "target": {
+        "uri": "packages/extension/src/anchor-resolution.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function createAnchorResolution(deps: AnchorResolutionDeps): AnchorResolution {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 93,
+        "nonce": 0
+      },
+      "label": "createAnchorResolution() — factory for onFileOpened + revalidateOpenDocuments",
+      "note": "File-open handler also enqueues broken anchors into the repair queue",
+      "createdAt": 1780021347468,
+      "source": "mcp"
+    },
+    {
+      "id": "_PwaisgU",
+      "fileId": "cPqQBMDw",
+      "groupId": "VT28k546",
+      "target": {
+        "uri": "packages/extension/src/scanQueue.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class ScanQueue {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 47,
+        "nonce": 0
+      },
+      "label": "ScanQueue class — background disk-scan queue",
+      "note": "Batch-scans all registered files from disk to build the authoritative broken-anchors cache",
+      "createdAt": 1780021349349,
+      "source": "mcp"
+    },
+    {
+      "id": "Pk8c22Gq",
+      "fileId": "cPqQBMDw",
+      "groupId": "VT28k546",
+      "target": {
+        "uri": "packages/extension/src/scanValidate.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function buildAuthoritativeCache(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 46,
+        "nonce": 0
+      },
+      "label": "buildAuthoritativeCache() — merges scan results into on-disk broken-anchors cache",
+      "note": "Preserves original discoveredAt timestamps; used by ScanQueue after Phase 1",
+      "createdAt": 1780021351229,
+      "source": "mcp"
+    },
+    {
+      "id": "s9-8ldtJ",
+      "fileId": "cPqQBMDw",
+      "groupId": "VT28k546",
+      "target": {
+        "uri": "packages/extension/src/sticky.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerStickyHandler(deps: StickyDeps): {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 73,
+        "nonce": 0
+      },
+      "label": "registerStickyHandler() — text-edit listener that moves anchors in real time",
+      "note": "Debounced; classifies edit batch into micro/medium/bulk lane before deciding to move each anchor",
+      "createdAt": 1780021353116,
+      "source": "mcp"
+    },
+    {
+      "id": "dcChxt2Z",
+      "fileId": "cPqQBMDw",
+      "groupId": "VT28k546",
+      "target": {
+        "uri": "packages/extension/src/stickyGuards.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function classifyStickyLane(metrics: StickyBatchMetrics): StickyEditLane {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 119,
+        "nonce": 0
+      },
+      "label": "classifyStickyLane() — categorises edit batch as micro/medium/bulk",
+      "note": "Bulk lane suppresses sticky updates to avoid thrashing on large pastes/reformats",
+      "createdAt": 1780021354767,
+      "source": "mcp"
+    },
+    {
+      "id": "MNeWg6jT",
+      "fileId": "cPqQBMDw",
+      "groupId": "x5QuTw2y",
       "target": {
         "uri": "packages/extension/src/repairQueue.ts"
       },
@@ -777,15 +563,34 @@
         "lastUpdatedLine": 54,
         "nonce": 0
       },
-      "label": "Throttle constants: 500ms debounce + 3000ms per-file timeout",
-      "note": "The two knobs that keep the queue from overwhelming the system: DEBOUNCE_MS=500 (batch rapid enqueue calls) and PER_FILE_TIMEOUT_MS=3000 (a single file's repair pass can't run longer than 3s; checked against a deadline in processFile).",
-      "createdAt": 1779287005289,
+      "label": "DEBOUNCE_MS / PER_FILE_TIMEOUT_MS — throttle constants (500ms debounce, 3s per-file cap)",
+      "note": "Per-file timeout prevents one pathological file from starving the queue",
+      "createdAt": 1780021369423,
       "source": "mcp"
     },
     {
-      "id": "NnEDjpOr",
+      "id": "hbrQY6eU",
       "fileId": "cPqQBMDw",
-      "groupId": "grM5t0mU",
+      "groupId": "x5QuTw2y",
+      "target": {
+        "uri": "packages/extension/src/repairQueue.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class AnchorRepairQueue implements vscode.Disposable {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 57,
+        "nonce": 0
+      },
+      "label": "AnchorRepairQueue class — background auto-repair orchestrator",
+      "createdAt": 1780021370835,
+      "source": "mcp"
+    },
+    {
+      "id": "H3VY25i5",
+      "fileId": "cPqQBMDw",
+      "groupId": "x5QuTw2y",
       "target": {
         "uri": "packages/extension/src/repairQueue.ts"
       },
@@ -797,15 +602,15 @@
         "lastUpdatedLine": 72,
         "nonce": 0
       },
-      "label": "enqueue() — add a file for full anchor repair (autoRepair-gated)",
-      "note": "Work item = a file URI whose broken anchors need repair. Bails immediately if `agenticBookmarks.autoRepair` is off. Adds the URI to `pending`, clears any \"edited\" flag, and resets the 500ms debounce timer so a burst of opens collapses into one processing pass.",
-      "createdAt": 1779287008059,
+      "label": "enqueue() — add file to repair queue, gated by autoRepair setting",
+      "note": "Checks autoRepair at enqueue AND at processing time to respect mid-flight config changes",
+      "createdAt": 1780021372723,
       "source": "mcp"
     },
     {
-      "id": "C02dmByf",
+      "id": "c6jkqcbT",
       "fileId": "cPqQBMDw",
-      "groupId": "grM5t0mU",
+      "groupId": "x5QuTw2y",
       "target": {
         "uri": "packages/extension/src/repairQueue.ts"
       },
@@ -817,35 +622,35 @@
         "lastUpdatedLine": 97,
         "nonce": 0
       },
-      "label": "enqueueDeepFlexOnly() — second queue, display-only, NOT autoRepair-gated",
-      "note": "Work item = a file URI with anchors whose lineCache matched but whose context fell outside the resolution flex window (flex=5). Runs a wider repair window (FLEX_REPAIR_WINDOW=100). Always runs because it only updates in-memory display position; the actual disk write (applyRepair) is still gated by autoRepair inside the loop. Separate debounce timer + separate `pendingDeepFlex` set, allowed to run concurrently with the main queue.",
-      "createdAt": 1779287011393,
+      "label": "enqueueDeepFlexOnly() — queue deep-flex recheck, NOT gated by autoRepair",
+      "note": "Disk writes inside processDeepFlexFile are still gated; only the enqueue gate is skipped",
+      "createdAt": 1780021375154,
       "source": "mcp"
     },
     {
-      "id": "wiWuHgig",
+      "id": "6LxboorB",
       "fileId": "cPqQBMDw",
-      "groupId": "grM5t0mU",
+      "groupId": "x5QuTw2y",
       "target": {
         "uri": "packages/extension/src/repairQueue.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "    this.disposed = true;",
+        "lineCache": "  private async processQueue(): Promise<void> {",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 145,
-        "nonce": 1
+        "lastUpdatedLine": 159,
+        "nonce": 0
       },
-      "label": "processQueue() — drains pending one file at a time, yielding between each",
-      "note": "The drain loop. `processing` flag guards against re-entrancy. Pulls one URI at a time from `pending`, skips files edited since enqueue, re-checks the autoRepair setting, processes the file, then `await setTimeout(0)` to yield to the event loop before the next file — this is what spreads CPU cost over time.",
-      "createdAt": 1779287014035,
+      "label": "processQueue() — dequeues files serially with edit-skip guard",
+      "note": "Skips a file if edited after enqueue to avoid repairing a stale snapshot",
+      "createdAt": 1780021376923,
       "source": "mcp"
     },
     {
-      "id": "lReBPf7B",
+      "id": "ZJrH82vf",
       "fileId": "cPqQBMDw",
-      "groupId": "grM5t0mU",
+      "groupId": "x5QuTw2y",
       "target": {
         "uri": "packages/extension/src/repairQueue.ts"
       },
@@ -854,78 +659,437 @@
         "lineCache": "  private async processFile(docUri: string): Promise<void> {",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 176,
+        "lastUpdatedLine": 190,
         "nonce": 0
       },
-      "label": "processFile() — repair loop with deadline + per-anchor yield",
-      "note": "Where actual work happens per file: iterates broken anchors, calls findRepairCandidate (may shell out to git history), applies repairs, then runs an inline deep-flex pass. Stops on the 3s deadline or disposal, and yields (setTimeout 0) between every anchor so a file with many broken anchors never monopolizes the CPU.",
-      "createdAt": 1779287016923,
+      "label": "processFile() — repair broken anchors then process deep-flex for one file",
+      "note": "Broken-anchor repair writes to disk; deep-flex may update display-only when autoRepair is off",
+      "createdAt": 1780021381378,
       "source": "mcp"
     },
     {
-      "id": "NPwDepg4",
+      "id": "nTE16XLB",
       "fileId": "cPqQBMDw",
-      "groupId": "grM5t0mU",
+      "groupId": "x5QuTw2y",
       "target": {
-        "uri": "packages/extension/src/anchor-resolution.ts"
+        "uri": "packages/extension/src/anchor-repair-helpers.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "    getRepairQueue()?.enqueue(docUri);",
+        "lineCache": "export async function getBookmarkAnchorForRepair(",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 141,
+        "lastUpdatedLine": 68,
         "nonce": 0
       },
-      "label": "Producer: file-open path enqueues into the repair queue",
-      "note": "The main producer side of the queue. When a document's anchors are resolved (on open), this enqueues the URI for full repair (enqueue) and for deep-flex checking (enqueueDeepFlexOnly). This is the \"hot path\" the queue exists to keep light — both calls just register the URI and return; the heavy git work is deferred behind the debounce.",
-      "createdAt": 1779287022454,
+      "label": "getBookmarkAnchorForRepair() — loads bookmark anchor data from disk for repair",
+      "createdAt": 1780021381624,
       "source": "mcp"
     },
     {
-      "id": "3PTMcTwk",
+      "id": "glFXIyaa",
       "fileId": "cPqQBMDw",
-      "groupId": "grM5t0mU",
+      "groupId": "x5QuTw2y",
       "target": {
-        "uri": "packages/extension/src/extension.ts"
+        "uri": "packages/extension/src/anchor-repair-helpers.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "  repairQueue = new AnchorRepairQueue({",
+        "lineCache": "export async function applyAutoRepairCandidate(",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 716,
+        "lastUpdatedLine": 117,
         "nonce": 0
       },
-      "label": "Wiring: AnchorRepairQueue instantiated + deps injected here",
-      "note": "Where the queue is constructed (line 717) and registered as a disposable (739). The RepairQueueDeps wired here connect the queue to the rest of the extension: getBrokenAnchors/getDeepFlexAnchors, findRepairCandidate (core), applyRepair, updateAnchorState, refreshUI, etc. Cancellation hooks are also wired nearby: markEdited (477), cancel on close (509), cancel on rename (571).",
-      "createdAt": 1779287025888,
+      "label": "applyAutoRepairCandidate() — writes repaired anchor back to the data file",
+      "note": "Re-creates a fresh smart anchor at the candidate line, preserving workspace-relative URI form",
+      "createdAt": 1780021382155,
       "source": "mcp"
     },
     {
-      "id": "zX_iy6HP",
+      "id": "rG2JI4fq",
       "fileId": "cPqQBMDw",
-      "groupId": "grM5t0mU",
+      "groupId": "x5QuTw2y",
       "target": {
-        "uri": "packages/extension/src/extension.ts"
+        "uri": "packages/extension/src/brokenAnchorsSync.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "  let cacheSyncTimer: ReturnType<typeof setTimeout> | null = null;",
+        "lineCache": "export async function syncBrokenAnchorsCache(",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 367,
+        "lastUpdatedLine": 46,
         "nonce": 0
       },
-      "label": "Separate throttle: debounced broken-anchors cache sync (1000ms)",
-      "note": "A small standalone debounce (cacheSyncTimer, 1000ms) — NOT part of AnchorRepairQueue. Batches multiple repair/change events into a single syncBrokenAnchorsCache disk write so the cache isn't rewritten on every event. Example of the \"lots of little independent throttles\" pattern rather than one shared scheduler.",
-      "createdAt": 1779287028980,
+      "label": "syncBrokenAnchorsCache() — merge open-file state into persistent broken-anchors cache",
+      "note": "Preserves discoveredAt; merges scan-only entries",
+      "createdAt": 1780021384054,
       "source": "mcp"
     },
     {
-      "id": "5xMCgwEv",
+      "id": "xnH601m9",
       "fileId": "cPqQBMDw",
-      "groupId": "grM5t0mU",
+      "groupId": "x5QuTw2y",
+      "target": {
+        "uri": "packages/extension/src/brokenCount.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function countBroken(entries: brokenAnchorsCache.BrokenAnchorEntry[]): number {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 4,
+        "nonce": 0
+      },
+      "label": "countBroken() — dedupe broken anchor count across cache entries",
+      "note": "Counts unique bookmarkIds with status=broken, not raw entry count",
+      "createdAt": 1780021385900,
+      "source": "mcp"
+    },
+    {
+      "id": "4xhl-LYJ",
+      "fileId": "cPqQBMDw",
+      "groupId": "n6dbnxi6",
+      "target": {
+        "uri": "packages/extension/src/treeProvider.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class FileNode extends vscode.TreeItem {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 34,
+        "nonce": 0
+      },
+      "label": "FileNode tree item",
+      "note": "TreeItem subclass representing a file in the bookmarks tree; carries contextValue for command routing",
+      "createdAt": 1780021387775,
+      "source": "mcp"
+    },
+    {
+      "id": "Usof8hD1",
+      "fileId": "cPqQBMDw",
+      "groupId": "n6dbnxi6",
+      "target": {
+        "uri": "packages/extension/src/treeProvider.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class BookmarkNode extends vscode.TreeItem {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 55,
+        "nonce": 0
+      },
+      "label": "BookmarkNode tree item",
+      "note": "TreeItem subclass for individual bookmarks; owns label, line, command descriptors",
+      "createdAt": 1780021389635,
+      "source": "mcp"
+    },
+    {
+      "id": "2zFDLBAn",
+      "fileId": "cPqQBMDw",
+      "groupId": "n6dbnxi6",
+      "target": {
+        "uri": "packages/extension/src/treeProvider.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class BookmarksProvider implements vscode.TreeDataProvider<vscode.TreeItem> {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 213,
+        "nonce": 0
+      },
+      "label": "BookmarksProvider — TreeDataProvider entry point",
+      "note": "Root provider wired to the bookmarks tree view; drives getChildren / getTreeItem",
+      "createdAt": 1780021391064,
+      "source": "mcp"
+    },
+    {
+      "id": "sJOM1N3F",
+      "fileId": "cPqQBMDw",
+      "groupId": "n6dbnxi6",
+      "target": {
+        "uri": "packages/extension/src/filesGroupsProvider.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class FilesGroupsProvider implements vscode.TreeDataProvider<vscode.TreeItem> {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 87,
+        "nonce": 0
+      },
+      "label": "FilesGroupsProvider — Files & Groups tree",
+      "note": "Separate TreeDataProvider for the files/groups panel",
+      "createdAt": 1780021392962,
+      "source": "mcp"
+    },
+    {
+      "id": "TaRXiskh",
+      "fileId": "cPqQBMDw",
+      "groupId": "n6dbnxi6",
+      "target": {
+        "uri": "packages/extension/src/filesGroupsProvider-helpers.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function computeFileChildrenVisibility(opts: {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 13,
+        "nonce": 0
+      },
+      "label": "computeFileChildrenVisibility — visibility filter",
+      "note": "Pure helper deciding which file-level children to show",
+      "createdAt": 1780021394832,
+      "source": "mcp"
+    },
+    {
+      "id": "xSNc9HTH",
+      "fileId": "cPqQBMDw",
+      "groupId": "n6dbnxi6",
+      "target": {
+        "uri": "packages/extension/src/decorations.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function createDecorationManager(deps: DecorationDeps) {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 103,
+        "nonce": 0
+      },
+      "label": "createDecorationManager — gutter icons + line highlights",
+      "note": "Factory owning all TextEditorDecorationType instances; applies them per open editor",
+      "createdAt": 1780021396716,
+      "source": "mcp"
+    },
+    {
+      "id": "IQ59pHGg",
+      "fileId": "cPqQBMDw",
+      "groupId": "n6dbnxi6",
+      "target": {
+        "uri": "packages/extension/src/bookmarkCodeLensProvider.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class BookmarkCodeLensProvider implements vscode.CodeLensProvider {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 7,
+        "nonce": 0
+      },
+      "label": "BookmarkCodeLensProvider — inline CodeLens above bookmarked lines",
+      "note": "Resolves lenses lazily, one per bookmarked line per document",
+      "createdAt": 1780021398601,
+      "source": "mcp"
+    },
+    {
+      "id": "0Z7geuW0",
+      "fileId": "cPqQBMDw",
+      "groupId": "n6dbnxi6",
+      "target": {
+        "uri": "packages/extension/src/appearance.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function resolveEffectiveStyleAndColor(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 93,
+        "nonce": 0
+      },
+      "label": "resolveEffectiveStyleAndColor — appearance resolution",
+      "note": "Merges per-bookmark overrides with catalog defaults to produce final decoration style/color",
+      "createdAt": 1780021400477,
+      "source": "mcp"
+    },
+    {
+      "id": "2akJhkZ4",
+      "fileId": "cPqQBMDw",
+      "groupId": "n6dbnxi6",
+      "target": {
+        "uri": "packages/extension/src/overview-ruler-lane.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function mapOverviewRulerLane(value: unknown): number {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 17,
+        "nonce": 0
+      },
+      "label": "mapOverviewRulerLane — vscode-free lane mapper",
+      "note": "Converts string setting to VS Code integer constant; kept vscode-API-free for unit testability",
+      "createdAt": 1780021402369,
+      "source": "mcp"
+    },
+    {
+      "id": "LKyT9Byl",
+      "fileId": "cPqQBMDw",
+      "groupId": "n6dbnxi6",
+      "target": {
+        "uri": "packages/extension/src/catalog-cache.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function getCatalogCache(): { path: string; baseDir: string } | null {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 60,
+        "nonce": 0
+      },
+      "label": "getCatalogCache — appearance catalog cache accessor",
+      "note": "Caches catalog path+baseDir; avoids re-reading the icon/color catalog on every decoration refresh",
+      "createdAt": 1780021403837,
+      "source": "mcp"
+    },
+    {
+      "id": "LqgrSbCV",
+      "fileId": "cPqQBMDw",
+      "groupId": "mbbqwMTZ",
+      "target": {
+        "uri": "packages/extension/src/views/agents/agentsView.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class AgentsViewProvider implements vscode.WebviewViewProvider {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 17,
+        "nonce": 0
+      },
+      "label": "AgentsViewProvider — Agents panel webview",
+      "note": "WebviewViewProvider for the Agents sidebar (skill playbooks + agent connections)",
+      "createdAt": 1780021417208,
+      "source": "mcp"
+    },
+    {
+      "id": "8dbPnM71",
+      "fileId": "cPqQBMDw",
+      "groupId": "mbbqwMTZ",
+      "target": {
+        "uri": "packages/extension/src/views/agents/agentsHtml.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export const SKILLS: SkillDef[] = [",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 28,
+        "nonce": 0
+      },
+      "label": "SKILLS — built-in skill playbook registry",
+      "note": "Static SkillDef array rendered as pill badges; add entries here to surface new skills",
+      "createdAt": 1780021419084,
+      "source": "mcp"
+    },
+    {
+      "id": "RCd9NtyI",
+      "fileId": "cPqQBMDw",
+      "groupId": "mbbqwMTZ",
+      "target": {
+        "uri": "packages/extension/src/views/agents/agentsHtml.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function renderAgentsHtml(opts: AgentsHtmlOptions): string {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 153,
+        "nonce": 0
+      },
+      "label": "renderAgentsHtml — Agents panel HTML renderer",
+      "note": "Pure function building full webview HTML from skills + agent connection descriptors",
+      "createdAt": 1780021420975,
+      "source": "mcp"
+    },
+    {
+      "id": "lP1yiF6A",
+      "fileId": "cPqQBMDw",
+      "groupId": "mbbqwMTZ",
+      "target": {
+        "uri": "packages/extension/src/views/welcome/welcomeView.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class WelcomeViewProvider implements vscode.WebviewViewProvider {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 6,
+        "nonce": 0
+      },
+      "label": "WelcomeViewProvider — onboarding webview",
+      "note": "Shown on first install; drives welcome/setup flow before any bookmarks exist",
+      "createdAt": 1780021422864,
+      "source": "mcp"
+    },
+    {
+      "id": "WBsMkku6",
+      "fileId": "cPqQBMDw",
+      "groupId": "mbbqwMTZ",
+      "target": {
+        "uri": "packages/extension/src/views/welcome/needsGitignore.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function shouldOfferGitignoreLine(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 33,
+        "nonce": 0
+      },
+      "label": "shouldOfferGitignoreLine — .gitignore check",
+      "note": "Async predicate: should the welcome view prompt to gitignore the bookmarks data dir",
+      "createdAt": 1780021424739,
+      "source": "mcp"
+    },
+    {
+      "id": "1PVRGQ2q",
+      "fileId": "cPqQBMDw",
+      "groupId": "mbbqwMTZ",
+      "target": {
+        "uri": "packages/extension/src/views/action-rows.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function scanRowDescriptor(s: { scanned: number; total: number; phase: ScanPhase }): ScanRowDescriptor {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 19,
+        "nonce": 0
+      },
+      "label": "scanRowDescriptor — scan progress row builder",
+      "note": "Pure factory producing the in-progress anchor-scan action-row UI descriptor",
+      "createdAt": 1780021426610,
+      "source": "mcp"
+    },
+    {
+      "id": "w1pcsZrc",
+      "fileId": "cPqQBMDw",
+      "groupId": "BgPrc4GR",
+      "target": {
+        "uri": "packages/extension/src/ordering/service.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class OrderingService {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 25,
+        "nonce": 0
+      },
+      "label": "OrderingService — in-memory rank store",
+      "note": "One instance per workspace; owns debounced+serialized disk writes",
+      "createdAt": 1780021428492,
+      "source": "mcp"
+    },
+    {
+      "id": "yDEyUjdq",
+      "fileId": "cPqQBMDw",
+      "groupId": "BgPrc4GR",
       "target": {
         "uri": "packages/extension/src/ordering/service.ts"
       },
@@ -937,29 +1101,1152 @@
         "lastUpdatedLine": 67,
         "nonce": 0
       },
-      "label": "Separate queue: OrderingService debounced + serialized disk writes",
-      "note": "A DIFFERENT subsystem's queue. Manages drag-drop ordering state for bookmarks/files/groups. scheduleWrite() debounces disk writes by 250ms (DEBOUNCE_MS) and chains them through `inflight: Promise<void>` so writes serialize instead of racing. Work items = ordering-rank set/delete operations. Independent of the repair queue.",
-      "createdAt": 1779287032028,
+      "label": "scheduleWrite — debounced serialized write",
+      "note": "Chains onto inflight promise so concurrent calls never race fs.writeFile",
+      "createdAt": 1780021429908,
       "source": "mcp"
     },
     {
-      "id": "YO5q_WQw",
+      "id": "xGSyJDYA",
       "fileId": "cPqQBMDw",
-      "groupId": "grM5t0mU",
+      "groupId": "BgPrc4GR",
       "target": {
-        "uri": "packages/extension/src/sticky.ts"
+        "uri": "packages/extension/src/ordering/service.ts"
       },
       "anchor": {
         "kind": "smart",
-        "lineCache": "  const pendingDocs = new Map<string, NodeJS.Timeout>();",
+        "lineCache": "function pruneUnknown(cache: OrderingCache, known: KnownIds): OrderingCache {",
         "contextBefore": [],
         "contextAfter": [],
-        "lastUpdatedLine": 79,
+        "lastUpdatedLine": 95,
         "nonce": 0
       },
-      "label": "Separate queue: sticky-anchor text-edit processing (per-doc debounce)",
-      "note": "Another independent per-subsystem queue. registerStickyHandler tracks smart-anchor line positions as the user types. Buffers content-change events per document in `changeBuffers` and debounces processing per document via `pendingDocs` (Map<docUri, Timeout>). Work items = accumulated TextDocumentContentChangeEvents → updateAnchorForEdit / line-cache updates. Keeps rapid keystrokes from triggering anchor recomputation on every change.",
-      "createdAt": 1779287036222,
+      "label": "pruneUnknown — stale rank pruning on load",
+      "note": "Removes ordering entries for IDs no longer present in the workspace",
+      "createdAt": 1780021431802,
+      "source": "mcp"
+    },
+    {
+      "id": "uXcS1HLu",
+      "fileId": "cPqQBMDw",
+      "groupId": "BgPrc4GR",
+      "target": {
+        "uri": "packages/extension/src/ordering/rank.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function assignRankBetween(prev: number | null, next: number | null): number {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 9,
+        "nonce": 0
+      },
+      "label": "assignRankBetween — fractional midpoint ranking",
+      "note": "Returns floor((prev+next)/2); handles null boundaries by stepping ±RANK_STEP",
+      "createdAt": 1780021433673,
+      "source": "mcp"
+    },
+    {
+      "id": "FUAP_cpr",
+      "fileId": "cPqQBMDw",
+      "groupId": "BgPrc4GR",
+      "target": {
+        "uri": "packages/extension/src/ordering/rank.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function ensureRanksAround<S>(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 29,
+        "nonce": 0
+      },
+      "label": "ensureRanksAround — gap-collapse guard",
+      "note": "Triggers full rebalance() when integer gap is too small for the drop",
+      "createdAt": 1780021435563,
+      "source": "mcp"
+    },
+    {
+      "id": "QlJdugyq",
+      "fileId": "cPqQBMDw",
+      "groupId": "BgPrc4GR",
+      "target": {
+        "uri": "packages/extension/src/ordering/dnd-controller.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function makeDnDController(opts: DnDOptions): vscode.TreeDragAndDropController<vscode.TreeItem> {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 40,
+        "nonce": 0
+      },
+      "label": "makeDnDController — TreeDragAndDropController factory",
+      "note": "Wires VS Code DnD API to OrderingService; delegates validation to canReorder",
+      "createdAt": 1780021437445,
+      "source": "mcp"
+    },
+    {
+      "id": "BuFEF_c1",
+      "fileId": "cPqQBMDw",
+      "groupId": "BgPrc4GR",
+      "target": {
+        "uri": "packages/extension/src/ordering/dnd-validation.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function canReorder(src: DragSpec, tgt: DragSpec): boolean {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 27,
+        "nonce": 0
+      },
+      "label": "canReorder — drag-drop validation predicate",
+      "note": "Returns false across different context scopes, preventing cross-group drops",
+      "createdAt": 1780021439323,
+      "source": "mcp"
+    },
+    {
+      "id": "fbl-45cd",
+      "fileId": "cPqQBMDw",
+      "groupId": "BgPrc4GR",
+      "target": {
+        "uri": "packages/extension/src/ordering/applySort.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function applySort<T extends SortableItem>(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 14,
+        "nonce": 0
+      },
+      "label": "applySort — multi-mode sort dispatcher",
+      "note": "Sorts by mode: manual=rank, alpha=label, line=line number",
+      "createdAt": 1780021441210,
+      "source": "mcp"
+    },
+    {
+      "id": "ZJdAd5mX",
+      "fileId": "cPqQBMDw",
+      "groupId": "Gz7GrSdJ",
+      "target": {
+        "uri": "packages/extension/src/commands/bookmark-crud.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Disposable[] {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 82,
+        "nonce": 0
+      },
+      "label": "registerBookmarkCrudCommands — add/remove/toggle/edit/delete",
+      "note": "Central registration point for all bookmark mutation commands",
+      "createdAt": 1780021443096,
+      "source": "mcp"
+    },
+    {
+      "id": "QwlGS4cp",
+      "fileId": "cPqQBMDw",
+      "groupId": "Gz7GrSdJ",
+      "target": {
+        "uri": "packages/extension/src/commands/bookmark-navigation.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "async function executeReanchor(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 82,
+        "nonce": 0
+      },
+      "label": "executeReanchor — core reanchor helper",
+      "note": "Private helper doing the actual anchor move; called by manual and auto-repair paths",
+      "createdAt": 1780021444974,
+      "source": "mcp"
+    },
+    {
+      "id": "GcN3Not1",
+      "fileId": "cPqQBMDw",
+      "groupId": "Gz7GrSdJ",
+      "target": {
+        "uri": "packages/extension/src/commands/bookmark-navigation.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerBookmarkNavigationCommands(deps: BookmarkNavigationDeps): vscode.Disposable[] {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 181,
+        "nonce": 0
+      },
+      "label": "registerBookmarkNavigationCommands — reanchor + auto-repair",
+      "note": "Registers wrench/reanchor commands incl. agenticBookmarks.autoRepairBookmark",
+      "createdAt": 1780021446858,
+      "source": "mcp"
+    },
+    {
+      "id": "r2-g-_kO",
+      "fileId": "cPqQBMDw",
+      "groupId": "Gz7GrSdJ",
+      "target": {
+        "uri": "packages/extension/src/commands/bookmark-jump.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerBookmarkJumpCommands(deps: BookmarkJumpDeps): vscode.Disposable[] {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 32,
+        "nonce": 0
+      },
+      "label": "registerBookmarkJumpCommands — quick-jump entry point",
+      "createdAt": 1780021448268,
+      "source": "mcp"
+    },
+    {
+      "id": "_lYosVf0",
+      "fileId": "cPqQBMDw",
+      "groupId": "Gz7GrSdJ",
+      "target": {
+        "uri": "packages/extension/src/commands/bookmark-quickpicks.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerBookmarkQuickpicksCommands(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 102,
+        "nonce": 0
+      },
+      "label": "registerBookmarkQuickpicksCommands — quick-pick palette commands",
+      "createdAt": 1780021449680,
+      "source": "mcp"
+    },
+    {
+      "id": "9tq35ygL",
+      "fileId": "cPqQBMDw",
+      "groupId": "Gz7GrSdJ",
+      "target": {
+        "uri": "packages/extension/src/commands/bookmark-bulk-open.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerBookmarkBulkOpenCommands(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 210,
+        "nonce": 0
+      },
+      "label": "registerBookmarkBulkOpenCommands — bulk open files/bookmarks",
+      "note": "Backed by collectTargets + openOrScanFiles helpers",
+      "createdAt": 1780021451564,
+      "source": "mcp"
+    },
+    {
+      "id": "YCUhC0Pl",
+      "fileId": "cPqQBMDw",
+      "groupId": "Gz7GrSdJ",
+      "target": {
+        "uri": "packages/extension/src/commands/bookmark-selection.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerBookmarkSelectionCommands(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 33,
+        "nonce": 0
+      },
+      "label": "registerBookmarkSelectionCommands — selection-based bookmark ops",
+      "createdAt": 1780021453459,
+      "source": "mcp"
+    },
+    {
+      "id": "rkilR_Cb",
+      "fileId": "cPqQBMDw",
+      "groupId": "Gz7GrSdJ",
+      "target": {
+        "uri": "packages/extension/src/commands/bookmark-export.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerBookmarkExportCommand(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 34,
+        "nonce": 0
+      },
+      "label": "registerBookmarkExportCommand — Markdown export entry point",
+      "createdAt": 1780021454862,
+      "source": "mcp"
+    },
+    {
+      "id": "Ds0ZRlof",
+      "fileId": "cPqQBMDw",
+      "groupId": "Gz7GrSdJ",
+      "target": {
+        "uri": "packages/extension/src/commands/group-management.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerGroupManagementCommands(deps: GroupManagementDeps): vscode.Disposable[] {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 187,
+        "nonce": 0
+      },
+      "label": "registerGroupManagementCommands — rename/move/delete groups",
+      "createdAt": 1780021456260,
+      "source": "mcp"
+    },
+    {
+      "id": "vRWvK__7",
+      "fileId": "cPqQBMDw",
+      "groupId": "Gz7GrSdJ",
+      "target": {
+        "uri": "packages/extension/src/commands/bookmark-loaders.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function loadAllFolders(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 36,
+        "nonce": 0
+      },
+      "label": "loadAllFolders — loads bookmark data across workspace folders",
+      "createdAt": 1780021457151,
+      "source": "mcp"
+    },
+    {
+      "id": "tBZW6mJP",
+      "fileId": "cPqQBMDw",
+      "groupId": "966jJuK0",
+      "target": {
+        "uri": "packages/extension/src/commands/mcp-setup-helpers.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function applyGitignoreSetup(deps: ApplyGitignoreSetupDeps): Promise<void> {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 21,
+        "nonce": 0
+      },
+      "label": "applyGitignoreSetup — writes .gitignore entries for MCP data files",
+      "createdAt": 1780021467606,
+      "source": "mcp"
+    },
+    {
+      "id": "Wn0iGQSr",
+      "fileId": "cPqQBMDw",
+      "groupId": "966jJuK0",
+      "target": {
+        "uri": "packages/extension/src/commands/mcp-setup-helpers.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function buildClaudeMcpSetupCommand(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 78,
+        "nonce": 0
+      },
+      "label": "buildClaudeMcpSetupCommand — constructs full MCP install shell command",
+      "note": "Chains remove-then-add for local and user scopes; uses shellQuote for safety",
+      "createdAt": 1780021469489,
+      "source": "mcp"
+    },
+    {
+      "id": "z-69H8Rj",
+      "fileId": "cPqQBMDw",
+      "groupId": "966jJuK0",
+      "target": {
+        "uri": "packages/extension/src/commands/mcp-install-state.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function recordMcpInstall(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 67,
+        "nonce": 0
+      },
+      "label": "recordMcpInstall — persists agent install record with scope + version",
+      "createdAt": 1780021471378,
+      "source": "mcp"
+    },
+    {
+      "id": "o-VW02re",
+      "fileId": "cPqQBMDw",
+      "groupId": "966jJuK0",
+      "target": {
+        "uri": "packages/extension/src/commands/mcp-install-state.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function getOutdatedMcpInstalls(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 89,
+        "nonce": 0
+      },
+      "label": "getOutdatedMcpInstalls — detect stale agent installs by version mismatch",
+      "note": "Flags entries where installedVersion is missing or differs from current extension version",
+      "createdAt": 1780021472784,
+      "source": "mcp"
+    },
+    {
+      "id": "KQ1j_RDs",
+      "fileId": "cPqQBMDw",
+      "groupId": "966jJuK0",
+      "target": {
+        "uri": "packages/extension/src/commands/mcp-config-and-diagnostics.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagnosticsDeps): vscode.Disposable[] {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 116,
+        "nonce": 0
+      },
+      "label": "registerMcpConfigAndDiagnosticsCommands — MCP config/diagnostics commands",
+      "createdAt": 1780021474669,
+      "source": "mcp"
+    },
+    {
+      "id": "n6n3SD_Q",
+      "fileId": "cPqQBMDw",
+      "groupId": "966jJuK0",
+      "target": {
+        "uri": "packages/extension/src/commands/agent-launch.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function launchAgentWithPrompt(deps: AgentLaunchDeps, prompt: string): Promise<void> {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 65,
+        "nonce": 0
+      },
+      "label": "launchAgentWithPrompt — launches Claude agent with a pre-filled prompt",
+      "note": "Checks connected agents, obtains consent, then opens terminal with claude command",
+      "createdAt": 1780021476549,
+      "source": "mcp"
+    },
+    {
+      "id": "JSZLXxtm",
+      "fileId": "cPqQBMDw",
+      "groupId": "966jJuK0",
+      "target": {
+        "uri": "packages/extension/src/commands/agent-repair-launch.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerAgentRepairCommands(deps: AgentRepairDeps): vscode.Disposable[] {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 41,
+        "nonce": 0
+      },
+      "label": "registerAgentRepairCommands — agent-driven bookmark repair commands",
+      "createdAt": 1780021477967,
+      "source": "mcp"
+    },
+    {
+      "id": "tEA6IZZy",
+      "fileId": "cPqQBMDw",
+      "groupId": "966jJuK0",
+      "target": {
+        "uri": "packages/extension/src/ipc-consumer.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class QueueConsumer {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 10,
+        "nonce": 0
+      },
+      "label": "QueueConsumer — drains MCP→extension JSONL queue by offset",
+      "note": "Stateful offset tracking; drain() runs on each pulse file change",
+      "createdAt": 1780021479844,
+      "source": "mcp"
+    },
+    {
+      "id": "hhBqkN8l",
+      "fileId": "cPqQBMDw",
+      "groupId": "966jJuK0",
+      "target": {
+        "uri": "packages/extension/src/ipc-paths.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function getMcpToExtensionQueuePaths(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 3,
+        "nonce": 0
+      },
+      "label": "getMcpToExtensionQueuePaths — derive queue + pulse file paths from cache dir",
+      "note": "Queue is a .jsonl append log; pulse file is touched by MCP to wake the extension watcher",
+      "createdAt": 1780021481692,
+      "source": "mcp"
+    },
+    {
+      "id": "N-tV6uK5",
+      "fileId": "cPqQBMDw",
+      "groupId": "966jJuK0",
+      "target": {
+        "uri": "packages/extension/src/gitignore-nudge.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function maybeShowGitignoreNudge(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 64,
+        "nonce": 0
+      },
+      "label": "maybeShowGitignoreNudge — one-time prompt to gitignore MCP data files",
+      "createdAt": 1780021483616,
+      "source": "mcp"
+    },
+    {
+      "id": "ZXpMxbKZ",
+      "fileId": "cPqQBMDw",
+      "groupId": "AGXlY1-O",
+      "target": {
+        "uri": "packages/extension/src/licensingService.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class LicensingService {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 59,
+        "nonce": 0
+      },
+      "label": "LicensingService class",
+      "note": "Extension-side orchestrator: visibility cache, tier overrides, VS Code context key sync, check()",
+      "createdAt": 1780021485027,
+      "source": "mcp"
+    },
+    {
+      "id": "Zm-JgC-a",
+      "fileId": "cPqQBMDw",
+      "groupId": "AGXlY1-O",
+      "target": {
+        "uri": "packages/extension/src/licensingService.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "  check(name: FeatureName): FeatureAccess {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 134,
+        "nonce": 0
+      },
+      "label": "LicensingService.check() — feature gate entry point",
+      "note": "Thin delegate into checkFeature with live visibility + tier; every gated command calls this",
+      "createdAt": 1780021486911,
+      "source": "mcp"
+    },
+    {
+      "id": "G6eMrQZy",
+      "fileId": "cPqQBMDw",
+      "groupId": "AGXlY1-O",
+      "target": {
+        "uri": "packages/extension/src/trialStore.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export class TrialStore {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 17,
+        "nonce": 0
+      },
+      "label": "TrialStore — dual-write persistence",
+      "note": "globalState authoritative; JSON mirror best-effort fallback; load() reconciles both on startup",
+      "createdAt": 1780021488787,
+      "source": "mcp"
+    },
+    {
+      "id": "HfXQg0Xl",
+      "fileId": "cPqQBMDw",
+      "groupId": "AGXlY1-O",
+      "target": {
+        "uri": "packages/extension/src/trialMirror.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function createTrialMirror(workspaceRoot: string): MirrorIO {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 5,
+        "nonce": 0
+      },
+      "label": "createTrialMirror — workspace JSON mirror",
+      "note": "Writes trial record to JSON so it survives globalState loss",
+      "createdAt": 1780021490665,
+      "source": "mcp"
+    },
+    {
+      "id": "AXrv9Zi6",
+      "fileId": "cPqQBMDw",
+      "groupId": "AGXlY1-O",
+      "target": {
+        "uri": "packages/extension/src/proIntercept.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function proIntercept(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 21,
+        "nonce": 0
+      },
+      "label": "proIntercept — single UX enforcement point",
+      "note": "Checks feature access then shows modal; dispatches buy/trial/dismiss",
+      "createdAt": 1780021492564,
+      "source": "mcp"
+    },
+    {
+      "id": "p-4wTzFd",
+      "fileId": "cPqQBMDw",
+      "groupId": "AGXlY1-O",
+      "target": {
+        "uri": "packages/extension/src/visibility-probe.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function probeRepoVisibility(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 47,
+        "nonce": 0
+      },
+      "label": "probeRepoVisibility — HTTP HEAD classifier",
+      "note": "HEAD to remote URL; 200→public, 401/404→private, network error→unknown",
+      "createdAt": 1780021494438,
+      "source": "mcp"
+    },
+    {
+      "id": "1VHLAldN",
+      "fileId": "cPqQBMDw",
+      "groupId": "AGXlY1-O",
+      "target": {
+        "uri": "packages/extension/src/testLicenseCommands.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function registerTestLicenseCommands(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 14,
+        "nonce": 0
+      },
+      "label": "registerTestLicenseCommands — dev fixture commands",
+      "note": "Dev-only palette commands to simulate trial states and inspect live licensing status",
+      "createdAt": 1780021495852,
+      "source": "mcp"
+    },
+    {
+      "id": "smHk8doF",
+      "fileId": "cPqQBMDw",
+      "groupId": "PWi_Zo3G",
+      "target": {
+        "uri": "packages/licensing/src/types.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export interface LicenseStatus {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 4,
+        "nonce": 0
+      },
+      "label": "LicenseStatus interface",
+      "note": "Core status shape — tier + valid flag + optional expiry — shared across the licensing stack",
+      "createdAt": 1780021506926,
+      "source": "mcp"
+    },
+    {
+      "id": "Yvp_zdBg",
+      "fileId": "cPqQBMDw",
+      "groupId": "PWi_Zo3G",
+      "target": {
+        "uri": "packages/licensing/src/types.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export interface TrialRecord {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 19,
+        "nonce": 0
+      },
+      "label": "TrialRecord interface",
+      "note": "Persisted trial shape — written by TrialStore, read by evaluateTrial",
+      "createdAt": 1780021508820,
+      "source": "mcp"
+    },
+    {
+      "id": "prQyCWv7",
+      "fileId": "cPqQBMDw",
+      "groupId": "PWi_Zo3G",
+      "target": {
+        "uri": "packages/licensing/src/features.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export const PRO_FEATURES = [",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 8,
+        "nonce": 0
+      },
+      "label": "PRO_FEATURES registry",
+      "note": "Stable string identifiers for all gated features; add a string here to gate a new feature",
+      "createdAt": 1780021510707,
+      "source": "mcp"
+    },
+    {
+      "id": "CDr5qpxV",
+      "fileId": "cPqQBMDw",
+      "groupId": "PWi_Zo3G",
+      "target": {
+        "uri": "packages/licensing/src/features.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function isProFeature(name: FeatureName): boolean {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 39,
+        "nonce": 0
+      },
+      "label": "isProFeature predicate",
+      "note": "Set-backed O(1) lookup; used by checkFeature to decide whether to apply the gate",
+      "createdAt": 1780021512114,
+      "source": "mcp"
+    },
+    {
+      "id": "FtGTO_WR",
+      "fileId": "cPqQBMDw",
+      "groupId": "PWi_Zo3G",
+      "target": {
+        "uri": "packages/licensing/src/feature-gate.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function checkFeature(name: FeatureName, deps: FeatureGateDeps): FeatureAccess {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 8,
+        "nonce": 0
+      },
+      "label": "checkFeature — public/local repos always pass",
+      "note": "public and local repos bypass the pro gate unconditionally — a key product decision",
+      "createdAt": 1780021514116,
+      "source": "mcp"
+    },
+    {
+      "id": "W5xxn8Vm",
+      "fileId": "cPqQBMDw",
+      "groupId": "PWi_Zo3G",
+      "target": {
+        "uri": "packages/licensing/src/repo-visibility.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export const BETA_CUTOFF_ISO = '2027-01-01T00:00:00Z';",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 29,
+        "nonce": 0
+      },
+      "label": "BETA_CUTOFF_ISO constant",
+      "note": "Hard-coded date controlling when private-repo gating activates; change to extend/end beta",
+      "createdAt": 1780021515900,
+      "source": "mcp"
+    },
+    {
+      "id": "LzXWuk_Y",
+      "fileId": "cPqQBMDw",
+      "groupId": "PWi_Zo3G",
+      "target": {
+        "uri": "packages/licensing/src/repo-visibility.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function effectiveVisibility(detected: RepoVisibility, clock: Clock): RepoVisibility {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 37,
+        "nonce": 0
+      },
+      "label": "effectiveVisibility — public-beta time-bomb",
+      "note": "Before BETA_CUTOFF every repo is treated public; after, real visibility is enforced",
+      "createdAt": 1780021517796,
+      "source": "mcp"
+    },
+    {
+      "id": "PbfJZBbO",
+      "fileId": "cPqQBMDw",
+      "groupId": "PWi_Zo3G",
+      "target": {
+        "uri": "packages/licensing/src/constants.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export const TRIAL_LENGTH_DAYS = 14;",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 3,
+        "nonce": 0
+      },
+      "label": "TRIAL_LENGTH_DAYS = 14",
+      "note": "Single source of truth for trial duration",
+      "createdAt": 1780021519183,
+      "source": "mcp"
+    },
+    {
+      "id": "DPkbDZPG",
+      "fileId": "cPqQBMDw",
+      "groupId": "PWi_Zo3G",
+      "target": {
+        "uri": "packages/licensing/src/clock.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export interface Clock {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 0,
+        "nonce": 0
+      },
+      "label": "Clock interface — testability seam",
+      "note": "Injected wherever time is read; swap for fixedClock in tests to control trial expiry",
+      "createdAt": 1780021521031,
+      "source": "mcp"
+    },
+    {
+      "id": "OGNjjg4T",
+      "fileId": "cPqQBMDw",
+      "groupId": "PWi_Zo3G",
+      "target": {
+        "uri": "packages/licensing/src/trial-timer.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function evaluateTrial(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 22,
+        "nonce": 0
+      },
+      "label": "evaluateTrial — expiry computation",
+      "note": "Computes remainingMs from persisted ISO + duration vs clock.now(); returns active/inactive status",
+      "createdAt": 1780021522923,
+      "source": "mcp"
+    },
+    {
+      "id": "mSd2KMon",
+      "fileId": "cPqQBMDw",
+      "groupId": "PWi_Zo3G",
+      "target": {
+        "uri": "packages/licensing/src/license-checker.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export function createLicenseChecker(deps: LicenseCheckerDeps): () => LicenseStatus {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 10,
+        "nonce": 0
+      },
+      "label": "createLicenseChecker — tier resolution order",
+      "note": "Priority: explicit pro license → active trial → free; factory keeps deps injectable",
+      "createdAt": 1780021524378,
+      "source": "mcp"
+    },
+    {
+      "id": "CN_IBJNc",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/index.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "const server = new Server(",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 62,
+        "nonce": 0
+      },
+      "label": "Server instantiation with capabilities declaration",
+      "note": "Declares tools/resources capabilities; logging goes to stderr since stdout is the JSON-RPC channel",
+      "createdAt": 1780021526230,
+      "source": "mcp"
+    },
+    {
+      "id": "X-17sg2B",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/index.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "server.setRequestHandler(InitializeRequestSchema, async (request) => {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 83,
+        "nonce": 0
+      },
+      "label": "Initialize handler — workspace discovery + multi-workspace merge",
+      "note": "Walks ancestors for registry, populates ctx.workspaces from loadedWorkspaceFolders; merges on re-init",
+      "createdAt": 1780021528169,
+      "source": "mcp"
+    },
+    {
+      "id": "0UKiFNwb",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/index.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "server.setRequestHandler(CallToolRequestSchema, async (request) => {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 163,
+        "nonce": 0
+      },
+      "label": "CallTool dispatch switch — routes all tool handlers",
+      "note": "Single switch on tool name dispatches to bookmark, file/group, anchor, settings, debug handlers",
+      "createdAt": 1780021529996,
+      "source": "mcp"
+    },
+    {
+      "id": "SfRBNZed",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/index.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "async function main() {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 228,
+        "nonce": 0
+      },
+      "label": "main() — StdioServerTransport connect; process entry point",
+      "note": "Binds server to stdio; stdout carries JSON-RPC, all diagnostics use stderr",
+      "createdAt": 1780021531881,
+      "source": "mcp"
+    },
+    {
+      "id": "vwzFJV78",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/server-context.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export interface ServerContext {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 2,
+        "nonce": 0
+      },
+      "label": "ServerContext interface — per-session mutable state",
+      "note": "workspaces array, workspaceRoot, lastInitMeta/RootUris; mutated by Initialize + CallTool",
+      "createdAt": 1780021533849,
+      "source": "mcp"
+    },
+    {
+      "id": "jvaDNRe1",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/workspace.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function findWorkspaceRootUpward(startDir: string): Promise<string | null> {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 52,
+        "nonce": 0
+      },
+      "label": "findWorkspaceRootUpward — registry discovery by walking ancestors",
+      "createdAt": 1780021535172,
+      "source": "mcp"
+    },
+    {
+      "id": "9_77t8hv",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/tools/definitions.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export const toolDefinitions = [",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 0,
+        "nonce": 0
+      },
+      "label": "toolDefinitions — all MCP tool schemas",
+      "note": "Flat array of every tool's name/description/inputSchema; served verbatim by ListTools",
+      "createdAt": 1780021536592,
+      "source": "mcp"
+    },
+    {
+      "id": "Vk5BBoup",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/tools/bookmark.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function handleBookmarkAdd(ctx: ServerContext, args: Record<string, any>) {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 40,
+        "nonce": 0
+      },
+      "label": "handleBookmarkAdd — bookmark CRUD entry (add/list/delete/open)",
+      "createdAt": 1780021538463,
+      "source": "mcp"
+    },
+    {
+      "id": "LsnQ79lL",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/tools/bookmark-search.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function handleBookmarkSearch(ctx: ServerContext, args: Record<string, any>) {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 12,
+        "nonce": 0
+      },
+      "label": "handleBookmarkSearch — full-text bookmark search handler",
+      "createdAt": 1780021539891,
+      "source": "mcp"
+    },
+    {
+      "id": "1GTotJE-",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/tools/file-group.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function handleFileCreate(ctx: ServerContext, args: Record<string, any>) {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 24,
+        "nonce": 0
+      },
+      "label": "handleFileCreate — file/group tool handlers (create/register/deregister/rename/move/delete)",
+      "createdAt": 1780021541295,
+      "source": "mcp"
+    },
+    {
+      "id": "-QxmTYbT",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/tools/anchor-repair.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function handleAnchorValidate(ctx: ServerContext, args: any) {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 110,
+        "nonce": 0
+      },
+      "label": "handleAnchorValidate — anchor repair tools (validate/getRepairPackage/repair)",
+      "createdAt": 1780021542700,
+      "source": "mcp"
+    },
+    {
+      "id": "MF56Byp0",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/tools/anchor-git.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export async function handleAnchorGetRepairSkillGuide(ctx: ServerContext, _args: any) {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 32,
+        "nonce": 0
+      },
+      "label": "handleAnchorGetRepairSkillGuide — git-history anchor tools (history/diff/trace/search)",
+      "createdAt": 1780021544091,
+      "source": "mcp"
+    },
+    {
+      "id": "E0rlbuSU",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/resource-handlers.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export const SKILL_RESOURCES: Record<string, string> = {",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 21,
+        "nonce": 0
+      },
+      "label": "SKILL_RESOURCES map — skill URI → markdown content registry",
+      "note": "Maps bookmarks://skill/* URIs to markdown playbooks served to clients",
+      "createdAt": 1780021546024,
+      "source": "mcp"
+    },
+    {
+      "id": "gpsriApU",
+      "fileId": "cPqQBMDw",
+      "groupId": "L3m_8Oqh",
+      "target": {
+        "uri": "packages/server/src/skills/index.ts"
+      },
+      "anchor": {
+        "kind": "smart",
+        "lineCache": "export const SKILL_ADD_TO_SYSTEM = `# Add Bookmarks to a System — Skill Guide",
+        "contextBefore": [],
+        "contextAfter": [],
+        "lastUpdatedLine": 3,
+        "nonce": 0
+      },
+      "label": "Skill guide markdown exports — playbooks served as bookmarks://skill/* resources",
+      "note": "Each named export is a self-contained markdown playbook for a distinct bookmark workflow",
+      "createdAt": 1780021547659,
       "source": "mcp"
     }
   ]
