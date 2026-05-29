@@ -12,6 +12,7 @@ import {
 import {
   readRegistry,
   createWorkspaceInfo,
+  pruneStaleNameIndex,
 } from '@agentic-bookmarks/core';
 import * as path from 'node:path';
 import { toolDefinitions } from './tools/definitions.js';
@@ -143,6 +144,20 @@ server.setRequestHandler(InitializeRequestSchema, async (request) => {
   console.error(`Agentic Bookmarks initialized with ${ctx.workspaces.length} workspace(s) [build=stdio-cwd-fallback-check]`);
   for (const ws of ctx.workspaces) {
     console.error(`  - ${ws.workspaceRoot} (dataRoot: ${ws.bookmarksDataRoot})`);
+  }
+
+  // SML-1494: self-heal — drop registry nameIndex entries whose (fileId, groupId)
+  // no longer exists in the referenced file (repairs registries damaged before the
+  // owning-workspace fix shipped). Must never block initialization.
+  for (const ws of ctx.workspaces) {
+    try {
+      const { removed } = await pruneStaleNameIndex(ws.workspaceRoot, { bookmarksDataRoot: ws.bookmarksDataRoot });
+      if (removed.length > 0) {
+        console.error(`Agentic Bookmarks pruned ${removed.length} stale nameIndex entr${removed.length === 1 ? 'y' : 'ies'} in ${ws.workspaceRoot}`);
+      }
+    } catch (err: any) {
+      console.error(`Agentic Bookmarks nameIndex self-heal skipped for ${ws.workspaceRoot}: ${err?.message || String(err)}`);
+    }
   }
 
   return {

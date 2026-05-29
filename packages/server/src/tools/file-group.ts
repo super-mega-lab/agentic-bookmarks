@@ -6,7 +6,6 @@ import {
   renameGroupGlobal,
   moveGroupBetweenFiles,
   deleteGroupInFile,
-  readRegistry,
   deregisterFile,
   resolveWorkspacePath,
   isLocalPath,
@@ -16,6 +15,7 @@ import * as path from 'node:path';
 import {
   getWorkspaceForUri,
   getRegistryForWorkspace,
+  findFileContainingGroup,
 } from '../workspace.js';
 import {
   log,
@@ -143,19 +143,22 @@ export async function handleGroupRename(ctx: ServerContext, args: Record<string,
   const nn = String(newName || '').trim();
   if (!nn) return { content: [{ type: 'text', text: `Error: newName is required` }] };
 
-  // Find the file containing this group via registry
-  const reg = await readRegistry(ctx.workspaceRoot);
-  const groupEntry = Object.entries(reg.nameIndex || {}).find(([_, ref]: any) => ref.groupId === groupId);
-  if (!groupEntry) {
+  // Find the OWNING workspace by searching across all workspaces. Reads the
+  // actual files (robust against a stale nameIndex) rather than trusting the
+  // primary registry's nameIndex.
+  let owner: { ws: WorkspaceInfo; filePath: string } | null = null;
+  for (const ws of ctx.workspaces) {
+    const found = await findFileContainingGroup(ws, groupId);
+    if (found) {
+      owner = { ws, filePath: found.filePath };
+      break;
+    }
+  }
+  if (!owner) {
     return { content: [{ type: 'text', text: `Error: group ${groupId} not found in registry` }] };
   }
 
-  const fileEntry = reg.files.find(f => (f as any).fileId === groupEntry[1].fileId);
-  if (!fileEntry) {
-    return { content: [{ type: 'text', text: `Error: file for group ${groupId} not found in registry` }] };
-  }
-
-  await renameGroupGlobal(ctx.workspaceRoot, fileEntry.path, groupId, nn);
+  await renameGroupGlobal(owner.ws.workspaceRoot, owner.filePath, groupId, nn, owner.ws.bookmarksDataRoot);
   log(`Renamed group ${groupId} to: ${nn}`);
   return {
     content: [{
@@ -167,11 +170,13 @@ export async function handleGroupRename(ctx: ServerContext, args: Record<string,
 
 export async function handleGroupMoveFile(ctx: ServerContext, args: Record<string, any>) {
   const { sourceFile, destFile, groupId } = args as { sourceFile: string; destFile: string; groupId: string };
-  const s = resolveWorkspacePath(sourceFile, ctx.workspaceRoot);
-  const d = resolveWorkspacePath(destFile, ctx.workspaceRoot);
+  const workspace = getWorkspaceForUri(sourceFile, ctx.workspaces);
+  const root = workspace?.workspaceRoot ?? ctx.workspaceRoot;
+  const s = resolveWorkspacePath(sourceFile, root);
+  const d = resolveWorkspacePath(destFile, root);
   if (s === d) return { content: [{ type: 'text', text: `Error: source and destination must differ` }] };
 
-  const moveResult = await moveGroupBetweenFiles(ctx.workspaceRoot, s, d, groupId);
+  const moveResult = await moveGroupBetweenFiles(root, s, d, groupId, workspace?.bookmarksDataRoot);
 
   // Build message with clear agent action instructions
   let message = '';
@@ -211,6 +216,8 @@ export async function handleGroupMoveFile(ctx: ServerContext, args: Record<strin
 
 export async function handleGroupDelete(ctx: ServerContext, args: Record<string, any>) {
   const { filePath, groupId } = args as { filePath: string; groupId: string };
-  await deleteGroupInFile(ctx.workspaceRoot, filePath, groupId);
+  const workspace = getWorkspaceForUri(filePath, ctx.workspaces);
+  const root = workspace?.workspaceRoot ?? ctx.workspaceRoot;
+  await deleteGroupInFile(root, filePath, groupId, workspace?.bookmarksDataRoot);
   return { content: [{ type: 'text', text: `Group deleted/cleared` }] };
 }
