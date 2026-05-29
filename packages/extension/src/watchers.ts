@@ -109,14 +109,15 @@ export function createWatcherManager(
         const dataWatcher = vscode.workspace.createFileSystemWatcher(
           new vscode.RelativePattern(path.dirname(p.data), path.basename(p.data)),
         );
-        dataWatcher.onDidDelete(async () => {
+        dataWatcher.onDidDelete(() => {
           try {
             invalidateFileCache(p as any);
           } catch (err) {
             console.error(`[setupFileWatchers] Error invalidating cache for ${p.data}:`, err);
             log.error(`[setupFileWatchers] ERROR: Failed to invalidate cache: ${err}`);
           }
-          await refresh();
+          // fire-and-forget: refresh is the debounced wrapper (returns void), like the pulse watchers above
+          refresh();
         });
         context.subscriptions.push(dataWatcher);
         disposables.push(dataWatcher);

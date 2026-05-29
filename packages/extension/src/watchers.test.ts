@@ -58,8 +58,9 @@ vi.mock('./ipc-paths', () => ({
 }));
 
 import { createWatcherManager, type WatcherDeps } from './watchers';
+import { invalidateFileCache } from '@agentic-bookmarks/core';
 
-function makeDeps(calls: string[]): WatcherDeps {
+function makeDeps(): WatcherDeps {
   const log = { debug() {}, info() {}, warn() {}, error() {}, trace() {} } as unknown as WatcherDeps['log'];
   return {
     workspaceRoot: '/ws',
@@ -71,9 +72,9 @@ function makeDeps(calls: string[]): WatcherDeps {
     updateDecorations: vi.fn(async () => {}),
     refreshDecorationAppearance: vi.fn(async () => {}),
     refreshTrees: vi.fn(() => {}),
-    refreshBookmarkTrees: vi.fn(() => { calls.push('refreshBookmarkTrees'); }),
-    refreshCodeLens: vi.fn(() => { calls.push('refreshCodeLens'); }),
-    revalidateAndRepaint: vi.fn(async () => { calls.push('revalidateAndRepaint'); }),
+    refreshBookmarkTrees: vi.fn(() => {}),
+    refreshCodeLens: vi.fn(() => {}),
+    revalidateAndRepaint: vi.fn(async () => {}),
     onMcpToExtensionPulse: vi.fn(),
   };
 }
@@ -87,8 +88,7 @@ describe('watchers — data-file pulse refresh (SML-1491)', () => {
   it('routes the pulse refresh through revalidateAndRepaint, and still refreshes trees + codelens', async () => {
     vi.useFakeTimers();
     try {
-      const calls: string[] = [];
-      const deps = makeDeps(calls);
+      const deps = makeDeps();
       // getLastStickyRefreshAt far in the past so the sticky-suppress guard never short-circuits.
       const mgr = createWatcherManager(deps, () => -100000);
 
@@ -106,11 +106,41 @@ describe('watchers — data-file pulse refresh (SML-1491)', () => {
       // The centralized revalidate→decorate helper is invoked once; its internal
       // ordering + error guard are covered by revalidate-and-repaint.test.ts.
       expect(deps.revalidateAndRepaint).toHaveBeenCalledTimes(1);
-      expect(calls).toContain('revalidateAndRepaint');
 
       // Existing refresh behavior preserved.
       expect(deps.refreshBookmarkTrees).toHaveBeenCalledTimes(1);
       expect(deps.refreshCodeLens).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('on data-file delete, invalidates the read cache synchronously and schedules a (debounced) refresh', async () => {
+    vi.useFakeTimers();
+    try {
+      const deps = makeDeps();
+      const mgr = createWatcherManager(deps, () => -100000);
+
+      await mgr.setupWatchers();
+
+      // Per enabled file, setupWatchers creates the pulse watcher first (index 0)
+      // and the data-file delete watcher second (index 1).
+      expect(createdWatchers.length).toBeGreaterThanOrEqual(2);
+      const dataWatcher = createdWatchers[1];
+      expect(dataWatcher.onDidDelete).toHaveLength(1);
+
+      // Fire the data-file delete handler.
+      dataWatcher.onDidDelete[0]!();
+
+      // Cache invalidation runs synchronously; the refresh is fire-and-forget
+      // (debounced), so nothing downstream has run yet.
+      expect(invalidateFileCache).toHaveBeenCalledTimes(1);
+      expect(deps.revalidateAndRepaint).not.toHaveBeenCalled();
+
+      // Flush the 100ms debounce — the scheduled refresh now runs, routing the
+      // re-resolve + repaint through the centralized helper.
+      await vi.advanceTimersByTimeAsync(100);
+      expect(deps.revalidateAndRepaint).toHaveBeenCalledTimes(1);
     } finally {
       vi.useRealTimers();
     }
