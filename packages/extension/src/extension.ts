@@ -57,6 +57,7 @@ import {
 import { createDecorationManager } from './decorations';
 import { registerStickyHandler } from './sticky';
 import { createWatcherManager } from './watchers';
+import { createRevalidateAndRepaint } from './revalidate-and-repaint';
 import { getBuiltinCatalog, clearCatalogCache, getCatalogCache } from './catalog-cache';
 import { createAnchorResolution, resolveUriAnchors } from './anchor-resolution';
 import { migrateLocalLayout } from './migrate-local-layout';
@@ -540,6 +541,14 @@ async function activateForWorkspace(
   });
   await refreshDecorationAppearance();
 
+  // Single owner of the revalidate→decorate ordering invariant (SML-1496).
+  const { revalidateAndRepaint, openAndRepaint } = createRevalidateAndRepaint({
+    revalidateOpenDocuments,
+    onFileOpened,            // the WRAPPED onFileOpened (markFileValidated), defined above
+    updateDecorations,
+    log,
+  });
+
   // --- Config helpers ---
   function getLineCacheLength(): number {
     try {
@@ -615,7 +624,7 @@ async function activateForWorkspace(
       refreshTrees: () => { settingsProvider.refresh(); filesGroups.refresh(); provider.refresh(); },
       refreshBookmarkTrees: () => { filesGroups.refresh(); provider.refresh(); },
       refreshCodeLens: () => codeLensProvider.refresh(),
-      revalidateOpenDocuments,
+      revalidateAndRepaint,
       onMcpToExtensionPulse: () => mcpConsumer.drain(),
     },
     sticky.getLastStickyRefreshAt,
@@ -626,10 +635,7 @@ async function activateForWorkspace(
 
   // --- Document lifecycle ---
   context.subscriptions.push(
-    vscode.workspace.onDidOpenTextDocument(async (document) => {
-      await onFileOpened(document);
-      await updateDecorations();
-    })
+    vscode.workspace.onDidOpenTextDocument(openAndRepaint)
   );
   context.subscriptions.push(
     vscode.workspace.onDidCloseTextDocument((document) => {
@@ -702,9 +708,8 @@ async function activateForWorkspace(
       }
 
       // Force re-resolve anchors for all open documents so the renamed file
-      // picks up its bookmarks under the new URI immediately.
-      await revalidateOpenDocuments();
-      await updateDecorations();
+      // picks up its bookmarks under the new URI immediately, then repaint.
+      await revalidateAndRepaint();
     })
   );
 
@@ -804,7 +809,7 @@ async function activateForWorkspace(
       settingsProvider,
       codeLensProvider,
       updateDecorations,
-      revalidateOpenDocuments,
+      revalidateAndRepaint,
       getUIState,
       setUIState,
       getCatalogCache,
