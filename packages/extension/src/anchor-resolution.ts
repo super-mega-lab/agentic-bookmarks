@@ -181,7 +181,12 @@ export function createAnchorResolution(deps: AnchorResolutionDeps): AnchorResolu
     for (const document of vscode.workspace.textDocuments) {
       if (document.uri.scheme !== 'file') continue;
       if (!hasStateForFile(document.uri.toString())) continue;
-      await onFileOpened(document);
+      const docUri = document.uri.toString();
+      try {
+        await onFileOpened(document);
+      } catch (err: any) {
+        log.error(`[anchorState] revalidate failed for ${docUri}: ${err?.message || err}`);
+      }
     }
   }
 
