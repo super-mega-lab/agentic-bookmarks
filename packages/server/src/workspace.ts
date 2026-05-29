@@ -199,11 +199,26 @@ export async function findGroupByName(
   if (indexEntry) {
     const fileEntry = registry.files.find(f => f.fileId === indexEntry.fileId);
     if (fileEntry) {
-      return {
+      const filePath = resolveWorkspacePath(fileEntry.path, ws.workspaceRoot);
+      const triple = {
         fileId: indexEntry.fileId,
         groupId: indexEntry.groupId,
-        filePath: resolveWorkspacePath(fileEntry.path, ws.workspaceRoot),
+        filePath,
       };
+      // Verify the group still exists in the file before trusting the index.
+      // A stale nameIndex entry (SML-1494) can point at a groupId that was
+      // removed from the file; returning it would let bookmark_add write an
+      // orphan. Only a CONFIRMED-absent group is treated as stale — if the
+      // file is unreadable we keep what we cannot verify and return the triple.
+      try {
+        const data = await readFileAt(filePath);
+        if (data.groups.some(g => g.id === indexEntry.groupId)) {
+          return triple;
+        }
+        return null;
+      } catch {
+        return triple;
+      }
     }
   }
 
