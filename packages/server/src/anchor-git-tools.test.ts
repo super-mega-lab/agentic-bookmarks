@@ -409,6 +409,7 @@ describe('handleAnchorListBroken', () => {
    */
   async function registerBookmarksFile(
     bookmarks: Array<{ id: string; targetRel: string; anchorLines: string[]; line: number; updatedAt: number }>,
+    dataFileName: string = 'bookmarks.json',
   ): Promise<void> {
     const file = emptyFileV2();
     const groupId = file.groups[0].id;
@@ -423,7 +424,7 @@ describe('handleAnchorListBroken', () => {
       updatedAt: b.updatedAt,
     })) as any;
 
-    const dataPath = path.join(testDir, '.bookmarks', 'shared', 'bookmarks.json');
+    const dataPath = path.join(testDir, '.bookmarks', 'shared', dataFileName);
     await fs.mkdir(path.dirname(dataPath), { recursive: true });
     await fs.writeFile(dataPath, JSON.stringify(file, null, 2), 'utf8');
     await addFileToRegistry(testDir, dataPath);
@@ -584,5 +585,59 @@ describe('handleAnchorListBroken', () => {
     expect(parsed.summary.broken).toBe(1);
     const allEntries = parsed.results.flatMap((r: any) => r.entries);
     expect(allEntries.some((e: any) => e.bookmarkId === 'bm1' && e.status === 'broken')).toBe(true);
+  });
+
+  it('drops a fast-path entry whose bookmark was deleted (no recheck needed)', async () => {
+    const lines = ['line a', 'const target = compute();', 'line c'];
+    const abs = await writeSource('src/file.ts', lines);
+    // src/file.ts still has a live bookmark (bmKeep), but bm1 was deleted from the data file.
+    await registerBookmarksFile([
+      { id: 'bmKeep', targetRel: 'src/file.ts', anchorLines: lines, line: 1, updatedAt: 100 },
+    ]);
+    // The cache still carries a broken entry for the deleted bm1. discoveredAt is newer than
+    // both the file mtime and updatedAt → fast path (no recheck). The stale entry for the
+    // vanished bookmark must be dropped, not trusted.
+    await writeCache(
+      [{ bookmarkId: 'bm1', uri: 'src/file.ts', status: 'broken', errorCode: 'not_found', errorDetails: null, score: null, discoveredAt: 9_000_000 }],
+      ['src/file.ts'],
+    );
+    const older = new Date(1000);
+    await fs.utimes(abs, older, older);
+
+    const parsed = await callAndParse();
+    expect(parsed.summary.broken).toBe(0);
+    const allEntries = parsed.results.flatMap((r: any) => r.entries);
+    expect(allEntries.some((e: any) => e.bookmarkId === 'bm1')).toBe(false);
+  });
+
+  it('keeps a still-broken entry when a sibling data file sharing the URI fails to load', async () => {
+    const lines = ['line a', 'const target = compute();', 'line c'];
+    const abs = await writeSource('src/file.ts', lines);
+    // File A loads fine and also bookmarks src/file.ts, so the URI has an index slot.
+    await registerBookmarksFile(
+      [{ id: 'bmA', targetRel: 'src/file.ts', anchorLines: lines, line: 1, updatedAt: 500 }],
+      'bookmarks-a.json',
+    );
+    // File B bookmarks the SAME src/file.ts but is corrupt → fails to load (loadError=true),
+    // so bmB is absent from the index even though the URI's slot exists (from File A).
+    await registerBookmarksFile(
+      [{ id: 'bmB', targetRel: 'src/file.ts', anchorLines: lines, line: 1, updatedAt: 500 }],
+      'bookmarks-b.json',
+    );
+    await fs.writeFile(path.join(testDir, '.bookmarks', 'shared', 'bookmarks-b.json'), 'not json!!!', 'utf8');
+    // bmB is cached as broken. File mtime > discoveredAt forces a recheck; because bmB lives
+    // in the unreadable file it's missing from the resolved set — but with loadError set it
+    // must NOT be dropped as "bookmark gone" just because a sibling file kept the slot alive.
+    await writeCache(
+      [{ bookmarkId: 'bmB', uri: 'src/file.ts', status: 'broken', errorCode: 'not_found', errorDetails: null, score: null, discoveredAt: 1000 }],
+      ['src/file.ts'],
+    );
+    const newer = new Date(5_000_000);
+    await fs.utimes(abs, newer, newer);
+
+    const parsed = await callAndParse();
+    expect(parsed.summary.broken).toBe(1);
+    const allEntries = parsed.results.flatMap((r: any) => r.entries);
+    expect(allEntries.some((e: any) => e.bookmarkId === 'bmB' && e.status === 'broken')).toBe(true);
   });
 });
