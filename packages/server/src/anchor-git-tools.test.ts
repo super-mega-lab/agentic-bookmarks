@@ -562,4 +562,27 @@ describe('handleAnchorListBroken', () => {
     expect(parsed.summary.coverage.total).toBe(2);
     expect(parsed.summary.coverage.covered).toBe(1);
   });
+
+  it('keeps a cached entry when its data file fails to load (does not drop as bookmark-gone)', async () => {
+    const lines = ['line a', 'const target = compute();', 'line c'];
+    const abs = await writeSource('src/file.ts', lines);
+    await registerBookmarksFile([
+      { id: 'bm1', targetRel: 'src/file.ts', anchorLines: lines, line: 1, updatedAt: 500 },
+    ]);
+    await writeCache(
+      [{ bookmarkId: 'bm1', uri: 'src/file.ts', status: 'broken', errorCode: 'not_found', errorDetails: null, score: null, discoveredAt: 1000 }],
+      ['src/file.ts'],
+    );
+    // Corrupt the registered data file so readFileAt throws → loadError=true and bm1 is
+    // absent from the index. File mtime > discoveredAt would otherwise force a recheck
+    // that resolves against an empty bookmark set and drops bm1. The guard must keep it.
+    await fs.writeFile(path.join(testDir, '.bookmarks', 'shared', 'bookmarks.json'), 'not json!!!', 'utf8');
+    const newer = new Date(5_000_000);
+    await fs.utimes(abs, newer, newer);
+
+    const parsed = await callAndParse();
+    expect(parsed.summary.broken).toBe(1);
+    const allEntries = parsed.results.flatMap((r: any) => r.entries);
+    expect(allEntries.some((e: any) => e.bookmarkId === 'bm1' && e.status === 'broken')).toBe(true);
+  });
 });

@@ -10,6 +10,7 @@ import {
   readFileAt,
   isLocalPath,
   resolveAnchors,
+  classifyAnchorStatus,
 } from '@agentic-bookmarks/core';
 import type { WorkspaceInfo } from '@agentic-bookmarks/core';
 import * as fs from 'node:fs/promises';
@@ -311,6 +312,11 @@ export async function handleAnchorGetLineLogTool(ctx: ServerContext, args: any) 
 interface WorkspaceAnchorIndex {
   enableFlexContext: boolean;
   enableFlexContextShared: boolean;
+  /** Whether low-score warnings on shared (non-local) bookmarks are shown (default false). */
+  showWarningOnShared: boolean;
+  /** True if any registry data file failed to load this pass — when set, a missing
+   *  `byUri` slot means "couldn't read", NOT "bookmark gone", so entries must be kept. */
+  loadError: boolean;
   /** normalized target URI → its bookmarks + whether the source data file is local */
   byUri: Map<string, { isLocal: boolean; bookmarks: Array<{ id: string; anchor: any; updatedAt: number }> }>;
   /** distinct normalized target URIs across all bookmarks (denominator for coverage) */
@@ -323,9 +329,11 @@ async function loadWorkspaceAnchorIndex(workspace: WorkspaceInfo): Promise<Works
   const anchorSettings = (registry.settings?.anchors as any) ?? {};
   const enableFlexContext = anchorSettings.enableFlexContext ?? true;
   const enableFlexContextShared = anchorSettings.enableFlexContextShared ?? true;
+  const showWarningOnShared = anchorSettings.showWarningOnShared ?? false;
 
   const byUri = new Map<string, { isLocal: boolean; bookmarks: Array<{ id: string; anchor: any; updatedAt: number }> }>();
   const universe = new Set<string>();
+  let loadError = false;
 
   for (const fileEntry of registry.files) {
     if (fileEntry.enabled === false) continue;
@@ -342,10 +350,14 @@ async function loadWorkspaceAnchorIndex(workspace: WorkspaceInfo): Promise<Works
         }
         slot.bookmarks.push({ id: bm.id, anchor: bm.anchor, updatedAt: bm.updatedAt ?? 0 });
       }
-    } catch { /* skip unreadable file */ }
+    } catch {
+      // A data file we couldn't read: its bookmarks are absent from byUri. Record this
+      // so reconciliation keeps (rather than drops) cached entries for its URIs.
+      loadError = true;
+    }
   }
 
-  return { enableFlexContext, enableFlexContextShared, byUri, universe };
+  return { enableFlexContext, enableFlexContextShared, showWarningOnShared, byUri, universe, loadError };
 }
 
 export async function handleAnchorListBroken(ctx: ServerContext, args: any) {
@@ -396,6 +408,15 @@ export async function handleAnchorListBroken(ctx: ServerContext, args: any) {
         }
 
         const slot = index.byUri.get(uri);
+
+        // A data file failed to load this pass and this URI has no index slot — we
+        // can't reconcile, so keep the cached entries instead of silently dropping
+        // real breakage as "bookmark gone" (SML-1503 review #3).
+        if (!slot && index.loadError) {
+          reconciledEntries.push(...entriesForUri);
+          continue;
+        }
+
         const bmById = new Map((slot?.bookmarks ?? []).map(b => [b.id, b]));
 
         // Fast path: nothing changed since the entry was discovered → trust cache.
@@ -429,9 +450,13 @@ export async function handleAnchorListBroken(ctx: ServerContext, args: any) {
         for (const e of entriesForUri) {
           const r = resById.get(e.bookmarkId);
           if (!r) continue; // bookmark gone → drop
-          const freshStatus = !r.resolved
-            ? 'broken'
-            : (r.score !== undefined && r.score < 0.85 ? 'warning' : 'valid');
+          // Use the same classifier the extension wrote these entries with, so the
+          // server doesn't re-surface shared warnings the product suppresses or
+          // demote lineCacheOnly 'warning' to 'broken' (SML-1503 review #1/#2/#8).
+          const freshStatus = classifyAnchorStatus(r, {
+            isLocal: slot?.isLocal ?? false,
+            showWarningOnShared: index.showWarningOnShared,
+          });
           if (freshStatus === 'valid') continue; // repaired/edited clean → evict
           reconciledEntries.push({
             ...e,
