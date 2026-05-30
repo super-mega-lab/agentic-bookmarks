@@ -21,6 +21,11 @@ export interface ScanResultEntry {
   score: number | null;
 }
 
+/** Merge persisted covered-file URIs with newly-checked ones, de-duplicated. */
+export function mergeCoveredUris(existing: string[], added: Iterable<string>): string[] {
+  return [...new Set([...existing, ...added])];
+}
+
 /** Mint broken (file_missing) scan entries for every bookmark of a deleted file. */
 export function missingFileEntries(bookmarkIds: string[], uri: string): ScanResultEntry[] {
   return bookmarkIds.map((bookmarkId) => ({

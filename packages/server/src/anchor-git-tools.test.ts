@@ -1,5 +1,20 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { tmpdir } from 'node:os';
 import { getRepairSkillGuide, findHistoricalCommit, handleSearchMovedCode } from './anchor-git-tools';
+import { handleAnchorListBroken } from './tools/anchor-git';
+import {
+  createWorkspaceInfo,
+  emptyFileV2,
+  addFileToRegistry,
+  readRegistry,
+  createAnchor,
+  getBookmarksDataRoot,
+  getCacheDir,
+  brokenAnchorsCache,
+  type WorkspaceInfo,
+} from '@agentic-bookmarks/core';
 
 describe('getRepairSkillGuide', () => {
   it('returns guide string with no options', () => {
@@ -172,9 +187,19 @@ vi.mock('@agentic-bookmarks/core', async (importOriginal) => {
 
 vi.mock('node:fs/promises', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:fs/promises')>();
+  const os = await import('node:os');
+  const realRoot = os.tmpdir();
+  // Real reads for on-disk fixtures under tmpdir (handleAnchorListBroken tests);
+  // canned content for the synthetic /fake/repo paths the git-tools tests use.
+  const readFile = vi.fn((p: any, ...rest: any[]) => {
+    if (typeof p === 'string' && p.startsWith(realRoot)) {
+      return (actual.readFile as any)(p, ...rest);
+    }
+    return Promise.resolve('line0\nline1\nline2\nline3\nline4\nline5\n');
+  });
   return {
     ...actual,
-    readFile: vi.fn().mockResolvedValue('line0\nline1\nline2\nline3\nline4\nline5\n'),
+    readFile,
   };
 });
 
@@ -339,5 +364,202 @@ describe('handleSearchMovedCode', () => {
         contextAfter: ['return result;'],
       }),
     );
+  });
+});
+
+describe('handleAnchorListBroken', () => {
+  let testDir: string;
+  let ws: WorkspaceInfo;
+
+  beforeEach(async () => {
+    testDir = path.join(tmpdir(), `list-broken-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    await fs.mkdir(testDir, { recursive: true });
+    await readRegistry(testDir); // materialize registry on disk
+    ws = createWorkspaceInfo(testDir);
+  });
+
+  afterEach(async () => {
+    try {
+      await fs.rm(testDir, { recursive: true, force: true });
+    } catch {}
+  });
+
+  function makeCtx() {
+    return {
+      workspaces: [ws],
+      workspaceRoot: ws.workspaceRoot,
+      lastInitMeta: null,
+      lastInitRootUris: undefined,
+      hasServedRepairSkillGuide: false,
+    } as any;
+  }
+
+  /** Write `lines` to a source file at workspace-relative `relPath`. */
+  async function writeSource(relPath: string, lines: string[]): Promise<string> {
+    const abs = path.join(testDir, relPath);
+    await fs.mkdir(path.dirname(abs), { recursive: true });
+    await fs.writeFile(abs, lines.join('\n'), 'utf8');
+    return abs;
+  }
+
+  /**
+   * Register a v2 bookmarks file containing the given bookmarks. Each bookmark's
+   * anchor is minted with `createAnchor('smart', anchorLines, line)` so we can
+   * control whether it resolves against the on-disk source content.
+   */
+  async function registerBookmarksFile(
+    bookmarks: Array<{ id: string; targetRel: string; anchorLines: string[]; line: number; updatedAt: number }>,
+  ): Promise<void> {
+    const file = emptyFileV2();
+    const groupId = file.groups[0].id;
+    file.bookmarks = bookmarks.map(b => ({
+      id: b.id,
+      fileId: file.fileId,
+      groupId,
+      target: { uri: b.targetRel },
+      anchor: createAnchor('smart', b.anchorLines, b.line, { lineCacheLength: 120 }),
+      label: '',
+      createdAt: 1000,
+      updatedAt: b.updatedAt,
+    })) as any;
+
+    const dataPath = path.join(testDir, '.bookmarks', 'shared', 'bookmarks.json');
+    await fs.mkdir(path.dirname(dataPath), { recursive: true });
+    await fs.writeFile(dataPath, JSON.stringify(file, null, 2), 'utf8');
+    await addFileToRegistry(testDir, dataPath);
+  }
+
+  /** Write the broken-anchors cache the same way the extension would. */
+  async function writeCache(
+    entries: brokenAnchorsCache.BrokenAnchorEntry[],
+    coveredUris: string[],
+  ): Promise<void> {
+    const registry = await readRegistry(testDir);
+    const cacheDir = getCacheDir(testDir, getBookmarksDataRoot(registry));
+    await brokenAnchorsCache.writeBrokenAnchorsCache(cacheDir, entries, coveredUris);
+  }
+
+  async function callAndParse(args: any = {}) {
+    const result = await handleAnchorListBroken(makeCtx(), args);
+    return JSON.parse(result.content[0].text);
+  }
+
+  it('evicts a now-clean entry when file mtime > discoveredAt', async () => {
+    const lines = ['line a', 'const target = compute();', 'line c'];
+    const abs = await writeSource('src/file.ts', lines);
+    await registerBookmarksFile([
+      { id: 'bm1', targetRel: 'src/file.ts', anchorLines: lines, line: 1, updatedAt: 500 },
+    ]);
+    // Cache says broken, discovered in the past.
+    await writeCache(
+      [{ bookmarkId: 'bm1', uri: 'src/file.ts', status: 'broken', errorCode: 'not_found', errorDetails: null, score: null, discoveredAt: 1000 }],
+      ['src/file.ts'],
+    );
+    // File mtime newer than discoveredAt → forces re-check; anchor resolves clean → evicted.
+    const newer = new Date(5_000_000);
+    await fs.utimes(abs, newer, newer);
+
+    const parsed = await callAndParse();
+    expect(parsed.summary.broken).toBe(0);
+    const allEntries = parsed.results.flatMap((r: any) => r.entries);
+    expect(allEntries.some((e: any) => e.bookmarkId === 'bm1')).toBe(false);
+  });
+
+  it('evicts a now-clean entry when bookmark.updatedAt > discoveredAt (repair path)', async () => {
+    const lines = ['alpha', 'const target = compute();', 'beta'];
+    const abs = await writeSource('src/file.ts', lines);
+    await registerBookmarksFile([
+      { id: 'bm1', targetRel: 'src/file.ts', anchorLines: lines, line: 1, updatedAt: 9000 },
+    ]);
+    await writeCache(
+      [{ bookmarkId: 'bm1', uri: 'src/file.ts', status: 'broken', errorCode: 'not_found', errorDetails: null, score: null, discoveredAt: 5000 }],
+      ['src/file.ts'],
+    );
+    // File mtime OLDER than discoveredAt, but bookmark.updatedAt (9000) > discoveredAt (5000)
+    // → updatedAt clause forces re-check; anchor resolves clean → evicted.
+    const older = new Date(1000);
+    await fs.utimes(abs, older, older);
+
+    const parsed = await callAndParse();
+    expect(parsed.summary.broken).toBe(0);
+    const allEntries = parsed.results.flatMap((r: any) => r.entries);
+    expect(allEntries.some((e: any) => e.bookmarkId === 'bm1')).toBe(false);
+  });
+
+  it('keeps a still-broken entry on read', async () => {
+    const anchorLines = ['one', 'const target = compute();', 'two'];
+    // On-disk content is COMPLETELY different so the smart anchor cannot resolve.
+    const diskLines = ['totally', 'unrelated', 'content', 'here'];
+    const abs = await writeSource('src/file.ts', diskLines);
+    await registerBookmarksFile([
+      { id: 'bm1', targetRel: 'src/file.ts', anchorLines, line: 1, updatedAt: 500 },
+    ]);
+    await writeCache(
+      [{ bookmarkId: 'bm1', uri: 'src/file.ts', status: 'broken', errorCode: 'not_found', errorDetails: null, score: null, discoveredAt: 1000 }],
+      ['src/file.ts'],
+    );
+    const newer = new Date(5_000_000);
+    await fs.utimes(abs, newer, newer);
+
+    const parsed = await callAndParse();
+    expect(parsed.summary.broken).toBe(1);
+    const allEntries = parsed.results.flatMap((r: any) => r.entries);
+    expect(allEntries.some((e: any) => e.bookmarkId === 'bm1' && e.status === 'broken')).toBe(true);
+  });
+
+  it('trusts the cache when neither file nor bookmark changed', async () => {
+    // On-disk content is unrelated to the anchor (so it would resolve broken anyway),
+    // but the fast path must skip re-read entirely and keep the cached entry.
+    const anchorLines = ['one', 'const target = compute();', 'two'];
+    const diskLines = ['unrelated', 'disk', 'content'];
+    const abs = await writeSource('src/file.ts', diskLines);
+    await registerBookmarksFile([
+      { id: 'bm1', targetRel: 'src/file.ts', anchorLines, line: 1, updatedAt: 100 },
+    ]);
+    // discoveredAt NEWER than both file mtime and updatedAt → fast path keeps it.
+    await writeCache(
+      [{ bookmarkId: 'bm1', uri: 'src/file.ts', status: 'broken', errorCode: 'not_found', errorDetails: null, score: null, discoveredAt: 9_000_000 }],
+      ['src/file.ts'],
+    );
+    const older = new Date(1000);
+    await fs.utimes(abs, older, older);
+
+    const parsed = await callAndParse();
+    const allEntries = parsed.results.flatMap((r: any) => r.entries);
+    expect(allEntries.some((e: any) => e.bookmarkId === 'bm1')).toBe(true);
+  });
+
+  it('keeps an entry when the target file is missing', async () => {
+    const anchorLines = ['x', 'const target = compute();', 'y'];
+    // No source file written to disk at all.
+    await registerBookmarksFile([
+      { id: 'bm1', targetRel: 'src/missing.ts', anchorLines, line: 1, updatedAt: 500 },
+    ]);
+    await writeCache(
+      [{ bookmarkId: 'bm1', uri: 'src/missing.ts', status: 'broken', errorCode: 'not_found', errorDetails: null, score: null, discoveredAt: 1000 }],
+      ['src/missing.ts'],
+    );
+
+    const parsed = await callAndParse();
+    expect(parsed.summary.broken).toBe(1);
+    const allEntries = parsed.results.flatMap((r: any) => r.entries);
+    expect(allEntries.some((e: any) => e.bookmarkId === 'bm1')).toBe(true);
+  });
+
+  it('reports coverage {covered,total}; covered < total when a registered target is unscanned', async () => {
+    const linesA = ['a1', 'const aaa = compute();', 'a3'];
+    const linesB = ['b1', 'const bbb = compute();', 'b3'];
+    await writeSource('src/a.ts', linesA);
+    await writeSource('src/b.ts', linesB);
+    await registerBookmarksFile([
+      { id: 'bmA', targetRel: 'src/a.ts', anchorLines: linesA, line: 1, updatedAt: 500 },
+      { id: 'bmB', targetRel: 'src/b.ts', anchorLines: linesB, line: 1, updatedAt: 500 },
+    ]);
+    // Only src/a.ts was scanned; src/b.ts is unscanned → covered 1 of 2.
+    await writeCache([], ['src/a.ts']);
+
+    const parsed = await callAndParse();
+    expect(parsed.summary.coverage.total).toBe(2);
+    expect(parsed.summary.coverage.covered).toBe(1);
   });
 });
