@@ -21,7 +21,6 @@
  */
 
 import * as vscode from 'vscode';
-import * as path from 'node:path';
 import {
   readRegistry,
   registryPathForRoot,
@@ -43,14 +42,12 @@ type SearchFilter = { id: string; text: string; regex: boolean; op: 'AND' | 'OR'
 export interface SettingsAndFilterDeps {
   workspaceRoot: string;
   log: Logger;
-  paths: { data: string };
   provider: BookmarksProvider;
   filesGroups: FilesGroupsProvider;
   settingsProvider: SettingsProvider;
   settingsView: vscode.TreeView<vscode.TreeItem>;
   codeLensProvider: BookmarkCodeLensProvider | null;
   updateDecorations: () => Promise<void>;
-  restartWatchers: () => Promise<void>;
   getUIState: () => UIState & { searches?: SearchFilter[] };
   setUIState: (next: UIState & { searches?: SearchFilter[] }) => Promise<void>;
   updateFilterContext: () => Promise<void>;
@@ -62,14 +59,12 @@ export function registerSettingsAndFilterCommands(deps: SettingsAndFilterDeps): 
   const {
     workspaceRoot,
     log,
-    paths,
     provider,
     filesGroups,
     settingsProvider,
     settingsView,
     codeLensProvider,
     updateDecorations,
-    restartWatchers,
     getUIState,
     setUIState,
     updateFilterContext,
@@ -85,7 +80,9 @@ export function registerSettingsAndFilterCommands(deps: SettingsAndFilterDeps): 
         const enabled = !(reg.settings?.watchersEnabled);
         await setWatchersEnabled(workspaceRoot, enabled);
         settingsProvider.refresh();
-        await restartWatchers();
+        // Per-file watchers are rebuilt by the registry watcher's onChange
+        // (SML-1504), which fires on this setWatchersEnabled write — no explicit
+        // restartWatchers() needed here.
       } catch (e) { vscode.window.showErrorMessage(String(e)); }
     }),
 
@@ -95,7 +92,8 @@ export function registerSettingsAndFilterCommands(deps: SettingsAndFilterDeps): 
         if (!filePath) return;
         await setFileWatch(workspaceRoot, filePath, enabled ?? true);
         settingsProvider.refresh();
-        if (path.resolve(filePath) === path.resolve(paths.data)) await restartWatchers();
+        // The setFileWatch write trips the registry watcher's onChange, which
+        // rebuilds the per-file watchers for all files (SML-1504).
       } catch (e) { vscode.window.showErrorMessage(String(e)); }
     }),
 
