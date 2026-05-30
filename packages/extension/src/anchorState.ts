@@ -6,11 +6,16 @@
  * hints for repair flows.
  */
 
-import type { AnchorResolutionResult } from '@agentic-bookmarks/core';
-import { SMART_ANCHOR_HIGH_CONFIDENCE } from '@agentic-bookmarks/core';
+import type { AnchorResolutionResult, AnchorStatus } from '@agentic-bookmarks/core';
+import { classifyAnchorStatus } from '@agentic-bookmarks/core';
 
 export type AnchorErrorCode = 'not_found' | 'ambiguous' | 'out_of_bounds';
-export type AnchorStatus = 'valid' | 'warning' | 'broken';
+
+// AnchorStatus + classifyAnchorStatus now live in @agentic-bookmarks/core (single
+// source of truth shared with the MCP server's anchor_listBroken reconciliation,
+// SML-1503). Re-exported so existing extension imports from './anchorState' keep working.
+export type { AnchorStatus };
+export { classifyAnchorStatus };
 
 export interface InMemoryAnchorState {
   bookmarkId: string;
@@ -42,33 +47,6 @@ export interface InitStateOptions {
   isLocalMap?: Map<string, boolean>;
   /** Whether to show warning indicators on shared bookmarks (default: false) */
   showWarningOnShared?: boolean;
-}
-
-/**
- * Classify a core resolution result into an anchor status. Single source of truth
- * shared by initStateForFile (open path) and the scan path (scanValidate).
- *
- * - resolved + low score → 'warning' (suppressed to 'valid' on shared bookmarks
- *   unless showWarningOnShared);
- * - unresolved + lineCacheOnly → 'warning' (deep-flex pending);
- * - otherwise 'broken'.
- */
-export function classifyAnchorStatus(
-  result: AnchorResolutionResult,
-  opts?: { isLocal?: boolean; showWarningOnShared?: boolean }
-): AnchorStatus {
-  const wouldWarn = result.score !== undefined && result.score < SMART_ANCHOR_HIGH_CONFIDENCE;
-  const isLocal = opts?.isLocal ?? true; // default to local (safer)
-  const showWarningOnShared = opts?.showWarningOnShared ?? false;
-  const suppressSharedWarning = wouldWarn && !isLocal && !showWarningOnShared;
-
-  return result.resolved
-    ? (wouldWarn && !suppressSharedWarning)
-      ? 'warning'
-      : 'valid'
-    : result.lineCacheOnly
-      ? 'warning'
-      : 'broken';
 }
 
 /**

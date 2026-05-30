@@ -41,7 +41,7 @@ import { registerAgentRepairCommands } from './commands/agent-repair-launch';
 import { ScanQueue, type ScanTarget, type ScanFileValidation } from './scanQueue';
 import { markFileValidated, isFileValidated } from './scanCoverage';
 import { countBroken } from './brokenCount';
-import { missingFileEntries, buildAuthoritativeCache, type ScanResultEntry } from './scanValidate';
+import { missingFileEntries, buildAuthoritativeCache, mergeCoveredUris, type ScanResultEntry } from './scanValidate';
 import { registerBookmarkExportCommand } from './commands/bookmark-export';
 import { registerGroupManagementCommands, executeGroupMove } from './commands/group-management';
 import { registerAppearanceCommands } from './commands/appearance';
@@ -953,7 +953,9 @@ async function activateForWorkspace(
     const cacheDir = getCacheDir(workspaceRoot, getBookmarksDataRoot(reg));
     const existing = await brokenAnchorsCache.readBrokenAnchorsCache(cacheDir);
     const merged = buildAuthoritativeCache(existing.entries, scannedUris, entries, Date.now());
-    await brokenAnchorsCache.writeBrokenAnchorsCache(cacheDir, merged);
+    // scannedUris is exactly the set of files validated this scan — accumulate it.
+    const coveredUris = mergeCoveredUris(existing.coveredUris ?? [], scannedUris);
+    await brokenAnchorsCache.writeBrokenAnchorsCache(cacheDir, merged, coveredUris);
   }
 
   // --- Background scan queue (validates from disk; reuses repair queue to finalize) ---

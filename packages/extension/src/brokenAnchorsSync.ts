@@ -12,6 +12,7 @@ import {
   type WorkspaceRegistryV1,
 } from '@agentic-bookmarks/core';
 import { getStateForFile } from './anchorState';
+import { mergeCoveredUris } from './scanValidate';
 
 type BrokenAnchorEntry = brokenAnchorsCache.BrokenAnchorEntry;
 
@@ -106,7 +107,15 @@ export async function syncBrokenAnchorsCache(
       mergedEntries.push(entry);
     }
 
-    await brokenAnchorsCache.writeBrokenAnchorsCache(cacheDir, mergedEntries);
+    // Accumulate coverage: every currently-open file's workspace-relative URI is
+    // a file we just validated, unioned onto whatever the cache already covered.
+    const openRelUris: string[] = [];
+    for (const [, uriMap] of docUriToRelativePaths) {
+      for (const relUri of uriMap.values()) openRelUris.push(relUri);
+    }
+    const coveredUris = mergeCoveredUris(existing.coveredUris ?? [], openRelUris);
+
+    await brokenAnchorsCache.writeBrokenAnchorsCache(cacheDir, mergedEntries, coveredUris);
   } catch (err: any) {
     log(`[brokenAnchorsCache] Sync failed: ${err?.message || err}`);
   }

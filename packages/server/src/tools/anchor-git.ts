@@ -7,7 +7,12 @@ import {
   brokenAnchorsCache,
   getCacheDir,
   gitHistory,
+  readFileAt,
+  isLocalPath,
+  resolveAnchors,
+  classifyAnchorStatus,
 } from '@agentic-bookmarks/core';
+import type { WorkspaceInfo } from '@agentic-bookmarks/core';
 import * as fs from 'node:fs/promises';
 import {
   handleGetHistoricalContext,
@@ -300,13 +305,72 @@ export async function handleAnchorGetLineLogTool(ctx: ServerContext, args: any) 
 // anchor_listBroken
 // ============================================================================
 
+/**
+ * Per-workspace index of every bookmark anchor, grouped by normalized target URI.
+ * Used to validate cached broken-anchor entries against the current file state.
+ */
+interface WorkspaceAnchorIndex {
+  enableFlexContext: boolean;
+  enableFlexContextShared: boolean;
+  /** Whether low-score warnings on shared (non-local) bookmarks are shown (default false). */
+  showWarningOnShared: boolean;
+  /** True if any registry data file failed to load this pass — when set, a missing
+   *  `byUri` slot means "couldn't read", NOT "bookmark gone", so entries must be kept. */
+  loadError: boolean;
+  /** normalized target URI → its bookmarks + whether the source data file is local */
+  byUri: Map<string, { isLocal: boolean; bookmarks: Array<{ id: string; anchor: any; updatedAt: number }> }>;
+  /** distinct normalized target URIs across all bookmarks (denominator for coverage) */
+  universe: Set<string>;
+}
+
+/** Build the per-workspace anchor index once per anchor_listBroken call. */
+async function loadWorkspaceAnchorIndex(workspace: WorkspaceInfo): Promise<WorkspaceAnchorIndex> {
+  const registry = await getRegistryForWorkspace(workspace);
+  const anchorSettings = (registry.settings?.anchors as any) ?? {};
+  const enableFlexContext = anchorSettings.enableFlexContext ?? true;
+  const enableFlexContextShared = anchorSettings.enableFlexContextShared ?? true;
+  const showWarningOnShared = anchorSettings.showWarningOnShared ?? false;
+
+  const byUri = new Map<string, { isLocal: boolean; bookmarks: Array<{ id: string; anchor: any; updatedAt: number }> }>();
+  const universe = new Set<string>();
+  let loadError = false;
+
+  for (const fileEntry of registry.files) {
+    if (fileEntry.enabled === false) continue;
+    try {
+      const data = await readFileAt(resolveWorkspacePath(fileEntry.path, workspace.workspaceRoot));
+      const isLocal = data.isLocal ?? isLocalPath(fileEntry.path);
+      for (const bm of data.bookmarks) {
+        const norm = bm.target.uri.split('#')[0];
+        universe.add(norm);
+        let slot = byUri.get(norm);
+        if (!slot) {
+          slot = { isLocal, bookmarks: [] };
+          byUri.set(norm, slot);
+        }
+        slot.bookmarks.push({ id: bm.id, anchor: bm.anchor, updatedAt: bm.updatedAt ?? 0 });
+      }
+    } catch {
+      // A data file we couldn't read: its bookmarks are absent from byUri. Record this
+      // so reconciliation keeps (rather than drops) cached entries for its URIs.
+      loadError = true;
+    }
+  }
+
+  return { enableFlexContext, enableFlexContextShared, showWarningOnShared, byUri, universe, loadError };
+}
+
 export async function handleAnchorListBroken(ctx: ServerContext, args: any) {
   const statusFilter = (args.status as string) || 'all';
   const results: Array<{
     workspace: string;
     entries: any[];
     lastUpdated: number;
+    coverage: { covered: number; total: number };
   }> = [];
+
+  let totalCovered = 0;
+  let totalUniverse = 0;
 
   for (const workspace of ctx.workspaces) {
     try {
@@ -315,16 +379,116 @@ export async function handleAnchorListBroken(ctx: ServerContext, args: any) {
       const cacheDir = getCacheDir(workspace.workspaceRoot, dataRoot);
       const cache = await brokenAnchorsCache.readBrokenAnchorsCache(cacheDir);
 
-      let entries = cache.entries;
+      const index = await loadWorkspaceAnchorIndex(workspace);
+
+      // Group cached entries by normalized target URI.
+      const entriesByUri = new Map<string, any[]>();
+      for (const entry of cache.entries) {
+        const norm = entry.uri.split('#')[0];
+        const group = entriesByUri.get(norm);
+        if (group) group.push(entry);
+        else entriesByUri.set(norm, [entry]);
+      }
+
+      // Reconcile each group against the current file + bookmark state.
+      const reconciledEntries: any[] = [];
+      for (const [uri, entriesForUri] of entriesByUri) {
+        const absPath = resolveWorkspacePath(uri, workspace.workspaceRoot);
+        let st: Awaited<ReturnType<typeof fs.stat>> | null;
+        try {
+          st = await fs.stat(absPath);
+        } catch {
+          st = null;
+        }
+
+        // File missing → target is genuinely gone; keep every entry untouched.
+        if (st === null) {
+          reconciledEntries.push(...entriesForUri);
+          continue;
+        }
+
+        const slot = index.byUri.get(uri);
+
+        // A data file failed to load this pass and this URI has no index slot — we
+        // can't reconcile, so keep the cached entries instead of silently dropping
+        // real breakage as "bookmark gone" (SML-1503 review #3).
+        if (!slot && index.loadError) {
+          reconciledEntries.push(...entriesForUri);
+          continue;
+        }
+
+        const bmById = new Map((slot?.bookmarks ?? []).map(b => [b.id, b]));
+
+        // Fast path: nothing changed since the entry was discovered → trust cache.
+        const needRecheck = entriesForUri.some(
+          e => Math.max(st!.mtimeMs, bmById.get(e.bookmarkId)?.updatedAt ?? 0) > e.discoveredAt,
+        );
+        if (!needRecheck) {
+          reconciledEntries.push(...entriesForUri);
+          continue;
+        }
+
+        // Re-read and re-resolve the file's anchors.
+        let lines: string[];
+        try {
+          lines = (await fs.readFile(absPath, 'utf8')).split('\n');
+        } catch {
+          reconciledEntries.push(...entriesForUri);
+          continue;
+        }
+        const resolutionResults = resolveAnchors(
+          (slot?.bookmarks ?? []).map(b => ({ id: b.id, anchor: b.anchor })),
+          lines,
+          {
+            enableFlexContext: index.enableFlexContext,
+            enableFlexContextShared: index.enableFlexContextShared,
+            isLocal: slot?.isLocal ?? false,
+          },
+        );
+        const resById = new Map(resolutionResults.map(r => [r.anchorId, r]));
+
+        for (const e of entriesForUri) {
+          const r = resById.get(e.bookmarkId);
+          if (!r) continue; // bookmark gone → drop
+          // Use the same classifier the extension wrote these entries with, so the
+          // server doesn't re-surface shared warnings the product suppresses or
+          // demote lineCacheOnly 'warning' to 'broken' (SML-1503 review #1/#2/#8).
+          const freshStatus = classifyAnchorStatus(r, {
+            isLocal: slot?.isLocal ?? false,
+            showWarningOnShared: index.showWarningOnShared,
+          });
+          if (freshStatus === 'valid') continue; // repaired/edited clean → evict
+          reconciledEntries.push({
+            ...e,
+            status: freshStatus,
+            score: r.score ?? null,
+            errorCode: r.errorCode ?? null,
+            errorDetails: r.errorDetails ?? null,
+          });
+        }
+      }
+
+      // Status filter applies AFTER reconciliation.
+      let entries = reconciledEntries;
       if (statusFilter !== 'all') {
         entries = entries.filter((e: any) => e.status === statusFilter);
       }
+
+      // Coverage: bookmarked files checked vs total distinct bookmarked targets.
+      // Normalize the same way as `universe` so fragment-bearing URIs still match.
+      const coveredSet = new Set(cache.coveredUris.map(u => u.split('#')[0]));
+      let covered = 0;
+      for (const u of index.universe) if (coveredSet.has(u)) covered++;
+      const total = index.universe.size;
+      totalCovered += covered;
+      totalUniverse += total;
 
       if (entries.length > 0 || ctx.workspaces.length === 1) {
         results.push({
           workspace: workspace.workspaceRoot,
           entries,
           lastUpdated: cache.lastUpdated,
+          coverage: { covered, total },
         });
       }
     } catch { /* skip unreadable */ }
@@ -342,7 +506,8 @@ export async function handleAnchorListBroken(ctx: ServerContext, args: any) {
           broken: totalBroken,
           warning: totalWarning,
           total: totalBroken + totalWarning,
-          note: 'These are cached results from files the user has opened. For a fresh check of a specific file, use anchor_validate.',
+          coverage: { covered: totalCovered, total: totalUniverse },
+          note: 'Entries are validated against the current file on read (repaired/edited anchors are evicted). coverage = bookmarked files checked vs total; covered < total means some files have not been checked — use anchor_validate to check a specific file.',
         },
         results,
       }),

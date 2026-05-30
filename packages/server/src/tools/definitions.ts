@@ -371,7 +371,7 @@ For guidance on bookmarking a system or set of files, read bookmarks://skill/add
   },
   {
     name: 'anchor_listBroken',
-    description: 'List broken and low-confidence bookmarks discovered by the extension. Returns cached results from files the user has opened — no expensive computation. Use this to see which anchors need attention before calling anchor_validate or anchor_getRepairPackage.',
+    description: 'List broken and low-confidence bookmarks. Cached entries are validated against the current file on read, so anchors repaired or edited clean since they were cached are evicted automatically. The response includes a coverage signal (covered vs total bookmarked files): when covered < total, some files have not been checked yet, so an empty result does not guarantee the whole repo is clean — use anchor_validate to check a specific file. Use this to see which anchors need attention before calling anchor_validate or anchor_getRepairPackage.',
     inputSchema: {
       type: 'object',
       properties: {

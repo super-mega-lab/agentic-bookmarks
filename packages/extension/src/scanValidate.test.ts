@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import {
   missingFileEntries,
   buildAuthoritativeCache,
+  mergeCoveredUris,
   type ScanResultEntry,
 } from './scanValidate';
 
@@ -69,5 +70,23 @@ describe('buildAuthoritativeCache', () => {
     ];
     const out = buildAuthoritativeCache([], new Set(['src/c.ts']), scanned, 999);
     expect(out[0].status).toBe('warning');
+  });
+});
+
+describe('mergeCoveredUris', () => {
+  it('dedupes overlapping existing and added URIs', () => {
+    expect(mergeCoveredUris(['a', 'b'], ['b', 'c'])).toEqual(['a', 'b', 'c']);
+  });
+
+  it('preserves existing when added is empty', () => {
+    expect(mergeCoveredUris(['a', 'b'], [])).toEqual(['a', 'b']);
+  });
+
+  it('adds new when existing is empty', () => {
+    expect(mergeCoveredUris([], ['a', 'b'])).toEqual(['a', 'b']);
+  });
+
+  it('accepts a Set as added (Iterable)', () => {
+    expect(mergeCoveredUris(['a'], new Set(['a', 'b']))).toEqual(['a', 'b']);
   });
 });
