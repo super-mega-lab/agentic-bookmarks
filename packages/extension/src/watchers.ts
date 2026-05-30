@@ -116,12 +116,17 @@ export function createWatcherManager(
       pulseWatcher.onDidDelete(refresh);
       fileWatchers.push(pulseWatcher);
 
-      // Data file delete watcher: invalidate read cache if the data file is removed
+      // Data file change/delete watcher: invalidate the read cache when the committed data
+      // file is modified or removed by anything other than our own writes — notably external
+      // writers (git checkout/pull/stash/rebase, manual edits) that rewrite the file without
+      // bumping the gitignored .pulse, so the pulse watcher never fires (SML-1502). Our own
+      // writes also fire here, but the shared debounced `refresh` + sticky-suppress guard
+      // collapse the pulse+data double-fire into a single repaint (no flicker).
       try {
         const dataWatcher = vscode.workspace.createFileSystemWatcher(
           new vscode.RelativePattern(path.dirname(p.data), path.basename(p.data)),
         );
-        dataWatcher.onDidDelete(() => {
+        const onDataFileChanged = () => {
           try {
             invalidateFileCache(p as any);
           } catch (err) {
@@ -130,7 +135,9 @@ export function createWatcherManager(
           }
           // fire-and-forget: refresh is the debounced wrapper (returns void), like the pulse watchers above
           refresh();
-        });
+        };
+        dataWatcher.onDidChange(onDataFileChanged);
+        dataWatcher.onDidDelete(onDataFileChanged);
         fileWatchers.push(dataWatcher);
       } catch (err) {
         console.error(`[setupFileWatchers] Error creating data file watcher for ${p.data}:`, err);
