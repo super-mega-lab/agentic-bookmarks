@@ -43,6 +43,9 @@ export interface AgentsHtmlOptions {
   agents?: AgentConnectionDescriptor[];
   /** Per-section collapsed state. Missing entries default to expanded. */
   collapsedSections?: Partial<Record<AgentsSectionId, boolean>>;
+  /** When false, render a minimal "open a folder" CTA with NO command-bearing affordances.
+   *  Defaults to true so existing callers/tests keep rendering the populated state. */
+  hasFolder?: boolean;
 }
 
 const runCmd = (cmd: string) => `command:${cmd}`;
@@ -151,16 +154,38 @@ function renderPill(skill: SkillDef): string {
   return `<a class="skill-pill" href="${href}" title="${skill.label}"><span class="codicon codicon-${skill.icon}"></span> ${skill.label}</a>`;
 }
 
-export function renderAgentsHtml(opts: AgentsHtmlOptions): string {
-  const { cspSource, nonce, codiconUri, agents = [], collapsedSections = {} } = opts;
+function emptyBody(): string {
+  return /* html */ `
+  <section>
+    <p class="cta-text">Open a folder to connect agents and run skill playbooks.</p>
+    <div class="button-row">
+      <a class="button" href="${runCmd('vscode.openFolder')}">Open Folder…</a>
+    </div>
+  </section>`;
+}
+
+function activeBody(
+  agents: AgentConnectionDescriptor[],
+  collapsedSections: Partial<Record<AgentsSectionId, boolean>>,
+): string {
   const pills = SKILLS.map(renderPill).join('\n      ');
+  const agentConnectionsBlock = agents.length > 0
+    ? renderAgentConnections(agents, collapsedSections.agentConnections === true)
+    : '';
+
+  return /* html */ `${agentConnectionsBlock}
+  <div class="agents-container">
+      ${pills}
+  </div>`;
+}
+
+export function renderAgentsHtml(opts: AgentsHtmlOptions): string {
+  const { cspSource, nonce, codiconUri, agents = [], collapsedSections = {}, hasFolder = true } = opts;
   const codiconLink = codiconUri
     ? `<link rel="stylesheet" href="${codiconUri}" />`
     : '';
 
-  const agentConnectionsBlock = agents.length > 0
-    ? renderAgentConnections(agents, collapsedSections.agentConnections === true)
-    : '';
+  const body = hasFolder ? activeBody(agents, collapsedSections) : emptyBody();
 
   return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -348,13 +373,15 @@ export function renderAgentsHtml(opts: AgentsHtmlOptions): string {
     .skill-pill .codicon {
       font-size: 12px;
     }
+    .cta-text {
+      margin: 0 0 10px;
+      color: var(--vscode-descriptionForeground);
+      font-size: 0.9em;
+    }
   </style>
 </head>
 <body>
-${agentConnectionsBlock}
-  <div class="agents-container">
-      ${pills}
-  </div>
+${body}
 </body>
 </html>`;
 }
