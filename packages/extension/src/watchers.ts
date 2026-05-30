@@ -52,23 +52,36 @@ export function createWatcherManager(
     revalidateAndRepaint,
   } = deps;
 
-  // Internal state — the first disposable of the current batch of watchers.
-  // Disposing it is how we tear down all pulse/data watchers for a restart.
-  let fsWatcher: vscode.FileSystemWatcher | null = null;
+  // Internal state — every per-file pulse/data watcher of the current batch.
+  // Disposing them all is how we tear down the batch for a restart (SML-1504).
+  let fileWatchers: vscode.Disposable[] = [];
+  let teardownRegistered = false;
+
+  const disposeFileWatchers = () => {
+    for (const w of fileWatchers) {
+      try { w.dispose(); } catch {}
+    }
+    fileWatchers = [];
+  };
 
   // -------------------------------------------------------------------
   // setupWatchers — create pulse & data-file watchers for every enabled
   // registered bookmark file
   // -------------------------------------------------------------------
   const setupWatchers = async () => {
-    try { fsWatcher?.dispose(); } catch {}
-    fsWatcher = null;
+    disposeFileWatchers();
 
     // Respect registry watcher toggles
     const reg = await readRegistry(workspaceRoot);
     if (reg.settings && reg.settings.watchersEnabled === false) return;
 
-    const disposables: vscode.FileSystemWatcher[] = [];
+    // Register a single umbrella disposable so the per-file watchers are torn
+    // down on extension deactivate, without growing context.subscriptions on
+    // repeated restarts (SML-1504).
+    if (!teardownRegistered) {
+      context.subscriptions.push({ dispose: disposeFileWatchers });
+      teardownRegistered = true;
+    }
 
     const debounce = (fn: () => void, ms = 100) => {
       let timeout: NodeJS.Timeout;
@@ -101,8 +114,7 @@ export function createWatcherManager(
       pulseWatcher.onDidChange(refresh);
       pulseWatcher.onDidCreate(refresh);
       pulseWatcher.onDidDelete(refresh);
-      context.subscriptions.push(pulseWatcher);
-      disposables.push(pulseWatcher);
+      fileWatchers.push(pulseWatcher);
 
       // Data file delete watcher: invalidate read cache if the data file is removed
       try {
@@ -119,24 +131,19 @@ export function createWatcherManager(
           // fire-and-forget: refresh is the debounced wrapper (returns void), like the pulse watchers above
           refresh();
         });
-        context.subscriptions.push(dataWatcher);
-        disposables.push(dataWatcher);
+        fileWatchers.push(dataWatcher);
       } catch (err) {
         console.error(`[setupFileWatchers] Error creating data file watcher for ${p.data}:`, err);
         log.error(`[setupFileWatchers] ERROR: Failed to create data file watcher: ${err}`);
       }
     }
-
-    // keep reference to dispose all later
-    if (disposables.length) fsWatcher = disposables[0];
   };
 
   // -------------------------------------------------------------------
   // restartWatchers — tear down and recreate all file watchers
+  // (setupWatchers disposes the whole previous batch at its top)
   // -------------------------------------------------------------------
   const restartWatchers = async () => {
-    try { fsWatcher?.dispose(); } catch {}
-    fsWatcher = null;
     await setupWatchers();
   };
 
@@ -155,6 +162,12 @@ export function createWatcherManager(
     };
     const onChange = debounce(async () => {
       invalidateRegistryCache(workspaceRoot);
+      // Rebuild the per-file pulse/data watchers so files added via MCP
+      // (file_create / file_register / group_create) are watched without a
+      // window reload (SML-1504). Reads fresh because the cache was just
+      // invalidated; only rebuilds per-file watchers, not the registry
+      // watcher, so there's no self-retrigger.
+      await restartWatchers();
       refreshTrees();
       await refreshDecorationAppearance();
       await updateDecorations();
