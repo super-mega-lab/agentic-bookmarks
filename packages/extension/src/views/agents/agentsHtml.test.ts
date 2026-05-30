@@ -361,3 +361,40 @@ describe('package.json agents commands', () => {
     expect(commands.find(c => c.command === 'agenticBookmarks.agents.toggleSection')).toBeDefined();
   });
 });
+
+describe('renderAgentsHtml — no-folder state', () => {
+  it('emits no runSkill command and no skill-pill when hasFolder is false', () => {
+    const html = renderAgentsHtml({ ...baseOpts, hasFolder: false });
+    expect(html).not.toContain('command:agenticBookmarks.runSkill');
+    expect(html).not.toContain('class="skill-pill"');
+  });
+
+  it('emits no setup or agentConnections commands and no Agent connections section when hasFolder is false (even with agents)', () => {
+    const html = renderAgentsHtml({ ...baseOpts, agents: allUninstalled, hasFolder: false });
+    expect(html).not.toContain('command:agenticBookmarks.setupClaude');
+    expect(html).not.toContain('command:agenticBookmarks.setupCursor');
+    expect(html).not.toContain('command:agenticBookmarks.setupCodex');
+    expect(html).not.toContain('command:agenticBookmarks.agentConnections.');
+    expect(html).not.toContain('class="agent-row"');
+    expect(html).not.toContain('Agent connections');
+  });
+
+  it('renders an Open a folder CTA and a complete, CSP-intact document when hasFolder is false', () => {
+    const html = renderAgentsHtml({ ...baseOpts, hasFolder: false });
+    expect(html).toContain('<!DOCTYPE html>');
+    expect(html).toContain('</html>');
+    expect(html).toContain('https://test.vscode');
+    expect(html).toContain('abc123');
+    expect(html).toContain('Open a folder');
+  });
+
+  it('still renders all skill pills and the agent-connections section when hasFolder is true', () => {
+    const html = renderAgentsHtml({ ...baseOpts, agents: allUninstalled, hasFolder: true });
+    expect(html).toContain('command:agenticBookmarks.runSkill');
+    for (const skill of SKILLS) {
+      expect(html).toContain(skill.label);
+    }
+    expect(html).toContain('Agent connections');
+    expect(html).toContain('command:agenticBookmarks.setupClaude');
+  });
+});

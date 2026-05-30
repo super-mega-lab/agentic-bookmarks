@@ -22,7 +22,11 @@ export class AgentsViewProvider implements vscode.WebviewViewProvider {
 
   constructor(
     private readonly context: vscode.ExtensionContext,
-  ) {}
+  ) {
+    this.context.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => this.render()),
+    );
+  }
 
   /** Flip a section's collapsed state in globalState and re-render. */
   public async toggleSection(sectionId: string): Promise<void> {
@@ -84,11 +88,13 @@ export class AgentsViewProvider implements vscode.WebviewViewProvider {
   private render(): void {
     if (!this.view) return;
     const webview = this.view.webview;
+    const hasFolder = (vscode.workspace.workspaceFolders?.length ?? 0) > 0;
     webview.html = renderAgentsHtml({
       cspSource: webview.cspSource,
       nonce: getNonce(),
-      agents: this.buildAgentDescriptors(),
+      agents: hasFolder ? this.buildAgentDescriptors() : [],
       collapsedSections: this.getCollapsedSections(),
+      hasFolder,
     });
   }
 }
