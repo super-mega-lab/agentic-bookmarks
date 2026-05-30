@@ -220,4 +220,34 @@ describe('watchers — registry-change watcher restart (SML-1504)', () => {
     // A fresh batch of 2 new watchers was created after the snapshot.
     expect(createdWatchers.length - batch1.length).toBe(2);
   });
+
+  it('registry onChange still refreshes trees + decorations when the rebuild throws (SML-1504)', async () => {
+    vi.useFakeTimers();
+    try {
+      vi.mocked(readRegistry).mockResolvedValue({
+        settings: {},
+        files: [{ path: 'shared/a.json', enabled: true }],
+      } as any);
+
+      const deps = makeDeps();
+      const mgr = createWatcherManager(deps, () => -100000);
+
+      await mgr.setupWatchers();
+      mgr.setupRegistryWatcher();
+      const regCbs = createdWatchers[createdWatchers.length - 1];
+
+      // The rebuild's registry read fails (e.g. corrupt registry + no valid backup).
+      vi.mocked(readRegistry).mockRejectedValueOnce(new Error('corrupt registry'));
+
+      regCbs.onDidChange[0]!();
+      await vi.advanceTimersByTimeAsync(150);
+
+      // The rebuild failed, but the UI refresh must NOT be suppressed.
+      expect(deps.refreshTrees).toHaveBeenCalled();
+      expect(deps.refreshDecorationAppearance).toHaveBeenCalled();
+      expect(deps.updateDecorations).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

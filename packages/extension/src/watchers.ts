@@ -167,7 +167,13 @@ export function createWatcherManager(
       // window reload (SML-1504). Reads fresh because the cache was just
       // invalidated; only rebuilds per-file watchers, not the registry
       // watcher, so there's no self-retrigger.
-      await restartWatchers();
+      // Guarded: a transient registry read failure (e.g. corrupt + no valid
+      // backup) must not also suppress the tree/decoration refresh below.
+      try {
+        await restartWatchers();
+      } catch (err) {
+        log.error(`[registryWatcher] restartWatchers failed, refreshing UI anyway: ${err}`);
+      }
       refreshTrees();
       await refreshDecorationAppearance();
       await updateDecorations();
