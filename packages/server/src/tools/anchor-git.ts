@@ -419,12 +419,20 @@ export async function handleAnchorListBroken(ctx: ServerContext, args: any) {
 
         const bmById = new Map((slot?.bookmarks ?? []).map(b => [b.id, b]));
 
-        // Fast path: nothing changed since the entry was discovered → trust cache.
+        // Fast path: nothing changed since the entry was discovered → trust cache, but
+        // still drop entries whose bookmark has since been deleted. A bookmarkId absent
+        // from the index means the bookmark is gone — but only when every data file loaded;
+        // if one failed (loadError) its absence is unverifiable, so we keep it (SML-1503
+        // review: deleting a bookmark doesn't bump the source mtime, so without this the
+        // fast path returns phantom broken anchors forever).
         const needRecheck = entriesForUri.some(
           e => Math.max(st!.mtimeMs, bmById.get(e.bookmarkId)?.updatedAt ?? 0) > e.discoveredAt,
         );
         if (!needRecheck) {
-          reconciledEntries.push(...entriesForUri);
+          for (const e of entriesForUri) {
+            if (!index.loadError && !bmById.has(e.bookmarkId)) continue; // bookmark deleted → drop
+            reconciledEntries.push(e);
+          }
           continue;
         }
 
@@ -449,7 +457,15 @@ export async function handleAnchorListBroken(ctx: ServerContext, args: any) {
 
         for (const e of entriesForUri) {
           const r = resById.get(e.bookmarkId);
-          if (!r) continue; // bookmark gone → drop
+          if (!r) {
+            // Not among the resolved bookmarks: either the bookmark was deleted, or its
+            // data file failed to load this pass (when another file shares this URI the
+            // slot still exists, so the !slot+loadError guard above doesn't fire). Only
+            // treat it as a genuine deletion (drop) when every data file loaded; otherwise
+            // keep it — its absence is unverifiable (SML-1503 review: partial-load false-drop).
+            if (index.loadError) reconciledEntries.push(e);
+            continue;
+          }
           // Use the same classifier the extension wrote these entries with, so the
           // server doesn't re-surface shared warnings the product suppresses or
           // demote lineCacheOnly 'warning' to 'broken' (SML-1503 review #1/#2/#8).
