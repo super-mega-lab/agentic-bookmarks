@@ -146,6 +146,60 @@ describe('watchers — data-file pulse refresh (SML-1491)', () => {
       vi.useRealTimers();
     }
   });
+
+  it('on external data-file change (git checkout/pull/stash), invalidates the read cache synchronously and schedules a (debounced) refresh (SML-1502)', async () => {
+    vi.useFakeTimers();
+    try {
+      const deps = makeDeps();
+      const mgr = createWatcherManager(deps, () => -100000);
+
+      await mgr.setupWatchers();
+
+      // createdWatchers[0] = pulse watcher, createdWatchers[1] = data-file watcher.
+      expect(createdWatchers.length).toBeGreaterThanOrEqual(2);
+      const dataWatcher = createdWatchers[1];
+      // The fix wires the same invalidate+refresh handler onto onDidChange (not just onDidDelete),
+      // so git-driven modifies — which never bump the pulse — still refresh the view.
+      expect(dataWatcher.onDidChange).toHaveLength(1);
+
+      // Fire the data-file change handler (an external writer modified the committed data file).
+      dataWatcher.onDidChange[0]!();
+
+      // Cache invalidation runs synchronously; the refresh is fire-and-forget (debounced).
+      expect(invalidateFileCache).toHaveBeenCalledTimes(1);
+      expect(deps.revalidateAndRepaint).not.toHaveBeenCalled();
+
+      // Flush the 100ms debounce — the scheduled refresh runs, routing the re-resolve +
+      // repaint through the centralized helper.
+      await vi.advanceTimersByTimeAsync(100);
+      expect(deps.revalidateAndRepaint).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('our own write (pulse + data change firing within the debounce window) collapses to a single refresh — no flicker (SML-1502)', async () => {
+    vi.useFakeTimers();
+    try {
+      const deps = makeDeps();
+      const mgr = createWatcherManager(deps, () => -100000);
+
+      await mgr.setupWatchers();
+
+      const pulse = createdWatchers[0];
+      const dataWatcher = createdWatchers[1];
+
+      // editFileV2 writes the data file AND bumps the pulse, so both watchers fire. They share
+      // the single debounced `refresh` closure, so the two events must collapse into one repaint.
+      dataWatcher.onDidChange[0]!();
+      pulse.onDidChange[0]!();
+      await vi.advanceTimersByTimeAsync(100);
+
+      expect(deps.revalidateAndRepaint).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('watchers — registry-change watcher restart (SML-1504)', () => {
