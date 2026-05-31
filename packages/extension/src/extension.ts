@@ -22,7 +22,7 @@ import {
   classifyAnchorStatus,
 } from './anchorState';
 import { AnchorRepairQueue } from './repairQueue';
-import { syncBrokenAnchorsCache, clearRegisteredUris } from './brokenAnchorsSync';
+import { syncBrokenAnchorsCache, clearRegisteredUris, collectBookmarkedUris } from './brokenAnchorsSync';
 import { createLogger, type LogLevel } from './logger';
 import {
   syncDataRootSetting, syncLoadedWorkspaceFoldersAcrossRegistries,
@@ -41,7 +41,7 @@ import { registerAgentRepairCommands } from './commands/agent-repair-launch';
 import { ScanQueue, type ScanTarget, type ScanFileValidation } from './scanQueue';
 import { markFileValidated, isFileValidated } from './scanCoverage';
 import { countBroken } from './brokenCount';
-import { missingFileEntries, buildAuthoritativeCache, mergeCoveredUris, type ScanResultEntry } from './scanValidate';
+import { missingFileEntries, buildAuthoritativeCache, mergeCoveredUris, pruneCoveredUris, type ScanResultEntry } from './scanValidate';
 import { registerBookmarkExportCommand } from './commands/bookmark-export';
 import { registerGroupManagementCommands, executeGroupMove } from './commands/group-management';
 import { registerAppearanceCommands } from './commands/appearance';
@@ -954,7 +954,12 @@ async function activateForWorkspace(
     const existing = await brokenAnchorsCache.readBrokenAnchorsCache(cacheDir);
     const merged = buildAuthoritativeCache(existing.entries, scannedUris, entries, Date.now());
     // scannedUris is exactly the set of files validated this scan — accumulate it.
-    const coveredUris = mergeCoveredUris(existing.coveredUris ?? [], scannedUris);
+    let coveredUris = mergeCoveredUris(existing.coveredUris ?? [], scannedUris);
+    // Then drop coverage for files no longer bookmarked so the set stays bounded (SML-1509).
+    // Skip when the universe read is unreliable (a data file failed to load) to avoid dropping
+    // coverage for a momentarily-unreadable file.
+    const { uris, reliable } = await collectBookmarkedUris(workspaceRoot, reg);
+    if (reliable) coveredUris = pruneCoveredUris(coveredUris, uris);
     await brokenAnchorsCache.writeBrokenAnchorsCache(cacheDir, merged, coveredUris);
   }
 

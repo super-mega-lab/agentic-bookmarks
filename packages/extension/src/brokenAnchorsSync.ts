@@ -9,10 +9,12 @@ import {
   brokenAnchorsCache,
   getCacheDir,
   getBookmarksDataRoot,
+  pathsForDataFile,
+  readFileV2,
   type WorkspaceRegistryV1,
 } from '@agentic-bookmarks/core';
 import { getStateForFile } from './anchorState';
-import { mergeCoveredUris } from './scanValidate';
+import { mergeCoveredUris, pruneCoveredUris } from './scanValidate';
 
 type BrokenAnchorEntry = brokenAnchorsCache.BrokenAnchorEntry;
 
@@ -40,6 +42,41 @@ export function registerBookmarkUri(
  */
 export function clearRegisteredUris(docUri: string): void {
   docUriToRelativePaths.delete(docUri);
+}
+
+/** Core readers collectBookmarkedUris depends on — injected for testability, defaulting to core. */
+export interface BookmarkedUrisReaders {
+  getBookmarksDataRoot: typeof getBookmarksDataRoot;
+  pathsForDataFile: typeof pathsForDataFile;
+  readFileV2: typeof readFileV2;
+}
+
+/**
+ * Build the live "universe" of bookmarked workspace-relative target URIs (fragment-stripped) —
+ * the same set the MCP server computes as `index.universe`. Used to prune coveredUris so the
+ * persisted cache can't grow without bound (SML-1509).
+ *
+ * `reliable` is false when any enabled data file fails to read; callers skip pruning in that
+ * case rather than drop coverage for a file whose data is momentarily unreadable (this mirrors
+ * the server's `loadError` conservatism in anchor-git.ts).
+ */
+export async function collectBookmarkedUris(
+  workspaceRoot: string,
+  registry: WorkspaceRegistryV1,
+  readers: BookmarkedUrisReaders = { getBookmarksDataRoot, pathsForDataFile, readFileV2 },
+): Promise<{ uris: Set<string>; reliable: boolean }> {
+  const dataRoot = readers.getBookmarksDataRoot(registry);
+  const uris = new Set<string>();
+  let reliable = true;
+  for (const rf of registry.files.filter((f) => f.enabled !== false)) {
+    try {
+      const file = await readers.readFileV2(readers.pathsForDataFile(rf.path, workspaceRoot, dataRoot));
+      for (const b of file.bookmarks) uris.add(b.target.uri.split('#')[0]);
+    } catch {
+      reliable = false;
+    }
+  }
+  return { uris, reliable };
 }
 
 /**
@@ -113,7 +150,14 @@ export async function syncBrokenAnchorsCache(
     for (const [, uriMap] of docUriToRelativePaths) {
       for (const relUri of uriMap.values()) openRelUris.push(relUri);
     }
-    const coveredUris = mergeCoveredUris(existing.coveredUris ?? [], openRelUris);
+    let coveredUris = mergeCoveredUris(existing.coveredUris ?? [], openRelUris);
+    // Prune coverage for files no longer bookmarked (deleted/deregistered/un-bookmarked) so the
+    // set stays bounded (SML-1509). Skip when the universe read is unreliable — a data file
+    // failed to load — to avoid dropping coverage for a momentarily-unreadable file.
+    if (registryOrNull) {
+      const { uris, reliable } = await collectBookmarkedUris(workspaceRoot, registryOrNull);
+      if (reliable) coveredUris = pruneCoveredUris(coveredUris, uris);
+    }
 
     await brokenAnchorsCache.writeBrokenAnchorsCache(cacheDir, mergedEntries, coveredUris);
   } catch (err: any) {
