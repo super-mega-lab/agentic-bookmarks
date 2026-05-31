@@ -450,7 +450,11 @@ export async function handleAnchorListBroken(ctx: ServerContext, args: any) {
           {
             enableFlexContext: index.enableFlexContext,
             enableFlexContextShared: index.enableFlexContextShared,
-            isLocal: slot?.isLocal ?? false,
+            // Resolve with isLocal:true to match the extension (extension.ts getResolutionOptions);
+            // per-bookmark isLocal is for classifyAnchorStatus only. Otherwise the flex gate
+            // (shouldFlex = enableFlex && (isLocal || enableFlexShared)) wrongly drops flex for
+            // shared anchors when enableFlexContextShared:false, diverging from the extension. (SML-1508)
+            isLocal: true,
           },
         );
         const resById = new Map(resolutionResults.map(r => [r.anchorId, r]));
