@@ -232,25 +232,6 @@
       "source": "mcp"
     },
     {
-      "id": "0VwGNHDj",
-      "fileId": "cPqQBMDw",
-      "groupId": "mwbN-Jw2",
-      "target": {
-        "uri": "packages/extension/src/ext-context.ts"
-      },
-      "anchor": {
-        "kind": "smart",
-        "lineCache": "export function createExtCtx(parts: {",
-        "contextBefore": [],
-        "contextAfter": [],
-        "lastUpdatedLine": 94,
-        "nonce": 0
-      },
-      "label": "createExtCtx() — factory that assembles ExtCtx",
-      "createdAt": 1780021327736,
-      "source": "mcp"
-    },
-    {
       "id": "Ph137qNm",
       "fileId": "cPqQBMDw",
       "groupId": "mwbN-Jw2",
