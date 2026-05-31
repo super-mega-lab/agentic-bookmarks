@@ -273,6 +273,13 @@ export async function handleAnchorReadFileAtRevisionTool(ctx: ServerContext, arg
 
 export async function handleAnchorGetCommitDiffTool(ctx: ServerContext, args: any) {
   const { commit, filePath } = args;
+  // SML-1521: `commit` is untrusted MCP input forwarded to `git show`/`git diff`. Reject
+  // anything git would parse as an option (begins with '-', e.g. "--output=/abs/path") before
+  // it reaches git, where --output would truncate+overwrite an arbitrary file. (core enforces
+  // the same at the sink via assertSafeRevision; this is the defense at the directly-exposed entry.)
+  if (typeof commit !== 'string' || commit.length === 0 || commit.startsWith('-')) {
+    return { content: [{ type: 'text', text: JSON.stringify({ success: false, error: "Invalid commit argument: must be a non-empty revision that does not begin with '-'" }) }] };
+  }
   const workspace = ctx.workspaces[0];
   if (!workspace) {
     return { content: [{ type: 'text', text: JSON.stringify({ success: false, error: 'No workspace configured' }) }] };
