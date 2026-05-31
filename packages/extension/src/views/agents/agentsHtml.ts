@@ -22,23 +22,23 @@ export type AgentsSectionId = typeof AGENTS_SECTION_IDS[number];
 export interface SkillDef {
   id: string;
   label: string;
+  /** Inline emoji glyph shown on the pill. Inline (not a codicon) — no font is bundled in the webview. */
   icon: string;
   prompt: string;
 }
 
 export const SKILLS: SkillDef[] = [
-  { id: 'map-codebase', label: 'Map Codebase', icon: 'globe', prompt: 'Use bookmarks://skill/map-codebase to build a bookmark map of this project.' },
-  { id: 'analyze', label: 'Analyze', icon: 'graph', prompt: 'Use bookmarks://skill/analyze to analyze the current bookmark set.' },
-  { id: 'add-to-system', label: 'Add to System', icon: 'package', prompt: 'Use bookmarks://skill/add-to-system to bookmark a system or module.' },
-  { id: 'add-to-files', label: 'Add to Files', icon: 'file-add', prompt: 'Use bookmarks://skill/add-to-files to annotate files with bookmarks.' },
-  { id: 'help', label: 'Help', icon: 'question', prompt: 'Use bookmarks://skill/help to help the user with Agentic Bookmarks.' },
-  { id: 'report-issue', label: 'Report Issue', icon: 'bug', prompt: 'Use bookmarks://skill/report-issue to help the user report a bug.' },
+  { id: 'map-codebase', label: 'Map Codebase', icon: '🌐', prompt: 'Use bookmarks://skill/map-codebase to build a bookmark map of this project.' },
+  { id: 'analyze', label: 'Analyze', icon: '📊', prompt: 'Use bookmarks://skill/analyze to analyze the current bookmark set.' },
+  { id: 'add-to-system', label: 'Add to System', icon: '📦', prompt: 'Use bookmarks://skill/add-to-system to bookmark a system or module.' },
+  { id: 'add-to-files', label: 'Add to Files', icon: '📄', prompt: 'Use bookmarks://skill/add-to-files to annotate files with bookmarks.' },
+  { id: 'help', label: 'Help', icon: '❓', prompt: 'Use bookmarks://skill/help to help the user with Agentic Bookmarks.' },
+  { id: 'report-issue', label: 'Report Issue', icon: '🐛', prompt: 'Use bookmarks://skill/report-issue to help the user report a bug.' },
 ];
 
 export interface AgentsHtmlOptions {
   cspSource: string;
   nonce: string;
-  codiconUri?: string;
   /** Ordered list of all known agents and their current install state. */
   agents?: AgentConnectionDescriptor[];
   /** Per-section collapsed state. Missing entries default to expanded. */
@@ -151,7 +151,7 @@ function renderAgentConnections(agents: AgentConnectionDescriptor[], _collapsed:
 
 function renderPill(skill: SkillDef): string {
   const href = runCmdWithArg('agenticBookmarks.runSkill', skill.id);
-  return `<a class="skill-pill" href="${href}" title="${skill.label}"><span class="codicon codicon-${skill.icon}"></span> ${skill.label}</a>`;
+  return `<a class="skill-pill" href="${href}" title="${skill.label}"><span aria-hidden="true">${skill.icon}</span> ${skill.label}</a>`;
 }
 
 function emptyBody(): string {
@@ -180,10 +180,7 @@ function activeBody(
 }
 
 export function renderAgentsHtml(opts: AgentsHtmlOptions): string {
-  const { cspSource, nonce, codiconUri, agents = [], collapsedSections = {}, hasFolder = true } = opts;
-  const codiconLink = codiconUri
-    ? `<link rel="stylesheet" href="${codiconUri}" />`
-    : '';
+  const { cspSource, nonce, agents = [], collapsedSections = {}, hasFolder = true } = opts;
 
   const body = hasFolder ? activeBody(agents, collapsedSections) : emptyBody();
 
@@ -197,7 +194,6 @@ export function renderAgentsHtml(opts: AgentsHtmlOptions): string {
     font-src ${cspSource};
     script-src 'nonce-${nonce}';
   " />
-  ${codiconLink}
   <style>
     body {
       font-family: var(--vscode-font-family);
@@ -369,9 +365,6 @@ export function renderAgentsHtml(opts: AgentsHtmlOptions): string {
     }
     .skill-pill:hover {
       background: var(--vscode-button-hoverBackground);
-    }
-    .skill-pill .codicon {
-      font-size: 12px;
     }
     .cta-text {
       margin: 0 0 10px;
