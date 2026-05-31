@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { tmpdir } from 'node:os';
 import { getRepairSkillGuide, findHistoricalCommit, handleSearchMovedCode } from './anchor-git-tools';
-import { handleAnchorListBroken } from './tools/anchor-git';
+import { handleAnchorListBroken, handleAnchorGetCommitDiffTool } from './tools/anchor-git';
 import {
   createWorkspaceInfo,
   emptyFileV2,
@@ -703,5 +703,51 @@ describe('handleAnchorListBroken', () => {
     expect(parsed.summary.broken).toBe(0);
     const allEntries = parsed.results.flatMap((r: any) => r.entries);
     expect(allEntries.some((e: any) => e.bookmarkId === 'bm1')).toBe(false);
+  });
+});
+
+// SML-1521: anchor_getCommitDiff forwards untrusted `commit` to git. A commit beginning
+// with '-' (e.g. "--output=/abs/path") is an argument-injection attempt that git would use
+// to truncate+overwrite a file. The server must reject it before reaching git.
+describe('handleAnchorGetCommitDiffTool commit validation', () => {
+  const parse = (res: any) => JSON.parse(res.content[0].text);
+
+  // A non-git temp dir: without the guard, a valid commit falls through to
+  // validateGitContext and yields "Not a git repository". The guard must short-circuit
+  // BEFORE that for an injection attempt — so its distinct error proves it ran first.
+  const ctx = { workspaces: [{ workspaceRoot: tmpdir() }] } as any;
+
+  it('rejects a --output commit before reaching git (AC5)', async () => {
+    const victimPath = path.join(tmpdir(), `getcommitdiff-victim-${process.pid}.txt`);
+    await fs.writeFile(victimPath, 'SAFE\n');
+    try {
+      const parsed = parse(await handleAnchorGetCommitDiffTool(ctx, { commit: `--output=${victimPath}` }));
+      expect(parsed.success).toBe(false);
+      expect(parsed.error).toMatch(/invalid commit/i);
+      expect(parsed.error).not.toMatch(/not a git repository/i);
+      expect(await fs.readFile(victimPath, 'utf8')).toBe('SAFE\n');
+    } finally {
+      await fs.rm(victimPath, { force: true });
+    }
+  });
+
+  it('rejects a bare "-" commit (AC5)', async () => {
+    const parsed = parse(await handleAnchorGetCommitDiffTool(ctx, { commit: '-' }));
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).toMatch(/invalid commit/i);
+  });
+
+  it('rejects an empty commit (AC5)', async () => {
+    const parsed = parse(await handleAnchorGetCommitDiffTool(ctx, { commit: '' }));
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).toMatch(/invalid commit/i);
+  });
+
+  it('lets a valid commit through past the guard (positive control)', async () => {
+    // A valid-shaped commit must NOT be rejected by the commit guard — it should fall
+    // through to the normal git path (which fails here only because the dir is not a repo).
+    const parsed = parse(await handleAnchorGetCommitDiffTool(ctx, { commit: 'HEAD' }));
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).not.toMatch(/invalid commit/i);
   });
 });
