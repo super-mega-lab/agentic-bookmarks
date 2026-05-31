@@ -1,7 +1,11 @@
 #!/usr/bin/env node
-// Simple semver incrementer for the extension package version.
+// Simple semver incrementer for the workspace version.
 // Usage: node scripts/bump-version.mjs [patch|minor|major]
-// Updates: packages/extension/package.json (and echoes the new version)
+//
+// The extension package.json holds the canonical version (it's what ships to
+// the marketplace). The root workspace package.json and the server package
+// are kept in lockstep with it so the whole workspace reports one version.
+// packages/licensing is intentionally left on its own version track.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,39 +17,48 @@ if (!allowed.includes(mode)) {
   process.exit(1);
 }
 
-const extensionPkgPath = path.resolve('packages/extension/package.json');
-if (!fs.existsSync(extensionPkgPath)) {
-  console.error('Cannot find extension package.json at', extensionPkgPath);
-  process.exit(1);
+const canonicalPkgPath = path.resolve('packages/extension/package.json');
+const lockstepPkgPaths = [
+  path.resolve('package.json'),
+  path.resolve('packages/server/package.json'),
+];
+
+function readPkg(pkgPath) {
+  if (!fs.existsSync(pkgPath)) {
+    console.error('Cannot find package.json at', pkgPath);
+    process.exit(1);
+  }
+  try {
+    return JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  } catch (e) {
+    console.error(`Failed to parse ${pkgPath}:`, e.message);
+    process.exit(1);
+  }
 }
 
-const text = fs.readFileSync(extensionPkgPath, 'utf8');
-let data;
-try { data = JSON.parse(text); } catch (e) {
-  console.error('Failed to parse extension package.json:', e.message);
-  process.exit(1);
+function writePkg(pkgPath, data) {
+  fs.writeFileSync(pkgPath, JSON.stringify(data, null, 2) + '\n', 'utf8');
 }
 
-if (!data.version) {
+const canonical = readPkg(canonicalPkgPath);
+if (!canonical.version) {
   console.error('No version field found in extension package.json');
   process.exit(1);
 }
 
-const original = data.version;
+const original = canonical.version;
 const semverMatch = original.match(/^(\d+)\.(\d+)\.(\d+)(-.+)?$/);
 if (!semverMatch) {
   console.error(`Version '${original}' is not a simple semver (x.y.z[-prerelease])`);
   process.exit(1);
 }
 
-let [ , majStr, minStr, patStr, pre ] = semverMatch;
+let [ , majStr, minStr, patStr ] = semverMatch;
 let major = parseInt(majStr, 10);
 let minor = parseInt(minStr, 10);
 let patch = parseInt(patStr, 10);
 
 // On increment, drop any pre-release tag.
-pre = undefined;
-
 switch (mode) {
   case 'patch':
     patch += 1;
@@ -59,10 +72,23 @@ switch (mode) {
 }
 
 const newVersion = `${major}.${minor}.${patch}`;
-data.version = newVersion;
 
-fs.writeFileSync(extensionPkgPath, JSON.stringify(data, null, 2) + '\n', 'utf8');
+// Write the new version to the canonical package and every lockstep package,
+// so a drifted root/server version is healed back into sync on each bump.
+canonical.version = newVersion;
+writePkg(canonicalPkgPath, canonical);
 
-console.log(`Extension version bumped: ${original} -> ${newVersion}`);
+for (const pkgPath of lockstepPkgPaths) {
+  const data = readPkg(pkgPath);
+  data.version = newVersion;
+  writePkg(pkgPath, data);
+}
+
+const updated = [canonicalPkgPath, ...lockstepPkgPaths]
+  .map((p) => path.relative(process.cwd(), p))
+  .join(', ');
+
+console.log(`Version bumped: ${original} -> ${newVersion}`);
+console.log(`Updated: ${updated}`);
 console.log('Remember to rebuild & package: pnpm package');
 console.log('Consider updating CHANGELOG.md if you maintain one.');
