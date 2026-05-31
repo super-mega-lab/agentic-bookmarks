@@ -40,6 +40,7 @@ import {
   getWorkspaceForGroupNode,
   getConfiguredDataRoot,
 } from '../workspace-helpers';
+import { moveBookmarkAcrossFiles } from './group-management-helpers';
 
 type UIState = { hidden: string[]; focus: string | null; filterEnabled?: boolean; hiddenFiles?: string[] };
 type SearchFilter = { id: string; text: string; regex: boolean; op: 'AND' | 'OR' };
@@ -263,21 +264,8 @@ export function registerGroupManagementCommands(deps: GroupManagementDeps): vsco
             if (b) b.groupId = target.groupId;
           });
         } else {
-          let moved: any = null;
-          await editFileV2(srcPaths, (file: any) => {
-            const idx = file.bookmarks.findIndex((x: any) => x.id === node.id);
-            if (idx >= 0) {
-              moved = file.bookmarks.splice(idx, 1)[0];
-            }
-          });
-          if (!moved) return;
           const dstPaths = pathsForDataFile(target.filePath, nodeWorkspaceRoot, dataRoot);
-          await editFileV2(dstPaths, (file: any) => {
-            moved.fileId = file.fileId;
-            moved.groupId = target.groupId;
-            moved.updatedAt = Date.now();
-            file.bookmarks.unshift(moved);
-          });
+          await moveBookmarkAcrossFiles({ readFileV2, editFileV2 }, srcPaths, dstPaths, node.id, target.groupId);
         }
 
         provider.refresh();
