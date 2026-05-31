@@ -116,10 +116,11 @@ export function createWatcherManager(
       pulseWatcher.onDidDelete(refresh);
       fileWatchers.push(pulseWatcher);
 
-      // Data file change/delete watcher: invalidate the read cache when the committed data
-      // file is modified or removed by anything other than our own writes — notably external
-      // writers (git checkout/pull/stash/rebase, manual edits) that rewrite the file without
-      // bumping the gitignored .pulse, so the pulse watcher never fires (SML-1502). Our own
+      // Data file change/create/delete watcher: invalidate the read cache when the committed
+      // data file is modified, created, or removed by anything other than our own writes —
+      // notably external writers (git checkout/pull/stash/rebase, manual edits) that rewrite or
+      // re-create the file without bumping the gitignored .pulse, so the pulse watcher never
+      // fires (SML-1502; onDidCreate added for the absent→re-created case in SML-1507). Our own
       // writes also fire here, but the shared debounced `refresh` + sticky-suppress guard
       // collapse the pulse+data double-fire into a single repaint (no flicker).
       try {
@@ -137,6 +138,7 @@ export function createWatcherManager(
           refresh();
         };
         dataWatcher.onDidChange(onDataFileChanged);
+        dataWatcher.onDidCreate(onDataFileChanged);
         dataWatcher.onDidDelete(onDataFileChanged);
         fileWatchers.push(dataWatcher);
       } catch (err) {

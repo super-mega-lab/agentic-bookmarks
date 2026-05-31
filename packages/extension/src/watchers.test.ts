@@ -178,6 +178,38 @@ describe('watchers — data-file pulse refresh (SML-1491)', () => {
     }
   });
 
+  it('on data-file create (git checkout/stash pop/pull re-creates the file), invalidates the read cache synchronously and schedules a (debounced) refresh (SML-1507)', async () => {
+    vi.useFakeTimers();
+    try {
+      const deps = makeDeps();
+      const mgr = createWatcherManager(deps, () => -100000);
+
+      await mgr.setupWatchers();
+
+      // createdWatchers[0] = pulse watcher, createdWatchers[1] = data-file watcher.
+      expect(createdWatchers.length).toBeGreaterThanOrEqual(2);
+      const dataWatcher = createdWatchers[1];
+      // The fix wires the same invalidate+refresh handler onto onDidCreate, so a git-driven
+      // re-creation of an absent committed file — which never bumps the gitignored pulse —
+      // still refreshes the view.
+      expect(dataWatcher.onDidCreate).toHaveLength(1);
+
+      // Fire the data-file create handler (git re-created the committed data file).
+      dataWatcher.onDidCreate[0]!();
+
+      // Cache invalidation runs synchronously; the refresh is fire-and-forget (debounced).
+      expect(invalidateFileCache).toHaveBeenCalledTimes(1);
+      expect(deps.revalidateAndRepaint).not.toHaveBeenCalled();
+
+      // Flush the 100ms debounce — the scheduled refresh runs, routing the re-resolve +
+      // repaint through the centralized helper.
+      await vi.advanceTimersByTimeAsync(100);
+      expect(deps.revalidateAndRepaint).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('our own write (pulse + data change firing within the debounce window) collapses to a single refresh — no flicker (SML-1502)', async () => {
     vi.useFakeTimers();
     try {
