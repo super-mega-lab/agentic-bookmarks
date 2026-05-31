@@ -26,6 +26,18 @@ export function mergeCoveredUris(existing: string[], added: Iterable<string>): s
   return [...new Set([...existing, ...added])];
 }
 
+/**
+ * Drop covered-file URIs no longer in the live bookmark `universe` — files that were
+ * deleted, deregistered, or stripped of their last bookmark — so the persisted set
+ * can't grow without bound (SML-1509). Membership is fragment-insensitive, matching
+ * the normalization the server applies when intersecting coverage with `index.universe`.
+ */
+export function pruneCoveredUris(coveredUris: string[], universe: Iterable<string>): string[] {
+  const live = new Set<string>();
+  for (const u of universe) live.add(u.split('#')[0]);
+  return coveredUris.filter((u) => live.has(u.split('#')[0]));
+}
+
 /** Mint broken (file_missing) scan entries for every bookmark of a deleted file. */
 export function missingFileEntries(bookmarkIds: string[], uri: string): ScanResultEntry[] {
   return bookmarkIds.map((bookmarkId) => ({

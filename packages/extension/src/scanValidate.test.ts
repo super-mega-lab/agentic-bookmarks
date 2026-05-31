@@ -5,6 +5,7 @@ import {
   missingFileEntries,
   buildAuthoritativeCache,
   mergeCoveredUris,
+  pruneCoveredUris,
   type ScanResultEntry,
 } from './scanValidate';
 
@@ -88,5 +89,39 @@ describe('mergeCoveredUris', () => {
 
   it('accepts a Set as added (Iterable)', () => {
     expect(mergeCoveredUris(['a'], new Set(['a', 'b']))).toEqual(['a', 'b']);
+  });
+});
+
+describe('pruneCoveredUris', () => {
+  it('drops URIs no longer in the universe', () => {
+    // src/gone.ts was bookmarked once (so it lingers in coveredUris) but is now
+    // deleted/deregistered → absent from the universe → pruned.
+    const out = pruneCoveredUris(['src/a.ts', 'src/gone.ts'], new Set(['src/a.ts']));
+    expect(out).toEqual(['src/a.ts']);
+  });
+
+  it('keeps live URIs and matches ignoring #fragment', () => {
+    // Covered entry carries a #fragment; the universe stores the bare path. Membership
+    // is fragment-insensitive (same normalization the server applies to coverage).
+    const out = pruneCoveredUris(['src/a.ts#L5', 'src/b.ts'], new Set(['src/a.ts', 'src/b.ts']));
+    expect(out).toEqual(['src/a.ts#L5', 'src/b.ts']);
+  });
+
+  it('normalizes a universe that itself carries fragments', () => {
+    const out = pruneCoveredUris(['src/a.ts'], new Set(['src/a.ts#L1']));
+    expect(out).toEqual(['src/a.ts']);
+  });
+
+  it('empty universe prunes everything', () => {
+    expect(pruneCoveredUris(['src/a.ts', 'src/b.ts'], new Set())).toEqual([]);
+  });
+
+  it('empty coveredUris returns empty', () => {
+    expect(pruneCoveredUris([], new Set(['src/a.ts']))).toEqual([]);
+  });
+
+  it('preserves order and accepts an array universe (Iterable)', () => {
+    const out = pruneCoveredUris(['c.ts', 'a.ts', 'b.ts'], ['a.ts', 'b.ts', 'c.ts']);
+    expect(out).toEqual(['c.ts', 'a.ts', 'b.ts']);
   });
 });
