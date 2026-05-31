@@ -9,6 +9,7 @@ import {
   emptyFileV2,
   addFileToRegistry,
   readRegistry,
+  writeRegistry,
   createAnchor,
   getBookmarksDataRoot,
   getCacheDir,
@@ -408,7 +409,7 @@ describe('handleAnchorListBroken', () => {
    * control whether it resolves against the on-disk source content.
    */
   async function registerBookmarksFile(
-    bookmarks: Array<{ id: string; targetRel: string; anchorLines: string[]; line: number; updatedAt: number }>,
+    bookmarks: Array<{ id: string; targetRel: string; anchorLines: string[]; line: number; updatedAt: number; anchorIsLocal?: boolean }>,
     dataFileName: string = 'bookmarks.json',
   ): Promise<void> {
     const file = emptyFileV2();
@@ -418,7 +419,7 @@ describe('handleAnchorListBroken', () => {
       fileId: file.fileId,
       groupId,
       target: { uri: b.targetRel },
-      anchor: createAnchor('smart', b.anchorLines, b.line, { lineCacheLength: 120 }),
+      anchor: createAnchor('smart', b.anchorLines, b.line, { lineCacheLength: 120, isLocal: b.anchorIsLocal ?? false }),
       label: '',
       createdAt: 1000,
       updatedAt: b.updatedAt,
@@ -639,5 +640,68 @@ describe('handleAnchorListBroken', () => {
     expect(parsed.summary.broken).toBe(1);
     const allEntries = parsed.results.flatMap((r: any) => r.entries);
     expect(allEntries.some((e: any) => e.bookmarkId === 'bmB' && e.status === 'broken')).toBe(true);
+  });
+
+  it('evicts a shared flex-only anchor under enableFlexContextShared:false (isLocal resolution parity with the extension, SML-1508)', async () => {
+    // A smart anchor that resolves ONLY via flex (rigid match fails, windowed flex succeeds).
+    // The anchor is created with anchorIsLocal:true so it actually carries contextBefore/After
+    // (shared creation uses SHARED_CONTEXT_MIN=0 and would capture none). Resolution-time
+    // isLocal is independent — it comes from the file living under .bookmarks/shared/ (false).
+    const anchorLines = [
+      'alpha_unique_marker_aaa',
+      'beta_unique_marker_bbb',
+      'gamma_unique_marker_ccc',
+      'delta_unique_marker_ddd',
+      'TARGET_unique_line_zzz',
+      'epsilon_unique_marker_eee',
+      'zeta_unique_marker_fff',
+      'eta_unique_marker_ggg',
+      'theta_unique_marker_hhh',
+    ];
+    const targetIdx = 4;
+    // On disk: two non-matching lines inserted on BOTH sides of the target. This breaks the
+    // rigid contiguous context match (so Phase-1 resolution fails) but stays within the flex
+    // window (so Phase-2 flex resolution succeeds) — i.e. the anchor is flex-only-resolvable.
+    const diskLines = [
+      'alpha_unique_marker_aaa',
+      'beta_unique_marker_bbb',
+      'gamma_unique_marker_ccc',
+      'delta_unique_marker_ddd',
+      'inserted_before_one',
+      'inserted_before_two',
+      'TARGET_unique_line_zzz',
+      'inserted_after_one',
+      'inserted_after_two',
+      'epsilon_unique_marker_eee',
+      'zeta_unique_marker_fff',
+      'eta_unique_marker_ggg',
+      'theta_unique_marker_hhh',
+    ];
+    const abs = await writeSource('src/file.ts', diskLines);
+    // registerBookmarksFile writes under .bookmarks/shared/ → the index resolves it as isLocal:false.
+    await registerBookmarksFile([
+      { id: 'bm1', targetRel: 'src/file.ts', anchorLines, line: targetIdx, updatedAt: 500, anchorIsLocal: true },
+    ]);
+    // Disable flex for shared anchors. The flex gate is shouldFlex = enableFlex && (isLocal ||
+    // enableFlexShared). Pre-fix the server resolves shared anchors with isLocal:false → gate
+    // OFF → the flex-only anchor stays broken (kept). The fix resolves with isLocal:true
+    // (matching the extension) → gate ON → the anchor resolves → evicted.
+    const reg = await readRegistry(testDir);
+    reg.settings = reg.settings ?? ({} as any);
+    (reg.settings as any).anchors = { ...((reg.settings as any).anchors ?? {}), enableFlexContextShared: false };
+    await writeRegistry(testDir, reg);
+
+    await writeCache(
+      [{ bookmarkId: 'bm1', uri: 'src/file.ts', status: 'broken', errorCode: 'not_found', errorDetails: null, score: null, discoveredAt: 1000 }],
+      ['src/file.ts'],
+    );
+    // Force a recheck so the resolve path runs (mtimeMs > discoveredAt), not the fast path.
+    const newer = new Date(5_000_000);
+    await fs.utimes(abs, newer, newer);
+
+    const parsed = await callAndParse();
+    expect(parsed.summary.broken).toBe(0);
+    const allEntries = parsed.results.flatMap((r: any) => r.entries);
+    expect(allEntries.some((e: any) => e.bookmarkId === 'bm1')).toBe(false);
   });
 });
