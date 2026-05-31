@@ -49,11 +49,15 @@ describe('renderAgentsHtml — skill pills', () => {
     expect(html).toContain('abc123');
   });
 
-  it('renders a pill button for every skill', () => {
+  it('renders a pill button (with emoji icon) for every skill', () => {
     for (const skill of SKILLS) {
       expect(html).toContain(skill.label);
-      expect(html).toContain(`codicon-${skill.icon}`);
+      expect(html).toContain(skill.icon);
     }
+  });
+
+  it('no longer emits codicon markup (icons are inline emoji)', () => {
+    expect(html).not.toContain('codicon');
   });
 
   it('renders command URIs with the skill id', () => {
