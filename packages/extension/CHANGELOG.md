@@ -9,6 +9,40 @@ they do, that's called out explicitly below.
 
 ---
 
+## [0.8.18] — 2026-05-31
+
+**Reliability pass.** A wave of fixes so the sidebar, broken-bookmark reports, and agent integrations stay accurate as your files change underneath them.
+
+### The sidebar keeps up with outside changes
+
+- The bookmark view now refreshes when your data files are rewritten by **git** or another tool — no more stale entries after a branch switch or pull.
+- File watching restarts when the bookmark registry changes, so files an **agent creates over MCP** are tracked right away.
+- The data-file watcher now catches newly **created** files it previously missed.
+
+### Broken-bookmark reports you can trust
+
+- `anchor_listBroken` validates its cache when read and no longer keeps or drops stale reconciliation entries, so the broken set reflects reality.
+- Shared-anchor "is this local?" resolution is now consistent between the sidebar and MCP, fixing mismatched broken counts in multi-workspace setups.
+- Group operations performed in a secondary workspace no longer desync the bookmark name index over MCP.
+
+### Agents panel
+
+- No more spurious "command not found" in a window with no folder open.
+- Skill-playbook pills now show their icons correctly.
+
+### Bookmark files & repair
+
+- Shared bookmark files are auto-discovered when the extension activates.
+- Creating a bookmark file where one already exists no longer silently overwrites it.
+- The gutter "!" clears immediately after you repair a bookmark with the wrench action.
+
+### Under the hood
+
+- The extension shrugs off a single file that fails to load or revalidate, instead of letting it disrupt the rest of the view.
+- Fewer redundant tree refreshes on each bookmark pulse keep the sidebar responsive.
+
+---
+
 ## [0.8.17] — 2026-05-27
 
 **Agents panel.** Everything about your AI agents now lives in one dedicated sidebar view, alongside ready-to-run skill playbooks.
