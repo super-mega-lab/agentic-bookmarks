@@ -9,9 +9,13 @@ they do, that's called out explicitly below.
 
 ---
 
-## [0.8.18] — 2026-05-31
+## [0.8.19] — 2026-05-31
 
-**Reliability pass.** A wave of fixes so the sidebar, broken-bookmark reports, and agent integrations stay accurate as your files change underneath them.
+**Reliability & data-safety pass.** A wave of fixes so the sidebar, broken-bookmark reports, and agent integrations stay accurate as your files change underneath them — plus a crash-safe cross-file move and a hardened agent git tool.
+
+### Your bookmarks stay put
+
+- Moving a bookmark to a group in **another file** is now crash-safe. The destination file is written *before* the bookmark is removed from the source, so a failed write can no longer drop it from both files.
 
 ### The sidebar keeps up with outside changes
 
@@ -40,6 +44,8 @@ they do, that's called out explicitly below.
 
 - The extension shrugs off a single file that fails to load or revalidate, instead of letting it disrupt the rest of the view.
 - Fewer redundant tree refreshes on each bookmark pulse keep the sidebar responsive.
+- The broken-bookmarks cache no longer accumulates stale entries for deleted or un-bookmarked files, so `.bookmarks/local/` stays small over time.
+- Hardened the `anchor_getCommitDiff` MCP tool: it now rejects malformed commit arguments before they reach git, closing a path where a crafted value could overwrite files on disk.
 
 ---
 
