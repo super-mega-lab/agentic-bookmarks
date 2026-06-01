@@ -226,6 +226,98 @@ describe('multi-workspace group ops', () => {
     expect(sourceData.groups.some(g => g.id === groupId)).toBe(false);
   });
 
+  it('handleGroupMoveFile emits 1-based tagInsertions when the destination uses tag anchors (SML-1522)', async () => {
+    // Real source file the point anchor resolves against: 0-based line 2 is the function.
+    const codeFile = path.join(secondaryRoot, 'src', 'insert.ts');
+    await fs.mkdir(path.dirname(codeFile), { recursive: true });
+    await fs.writeFile(
+      codeFile,
+      ['import { foo } from "bar";', '', 'export function test() {', '  return 42;', '}'].join('\n'),
+      'utf8'
+    );
+
+    const sourceFile = path.join(secondaryRoot, '.bookmarks', 'shared', 'ins-source.json');
+    const destFile = path.join(secondaryRoot, '.bookmarks', 'shared', 'ins-dest.json');
+    const groupId = await setupGroupInWorkspace(secondaryRoot, sourceFile, 'Movable');
+
+    // Add a point-anchored bookmark to the moved group, targeting the real source file.
+    const srcData: any = await readFileAt(sourceFile);
+    srcData.bookmarks.push({
+      id: 'bm-point',
+      fileId: srcData.fileId,
+      groupId,
+      target: { uri: 'src/insert.ts' },
+      anchor: { kind: 'point', line: 2, lineCache: 'export function test() {' },
+      label: 'x',
+      createdAt: 1,
+    });
+    await fs.writeFile(sourceFile, JSON.stringify(srcData, null, 2), 'utf8');
+
+    // Destination configured for tag anchors → forces a point→tag conversion (tag insertion).
+    const destData: any = emptyFileV2();
+    destData.defaultAnchorType = 'tag';
+    await fs.writeFile(destFile, JSON.stringify(destData, null, 2), 'utf8');
+    await addFileToRegistry(secondaryRoot, destFile);
+
+    const result = await handleGroupMoveFile(ctx, { sourceFile, destFile, groupId });
+    const parsed = JSON.parse(result.content[0].text);
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.agentActionRequired).toBe(true);
+    expect(parsed.tagInsertions).toHaveLength(1);
+    // Core resolves to 0-based line 2; the MCP wire convention is 1-based, so this must be 3.
+    expect(parsed.tagInsertions[0].line).toBe(3);
+  });
+
+  it('handleGroupMoveFile emits 1-based tagRemovals when converting away from tag anchors (SML-1522)', async () => {
+    // Source file carries the tag marker on 0-based line 2 so the tag anchor resolves there.
+    const codeFile = path.join(secondaryRoot, 'src', 'remove.ts');
+    await fs.mkdir(path.dirname(codeFile), { recursive: true });
+    await fs.writeFile(
+      codeFile,
+      [
+        'import { foo } from "bar";',
+        '',
+        'export function test() { // @bookmark:test123',
+        '  return 42;',
+        '}',
+      ].join('\n'),
+      'utf8'
+    );
+
+    const sourceFile = path.join(secondaryRoot, '.bookmarks', 'shared', 'rem-source.json');
+    const destFile = path.join(secondaryRoot, '.bookmarks', 'shared', 'rem-dest.json');
+    const groupId = await setupGroupInWorkspace(secondaryRoot, sourceFile, 'Taggable');
+
+    // Add a tag-anchored bookmark to the moved group.
+    const srcData: any = await readFileAt(sourceFile);
+    srcData.bookmarks.push({
+      id: 'bm-tag',
+      fileId: srcData.fileId,
+      groupId,
+      target: { uri: 'src/remove.ts' },
+      anchor: { kind: 'tag', tagId: 'test123', lastUpdatedLine: 2, nonce: 0 },
+      label: 'x',
+      createdAt: 1,
+    });
+    await fs.writeFile(sourceFile, JSON.stringify(srcData, null, 2), 'utf8');
+
+    // Destination uses smart anchors → forces a tag→smart conversion (tag removal).
+    const destData: any = emptyFileV2();
+    destData.defaultAnchorType = 'smart';
+    await fs.writeFile(destFile, JSON.stringify(destData, null, 2), 'utf8');
+    await addFileToRegistry(secondaryRoot, destFile);
+
+    const result = await handleGroupMoveFile(ctx, { sourceFile, destFile, groupId });
+    const parsed = JSON.parse(result.content[0].text);
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.tagRemovals).toHaveLength(1);
+    expect(parsed.tagRemovals[0].pattern).toBe('@bookmark:test123');
+    // Core resolves to 0-based line 2; the MCP wire convention is 1-based, so this must be 3.
+    expect(parsed.tagRemovals[0].line).toBe(3);
+  });
+
   it('handleGroupDelete falls back to ctx.workspaceRoot in a single-workspace setup', async () => {
     const root = mkRoot('single');
     await fs.mkdir(root, { recursive: true });

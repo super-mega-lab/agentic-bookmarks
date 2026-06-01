@@ -21,6 +21,7 @@ import {
   log,
   createGroupWithAIStyle,
 } from '../helpers.js';
+import { toWire } from './line-basis.js';
 
 export async function handleFileCreate(ctx: ServerContext, args: Record<string, any>) {
   const { path: p, title } = args as { path: string; title?: string };
@@ -205,8 +206,10 @@ export async function handleGroupMoveFile(ctx: ServerContext, args: Record<strin
         success: moveResult.success,
         moved: moveResult.movedCount,
         conversionIssues: moveResult.conversionIssues,
-        tagInsertions: moveResult.tagInsertions,
-        tagRemovals: moveResult.tagRemovals,
+        // Core emits 0-based `line` (from resolveAnchors); the MCP wire convention
+        // is 1-based, like bookmark_add / bookmark_delete / anchor_repair.
+        tagInsertions: moveResult.tagInsertions.map(t => ({ ...t, line: toWire(t.line) })),
+        tagRemovals: moveResult.tagRemovals.map(t => ({ ...t, line: toWire(t.line) })),
         agentActionRequired: agentActions.length > 0,
         message,
       }),
