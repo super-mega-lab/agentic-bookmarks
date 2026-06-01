@@ -294,34 +294,54 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
      * cleanup is performed by opening each source file via openTextDocument.
      */
     activeEditor: vscode.TextEditor | null;
+    /**
+     * The workspace folders to scan — each is read with its OWN registry +
+     * dataRoot + root-relative URI resolution. `clearFile` passes the active
+     * file's owning folder; `clearAll` passes every workspace folder.
+     */
+    folders: vscode.WorkspaceFolder[];
   }): Promise<void> {
-    const reg = await readRegistry(workspaceRoot);
-    const dataRoot = getConfiguredDataRoot(vscode.workspace.workspaceFolders![0]);
-    const enabled = reg.files.filter(f => f.enabled !== false);
-
-    // First pass: count matches, record per-file ids to remove, group tag
-    // anchors by their source URI.
-    const idsByFile = new Map<string, Set<string>>();
+    // First pass: count matches, record per-(folder,file) ids to remove (so the
+    // same relative path in two folders does not collide), group tag anchors by
+    // their OWNING-folder absolute source URI.
+    const deletePlan: Array<{ root: string; dataRoot: string; rfPath: string; ids: Set<string> }> = [];
     const tagAnchorsBySource = new Map<string, TagAnchorRemoval[]>();
     let totalCount = 0;
 
-    for (const rf of enabled) {
-      const p = pathsForDataFile(rf.path, workspaceRoot, dataRoot);
-      let file: BookmarksFileV2;
+    for (const folder of opts.folders) {
+      const root = folder.uri.fsPath;
+      const dataRoot = getConfiguredDataRoot(folder);
+      let reg;
       try {
-        file = await readFileV2(p);
+        reg = await readRegistry(root);
       } catch (e) {
-        log.error(`Clear: readFileV2 failed for ${rf.path}: ${e}`);
+        log.error(`Clear: readRegistry failed for ${root}: ${e}`);
         continue;
       }
-      const { cleared, tagAnchorsToRemove } = partitionBookmarksForClear(file, opts.predicate);
-      if (cleared.length === 0) continue;
-      totalCount += cleared.length;
-      idsByFile.set(rf.path, new Set(cleared.map(b => (b as any).id)));
-      for (const entry of tagAnchorsToRemove) {
-        const list = tagAnchorsBySource.get(entry.sourceUri);
-        if (list) list.push(entry);
-        else tagAnchorsBySource.set(entry.sourceUri, [entry]);
+      const enabled = reg.files.filter(f => f.enabled !== false);
+
+      for (const rf of enabled) {
+        const p = pathsForDataFile(rf.path, root, dataRoot);
+        let file: BookmarksFileV2;
+        try {
+          file = await readFileV2(p);
+        } catch (e) {
+          log.error(`Clear: readFileV2 failed for ${rf.path}: ${e}`);
+          continue;
+        }
+        const { cleared, tagAnchorsToRemove } = partitionBookmarksForClear(file, opts.predicate);
+        if (cleared.length === 0) continue;
+        totalCount += cleared.length;
+        deletePlan.push({ root, dataRoot, rfPath: rf.path, ids: new Set(cleared.map(b => (b as any).id)) });
+        for (const entry of tagAnchorsToRemove) {
+          const base = entry.sourceUri.split('#')[0];
+          const absoluteUri = base.startsWith('file://')
+            ? base
+            : workspaceRelativeToUri(base, root);
+          const list = tagAnchorsBySource.get(absoluteUri);
+          if (list) list.push(entry);
+          else tagAnchorsBySource.set(absoluteUri, [entry]);
+        }
       }
     }
 
@@ -345,10 +365,8 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
 
     // Second pass: edit each affected data file.
     let totalRemoved = 0;
-    for (const rf of enabled) {
-      const ids = idsByFile.get(rf.path);
-      if (!ids || ids.size === 0) continue;
-      const p = pathsForDataFile(rf.path, workspaceRoot, dataRoot);
+    for (const { root, dataRoot, rfPath, ids } of deletePlan) {
+      const p = pathsForDataFile(rfPath, root, dataRoot);
       try {
         await editFileV2(p as any, (file: BookmarksFileV2) => {
           const before = file.bookmarks.length;
@@ -356,17 +374,13 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
           totalRemoved += before - file.bookmarks.length;
         });
       } catch (e) {
-        log.error(`Clear: editFileV2 failed for ${rf.path}: ${e}`);
+        log.error(`Clear: editFileV2 failed for ${rfPath}: ${e}`);
       }
     }
 
-    // Third pass: strip @bookmark:<tagId> comments from each source URI.
-    for (const [sourceUri, entries] of tagAnchorsBySource) {
+    // Third pass: strip @bookmark:<tagId> comments from each absolute source URI.
+    for (const [absoluteUri, entries] of tagAnchorsBySource) {
       try {
-        const base = sourceUri.split('#')[0];
-        const absoluteUri = base.startsWith('file://')
-          ? base
-          : workspaceRelativeToUri(base, workspaceRoot);
         const activeUriString = opts.activeEditor?.document.uri.toString();
         const isActive =
           !!opts.activeEditor &&
@@ -393,7 +407,7 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
           await doc.save();
         }
       } catch (e) {
-        log.error(`Clear: tag-comment cleanup failed for ${sourceUri}: ${e}`);
+        log.error(`Clear: tag-comment cleanup failed for ${absoluteUri}: ${e}`);
       }
     }
 
@@ -698,16 +712,24 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
       const fsPath = vscode.Uri.parse(uri).fsPath;
       log.info(`RemoveAtLine: request file=${fsPath} line=${line + 1}`);
 
+      const fileWorkspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+      if (!fileWorkspaceFolder) {
+        log.error(`[RemoveAtLine] Cannot find workspace for: ${fsPath}`);
+        vscode.window.showErrorMessage('Cannot remove bookmarks for files outside the workspace.');
+        return;
+      }
+      const fileWorkspaceRoot = fileWorkspaceFolder.uri.fsPath;
+
       // Track tag anchors to remove their comments from source files
       const tagAnchorsToRemove: Array<{ tagId: string; line: number }> = [];
 
       try {
-        const reg = await readRegistry(workspaceRoot);
-        const dataRoot = getConfiguredDataRoot(vscode.workspace.workspaceFolders![0]);
+        const reg = await readRegistry(fileWorkspaceRoot);
+        const dataRoot = getConfiguredDataRoot(fileWorkspaceFolder);
         const enabled = reg.files.filter(f => f.enabled !== false);
         let totalRemoved = 0;
         for (const rf of enabled) {
-          const p = pathsForDataFile(rf.path, workspaceRoot, dataRoot);
+          const p = pathsForDataFile(rf.path, fileWorkspaceRoot, dataRoot);
           await editFileV2(p as any, (file: BookmarksFileV2) => {
             const before = file.bookmarks.length;
             file.bookmarks = file.bookmarks.filter(b => {
@@ -718,7 +740,7 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
                 try { bFs = vscode.Uri.parse(base).fsPath; } catch { bFs = base; }
               } else {
                 try {
-                  const absoluteUri = workspaceRelativeToUri(base, workspaceRoot);
+                  const absoluteUri = workspaceRelativeToUri(base, fileWorkspaceRoot);
                   bFs = vscode.Uri.parse(absoluteUri).fsPath;
                 } catch { bFs = base; }
               }
@@ -991,10 +1013,18 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
         return;
       }
       const fsPath = editor.document.uri.fsPath;
+      const fileWorkspaceFolder = vscode.workspace.getWorkspaceFolder(editor.document.uri);
+      if (!fileWorkspaceFolder) {
+        log.error(`[ClearFile] Cannot find workspace for: ${fsPath}`);
+        vscode.window.showErrorMessage('Cannot clear bookmarks for files outside the workspace.');
+        return;
+      }
+      const fileWorkspaceRoot = fileWorkspaceFolder.uri.fsPath;
       await runClear({
         title: vscode.workspace.asRelativePath(fsPath),
-        predicate: (b) => bookmarkMatchesActiveFile(b, fsPath, workspaceRoot),
+        predicate: (b) => bookmarkMatchesActiveFile(b, fsPath, fileWorkspaceRoot),
         activeEditor: editor,
+        folders: [fileWorkspaceFolder],
       });
     }),
 
@@ -1005,6 +1035,7 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
         title: 'all registered files',
         predicate: () => true,
         activeEditor: vscode.window.activeTextEditor ?? null,
+        folders: vscode.workspace.workspaceFolders ? [...vscode.workspace.workspaceFolders] : [],
       });
     }),
   ];
