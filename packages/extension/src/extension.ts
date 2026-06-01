@@ -62,6 +62,7 @@ import { getBuiltinCatalog, clearCatalogCache, getCatalogCache } from './catalog
 import { createAnchorResolution, resolveUriAnchors } from './anchor-resolution';
 import { migrateLocalLayout } from './migrate-local-layout';
 import { maybeShowGitignoreNudge } from './gitignore-nudge';
+import { createScopedActivationGuard } from './scoped-activation-guard';
 import { OrderingService } from './ordering/service';
 import { WelcomeViewProvider } from './views/welcome/welcomeView';
 import { AgentsViewProvider } from './views/agents/agentsView';
@@ -168,12 +169,24 @@ export async function activate(context: vscode.ExtensionContext) {
   // writes to '/.bookmarks' and leaves the extension half-wired until reload.
   // Run the scoped phase only once a workspace folder exists, re-checking when
   // folders change so "empty window -> open folder" activates without a reload.
-  let hasScoped = false;
+  // Run the scoped phase at most once *successfully*. Previously `hasScoped` was
+  // committed before the await, so a rejection inside activateForWorkspace (fired
+  // detached via `void`) went unhandled AND blocked any retry, leaving the extension
+  // permanently half-wired. The guard surfaces the failure and resets so a later
+  // folder change retries; its in-flight guard prevents a concurrent run. (SML-1532)
+  const runScopedActivation = createScopedActivationGuard({
+    run: () => activateForWorkspace(context, log, outputChannel, welcomeProvider, agentsProvider),
+    onError: (err) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      log.error(`Workspace-scoped activation failed: ${msg}`);
+      void vscode.window.showErrorMessage(
+        `Agentic Bookmarks: workspace activation failed — ${msg}. Reload the window to retry.`,
+      );
+    },
+  });
   const maybeActivateForWorkspace = async () => {
-    if (hasScoped) return;
     if (!vscode.workspace.workspaceFolders?.length) return;
-    hasScoped = true;
-    await activateForWorkspace(context, log, outputChannel, welcomeProvider, agentsProvider);
+    await runScopedActivation();
   };
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(() => { void maybeActivateForWorkspace(); }),
