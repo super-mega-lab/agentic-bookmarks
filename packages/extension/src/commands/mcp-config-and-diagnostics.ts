@@ -67,7 +67,7 @@ import type { BookmarksProvider } from '../treeProvider';
 import type { SettingsProvider } from '../settingsProvider';
 import type { BookmarkCodeLensProvider } from '../bookmarkCodeLensProvider';
 import { buildAgentRepairPrompt, getConfiguredDataRoot } from '../workspace-helpers';
-import { buildClaudeMcpSetupCommand, buildClaudeMcpRemoveCommand, applyGitignoreSetup } from './mcp-setup-helpers';
+import { buildClaudeMcpSetupCommand, buildClaudeMcpRemoveCommand, applyGitignoreSetup, applyCursorInstall } from './mcp-setup-helpers';
 import {
   recordMcpInstall,
   getOutdatedMcpInstalls,
@@ -198,33 +198,26 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     try { await fs.access(serverAbs); }
     catch { vscode.window.showWarningMessage('Agentic Bookmarks: server bundle not found. Run "pnpm build" to generate server-bundle/index.js.'); }
 
-    let existing: any = {};
-    try {
-      existing = JSON.parse(await fs.readFile(configPath, 'utf8'));
-    } catch { existing = {}; }
-
-    // Drop legacy server names if present
-    if (existing?.mcpServers && typeof existing.mcpServers === 'object') {
-      for (const legacyKey of ['mcp.bookmarks', 'mcp_bookmarks']) {
-        if (legacyKey in existing.mcpServers) {
-          delete (existing.mcpServers as any)[legacyKey];
-        }
-      }
-    }
     const env: Record<string, string> =
       scope === 'project'
         ? { BOOKMARKS_DIR: '${workspaceFolder}/.bookmarks/local' }
         : { BOOKMARKS_DIR: '', BOOKMARKS_UPWARD_DISCOVERY: 'true' };
 
-    const next = {
-      ...existing,
-      mcpServers: {
-        ...(existing?.mcpServers ?? {}),
-        'agentic_bookmarks': { type: 'stdio', command: 'node', args: [serverAbs], env },
-      },
-    };
-
-    await fs.writeFile(configPath, JSON.stringify(next, null, 2));
+    // Upsert through the guarded helper: a malformed mcp.json is left untouched
+    // (no clobber of other servers) and a valid one is backed up + written
+    // atomically. See applyCursorInstall (SML-1518 / F-007).
+    const result = await applyCursorInstall({
+      configPath,
+      serverEntry: { type: 'stdio', command: 'node', args: [serverAbs], env },
+      fs: nodeFsDeps(),
+    });
+    if (result.status === 'malformed') {
+      vscode.window.showWarningMessage(
+        `Cursor's mcp.json at ${configPath} is not a valid JSON object, so it was left unchanged ` +
+        `to avoid clobbering your other MCP servers. Please fix or remove the file, then re-run setup.`,
+      );
+      return;
+    }
     vscode.window.showInformationMessage(`Cursor MCP config updated at ${configPath}`);
     await recordMcpInstall(context, 'cursor', scope, currentVersion);
     await applyGitignoreSetup({ workspaceRoot, workspaceState: context.workspaceState, log });
