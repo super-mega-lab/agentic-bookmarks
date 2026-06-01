@@ -1116,7 +1116,11 @@ async function activateForWorkspace(
   }
 
   log.info('Workspace-scoped activation complete');
-  outputChannel.show();
+  // Surface the Output channel automatically only when developing the extension,
+  // and never steal focus: end users shouldn't get the panel popped on activation (SML-1533).
+  if (context.extensionMode !== vscode.ExtensionMode.Production) {
+    outputChannel.show(true);
+  }
 }
 
 // ---------------------------------------------------------------------------
