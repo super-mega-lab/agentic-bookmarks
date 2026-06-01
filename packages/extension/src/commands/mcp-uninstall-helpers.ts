@@ -31,11 +31,11 @@ export interface CursorUninstallOptions {
   tmpSuffix?: string;
 }
 
-const DEFAULT_BACKUP_SUFFIX = '.agentic-bookmarks-backup';
-const DEFAULT_TMP_SUFFIX = '.agentic-bookmarks.tmp';
-const SERVER_ID = 'agentic_bookmarks';
+export const DEFAULT_BACKUP_SUFFIX = '.agentic-bookmarks-backup';
+export const DEFAULT_TMP_SUFFIX = '.agentic-bookmarks.tmp';
+export const SERVER_ID = 'agentic_bookmarks';
 
-function isMissing(err: unknown): boolean {
+export function isMissing(err: unknown): boolean {
   const code = (err as { code?: string } | null)?.code;
   return code === 'ENOENT' || code === 'ENOTDIR';
 }
