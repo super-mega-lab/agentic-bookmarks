@@ -1,9 +1,26 @@
 // ABOUTME: Tests for MCP resource handlers — skill resources and existing resources.
 // ABOUTME: Exercises handleListResources and handleReadResource for bookmarks://skill/* URIs.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handleListResources, handleReadResource, SKILL_RESOURCES } from './resource-handlers.js';
+import { getRegistryForWorkspace } from './workspace.js';
 import { toolDefinitions } from './tools/definitions.js';
+
+// SML-1548: simulate a corrupted/contended registry by making getRegistryForWorkspace
+// throw, and stub the core file reads so a healthy workspace still yields a file.
+vi.mock('./workspace.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./workspace.js')>();
+  return { ...actual, getRegistryForWorkspace: vi.fn() };
+});
+
+vi.mock('@agentic-bookmarks/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@agentic-bookmarks/core')>();
+  return {
+    ...actual,
+    resolveWorkspacePath: (relPath: string, root: string) => `${root}/${relPath}`,
+    readFileAt: vi.fn(async () => ({ groups: [{ name: 'Group A', id: 'gA' }] })),
+  };
+});
 
 describe('handleListResources', () => {
   it('includes the original four skill resources', async () => {
@@ -138,5 +155,50 @@ describe('tool description discovery hints', () => {
 
   it('anchor_validate does NOT include a skill hint', () => {
     expect(getDesc('anchor_validate')).not.toContain('bookmarks://skill/');
+  });
+});
+
+describe('handleReadResource — bookmarks://files resilience (SML-1548)', () => {
+  const mockedGetRegistry = vi.mocked(getRegistryForWorkspace);
+
+  beforeEach(() => {
+    mockedGetRegistry.mockReset();
+  });
+
+  it('skips a workspace whose registry read throws and still returns the readable workspaces', async () => {
+    mockedGetRegistry
+      .mockRejectedValueOnce(new Error('registry corrupted and .bak recovery failed'))
+      .mockResolvedValueOnce({
+        version: 1,
+        files: [{ fileId: 'f-good', path: 'good.json', enabled: true }],
+      } as any);
+
+    const ctx: any = {
+      workspaceRoot: '/ws-good',
+      workspaces: [{ workspaceRoot: '/ws-bad' }, { workspaceRoot: '/ws-good' }],
+    };
+
+    const result = await handleReadResource(ctx, 'bookmarks://files');
+    const payload = JSON.parse(result.contents[0].text);
+
+    expect(payload.files).toHaveLength(1);
+    expect(payload.files[0].id).toBe('f-good');
+    expect(payload.files[0].workspace).toBe('/ws-good');
+    // Both workspaces were visited — the throw did not abort the loop.
+    expect(mockedGetRegistry).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns an empty file list (does not throw) when the only workspace registry read throws', async () => {
+    mockedGetRegistry.mockRejectedValueOnce(new Error('registry corrupted'));
+
+    const ctx: any = {
+      workspaceRoot: '/ws-bad',
+      workspaces: [{ workspaceRoot: '/ws-bad' }],
+    };
+
+    const result = await handleReadResource(ctx, 'bookmarks://files');
+    const payload = JSON.parse(result.contents[0].text);
+
+    expect(payload.files).toEqual([]);
   });
 });

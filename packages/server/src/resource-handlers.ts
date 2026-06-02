@@ -126,25 +126,31 @@ export async function handleReadResource(ctx: ServerContext, uri: string) {
     }> = [];
 
     for (const workspace of ctx.workspaces) {
-      const registry = await getRegistryForWorkspace(workspace);
+      try {
+        const registry = await getRegistryForWorkspace(workspace);
 
-      for (const fileEntry of registry.files) {
-        if (fileEntry.enabled === false) continue;
+        for (const fileEntry of registry.files) {
+          if (fileEntry.enabled === false) continue;
 
-        try {
-          const absolutePath = resolveWorkspacePath(fileEntry.path, workspace.workspaceRoot);
-          const data = await readFileAt(absolutePath);
+          try {
+            const absolutePath = resolveWorkspacePath(fileEntry.path, workspace.workspaceRoot);
+            const data = await readFileAt(absolutePath);
 
-          allFiles.push({
-            workspace: workspace.workspaceRoot,
-            filename: path.basename(fileEntry.path),
-            id: fileEntry.fileId,
-            path: fileEntry.path,  // Relative path
-            groups: data.groups.map(g => ({ name: g.name, id: g.id })),
-          });
-        } catch {
-          // File not readable
+            allFiles.push({
+              workspace: workspace.workspaceRoot,
+              filename: path.basename(fileEntry.path),
+              id: fileEntry.fileId,
+              path: fileEntry.path,  // Relative path
+              groups: data.groups.map(g => ({ name: g.name, id: g.id })),
+            });
+          } catch {
+            // File not readable
+          }
         }
+      } catch (err) {
+        // Registry unreadable (corrupted + failed .bak recovery, or contended).
+        // Skip this workspace rather than aborting the whole resource read.
+        console.error(`bookmarks://files: skipping workspace ${workspace.workspaceRoot}: ${err}`);
       }
     }
 
