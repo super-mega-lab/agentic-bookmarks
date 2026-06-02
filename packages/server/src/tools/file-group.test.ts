@@ -319,6 +319,70 @@ describe('multi-workspace group ops', () => {
     expect(parsed.tagRemovals[0].line).toBe(3);
   });
 
+  it('handleGroupMoveFile rejects a cross-workspace move into a sibling registered workspace (SML-1559)', async () => {
+    // Group lives in the secondary workspace; the destination is an absolute path
+    // in the PRIMARY workspace — a different registered workspace. The move engine
+    // is single-workspace, so this must be rejected as cross-workspace, not with
+    // the misleading "outside the workspace".
+    const sourceFile = path.join(secondaryRoot, '.bookmarks', 'shared', 'xws-src.json');
+    const groupId = await setupGroupInWorkspace(secondaryRoot, sourceFile, 'XWS');
+
+    const destFile = path.join(primaryRoot, '.bookmarks', 'shared', 'xws-dest.json');
+    await fs.mkdir(path.dirname(destFile), { recursive: true });
+    await fs.writeFile(destFile, JSON.stringify(emptyFileV2(), null, 2), 'utf8');
+    await addFileToRegistry(primaryRoot, destFile);
+
+    const result = await handleGroupMoveFile(ctx, { sourceFile, destFile, groupId });
+
+    expect(result.content[0].text).toMatch(/Error/);
+    expect(result.content[0].text).toMatch(/cross-workspace/i);
+    expect(result.content[0].text).not.toMatch(/outside the workspace/i);
+
+    // Nothing moved: source keeps the group, dest stays empty.
+    const sourceData = await readFileAt(sourceFile);
+    expect(sourceData.groups.some(g => g.id === groupId)).toBe(true);
+    const destData = await readFileAt(destFile);
+    expect(destData.groups.some(g => g.id === groupId)).toBe(false);
+  });
+
+  it('handleGroupMoveFile rejects a move into a NESTED registered workspace, leaving the outer registry untouched (SML-1559)', async () => {
+    // Outer workspace with an inner workspace nested under it, OUTER listed first —
+    // the array order that makes a first-match lookup misattribute the nested file
+    // to its ancestor. The guard must use most-specific matching to catch this and
+    // avoid corrupting the OUTER registry's nameIndex.
+    const outerRoot = mkRoot('nested-outer');
+    const innerRoot = path.join(outerRoot, 'inner');
+    await fs.mkdir(innerRoot, { recursive: true });
+    await readRegistry(outerRoot);
+    await readRegistry(innerRoot);
+    const nestedCtx: any = {
+      workspaceRoot: outerRoot,
+      workspaces: [createWorkspaceInfo(outerRoot), createWorkspaceInfo(innerRoot)],
+    };
+
+    // Group in the OUTER workspace.
+    const sourceFile = path.join(outerRoot, '.bookmarks', 'shared', 'nest-src.json');
+    const groupId = await setupGroupInWorkspace(outerRoot, sourceFile, 'Nested');
+
+    // Destination file under the INNER (nested) workspace.
+    const destFile = path.join(innerRoot, '.bookmarks', 'shared', 'nest-dest.json');
+    await fs.mkdir(path.dirname(destFile), { recursive: true });
+    await fs.writeFile(destFile, JSON.stringify(emptyFileV2(), null, 2), 'utf8');
+    await addFileToRegistry(innerRoot, destFile);
+
+    const result = await handleGroupMoveFile(nestedCtx, { sourceFile, destFile, groupId });
+
+    expect(result.content[0].text).toMatch(/cross-workspace/i);
+
+    // No move, no desync: source keeps the group and the OUTER nameIndex still maps it.
+    const sourceData = await readFileAt(sourceFile);
+    expect(sourceData.groups.some(g => g.id === groupId)).toBe(true);
+    const outerReg = await readRegistry(outerRoot);
+    expect(outerReg.nameIndex['Nested']?.groupId).toBe(groupId);
+
+    await fs.rm(outerRoot, { recursive: true, force: true });
+  });
+
   it('handleGroupDelete falls back to ctx.workspaceRoot in a single-workspace setup', async () => {
     const root = mkRoot('single');
     await fs.mkdir(root, { recursive: true });
