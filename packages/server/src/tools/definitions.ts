@@ -180,7 +180,7 @@ For guidance on bookmarking a system or set of files, read bookmarks://skill/add
     }
   },
   { name: 'group_rename', description: 'Rename a group by its ID (global uniqueness enforced)', inputSchema: { type: 'object', properties: { groupId: { type: 'string', description: 'ID of the group to rename' }, newName: { type: 'string', description: 'New name for the group' } }, required: ['groupId', 'newName'] } },
-  { name: 'group_moveFile', description: 'Move a group to another file', inputSchema: { type: 'object', properties: { sourceFile: { type: 'string' }, destFile: { type: 'string' }, groupId: { type: 'string' } }, required: ['sourceFile', 'destFile', 'groupId'] } },
+  { name: 'group_moveFile', description: 'Move a group to another file. Source and destination must be in the same workspace; cross-workspace moves are not supported.', inputSchema: { type: 'object', properties: { sourceFile: { type: 'string' }, destFile: { type: 'string' }, groupId: { type: 'string' } }, required: ['sourceFile', 'destFile', 'groupId'] } },
   { name: 'group_delete', description: 'Delete or clear a group from a file', inputSchema: { type: 'object', properties: { filePath: { type: 'string' }, groupId: { type: 'string' } }, required: ['filePath', 'groupId'] } },
   {
     name: 'bookmark_search',
