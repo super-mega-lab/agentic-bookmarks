@@ -109,6 +109,23 @@ describe('ScanQueue (phased)', () => {
     expect(d.isRepairIdle).toHaveBeenCalled();
   });
 
+  it('settles before reconciling even when the repair queue reports idle immediately (SML-1541)', async () => {
+    const order: string[] = [];
+    const { d } = deps({
+      validateFile: vi.fn(async (t: ScanTarget) => ({ missing: false, entries: [broken('b', t.uri)] })),
+      autoRepairEnabled: vi.fn(() => true),
+      triggerRepair: vi.fn(async () => { order.push('trigger'); }),
+      isRepairIdle: vi.fn(() => true), // the race: idle on the very first check
+      delay: vi.fn(async () => { order.push('settle'); }),
+      writeAuthoritativeCache: vi.fn(async () => { order.push('write'); }),
+    });
+    const q = new ScanQueue(d);
+    await q.run([T('/ws/a.ts', 'a.ts')]);
+    // A settle delay must run AFTER the trigger and BEFORE the reconcile write,
+    // so a not-yet-registered repair is not skipped by a premature idle read.
+    expect(order).toEqual(['write', 'trigger', 'settle', 'write']);
+  });
+
   it('cancel during phase 1 stops further validation', async () => {
     let q: ScanQueue;
     const validateFile = vi.fn(async (t: ScanTarget) => {
