@@ -124,9 +124,13 @@ export class ScanQueue {
           if (++inBatch >= batchSize) { inBatch = 0; await this.deps.delay(sleepMs); }
         }
 
-        // Wait (bounded) for the repair queue to drain.
-        for (let i = 0; i < MAX_IDLE_POLLS && !this.deps.isRepairIdle() && !this.cancelled; i++) {
+        // Wait (bounded) for the repair queue to drain. Settle BEFORE the first
+        // idle check: triggerRepair enqueues asynchronously, so reading
+        // isRepairIdle() immediately can see 'idle' before any repair registers
+        // and skip the wait entirely, reconciling pre-repair state (SML-1541).
+        for (let i = 0; i < MAX_IDLE_POLLS && !this.cancelled; i++) {
           await this.deps.delay(150);
+          if (this.deps.isRepairIdle()) break;
         }
 
         // --- Phase 3: reconcile the broken subset from disk ---

@@ -37,6 +37,19 @@ describe('applySort', () => {
     expect(out.map(i => i.id)).toEqual(['C', 'A', 'B']);
   });
 
+  it('user mode breaks rank ties with defaultCmp (deterministic, not input order)', () => {
+    // A and C share rank 100; the tie must resolve via defaultCmp
+    // (defaultKey: C='02' before A='03'), not by their order in `items`.
+    const tied = new Map<string, number>([['A', 100], ['C', 100]]);
+    const tieSvc = {
+      has: (_k: string, id: string, _c: string) => tied.has(id),
+      get: (_k: string, id: string, _c: string) => tied.get(id),
+    } as const;
+    const out = applySort(items, 'user', 'a', tieSvc as never, defaultCmp);
+    // ranked A,C (both 100) → defaultCmp orders C before A; unranked B last.
+    expect(out.map(i => i.id)).toEqual(['C', 'A', 'B']);
+  });
+
   it('user mode falls back to defaultCmp when nothing is ranked', () => {
     // Switch to a ctx where no ranks exist by faking a no-op service.
     const empty = { has: () => false, get: () => undefined } as const;

@@ -1005,8 +1005,14 @@ async function activateForWorkspace(
     markValidated: (fsPath: string) => markFileValidated(fsPath),
     autoRepairEnabled: () => vscode.workspace.getConfiguration('agenticBookmarks').get('autoRepair', true),
     triggerRepair: async (target: ScanTarget) => {
-      // Open (no tab) to drive the existing auto-repair queue for this file.
-      await vscode.workspace.openTextDocument(vscode.Uri.file(target.fsPath));
+      // Open (no tab), then resolve + enqueue directly via openAndRepaint rather
+      // than relying on the deferred onDidOpenTextDocument event: that event does
+      // not re-fire for already-open docs, and even for fresh opens it fires after
+      // this returns, racing the scan's idle-wait. openAndRepaint resolves anchors
+      // (populating broken state) and enqueues the doc into the repair queue
+      // (anchor-resolution.ts), making it observably non-idle before we poll (SML-1541).
+      const doc = await vscode.workspace.openTextDocument(vscode.Uri.file(target.fsPath));
+      await openAndRepaint(doc);
     },
     isRepairIdle: () => repairQueue?.isIdle() ?? true,
     onPhaseChange: () => provider.refresh(),
