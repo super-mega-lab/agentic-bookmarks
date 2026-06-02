@@ -181,7 +181,7 @@ export async function activate(context: vscode.ExtensionContext) {
       const msg = err instanceof Error ? err.message : String(err);
       log.error(`Workspace-scoped activation failed: ${msg}`);
       void vscode.window.showErrorMessage(
-        `Agentic Bookmarks: workspace activation failed — ${msg}. Reload the window to retry.`,
+        `Agentic Bookmarks: workspace activation failed — ${msg}. Open or change a workspace folder to retry, or reload the window.`,
       );
     },
   });
