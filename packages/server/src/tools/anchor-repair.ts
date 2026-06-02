@@ -15,6 +15,7 @@ import {
   workspaceRelativeToUri,
   isLocalPath,
   createAnchor,
+  classifyAnchorStatus,
   getSmartAnchorDiagnostics,
   resolveAnchors,
   ipc,
@@ -145,15 +146,17 @@ export async function handleAnchorValidate(ctx: ServerContext, args: any) {
     };
   }
 
-  // Read anchor settings from registry for flex context support
+  // Read anchor settings from registry for flex context support + shared-warning suppression.
   const workspace = matches[0]?.workspace;
   let enableFlexContext = true;
   let enableFlexContextShared = true;
+  let showWarningOnShared = false;
   if (workspace) {
     const reg = await getRegistryForWorkspace(workspace);
     const anchorSettings = (reg.settings?.anchors as any) ?? {};
     enableFlexContext = anchorSettings.enableFlexContext ?? true;
     enableFlexContextShared = anchorSettings.enableFlexContextShared ?? true;
+    showWarningOnShared = anchorSettings.showWarningOnShared ?? false;
   }
 
   // Resolve all anchors against current file content
@@ -170,19 +173,27 @@ export async function handleAnchorValidate(ctx: ServerContext, args: any) {
     isLocal,
   });
 
-  // Build response (line numbers converted to 1-based wire)
-  const results = resolutionResults.map(r => ({
-    bookmarkId: r.anchorId,
-    resolved: r.resolved,
-    ...(r.line !== undefined && { line: toWire(r.line) }),
-    ...(r.score !== undefined && { score: r.score }),
-    ...(r.errorCode && { errorCode: r.errorCode }),
-    ...(r.errorDetails && { errorDetails: r.errorDetails }),
-  }));
+  // Build response (line numbers converted to 1-based wire). Classify each result with the same
+  // core classifier the extension and anchor_listBroken use, so the summary's valid/warning/broken
+  // counts stay consistent across the product (SML-1544): an unresolved lineCacheOnly anchor is a
+  // warning (deep-flex pending), and a resolved low-score shared bookmark is suppressed to valid
+  // unless showWarningOnShared.
+  const results = resolutionResults.map(r => {
+    const status = classifyAnchorStatus(r, { isLocal, showWarningOnShared });
+    return {
+      bookmarkId: r.anchorId,
+      resolved: r.resolved,
+      status,
+      ...(r.line !== undefined && { line: toWire(r.line) }),
+      ...(r.score !== undefined && { score: r.score }),
+      ...(r.errorCode && { errorCode: r.errorCode }),
+      ...(r.errorDetails && { errorDetails: r.errorDetails }),
+    };
+  });
 
-  const valid = results.filter(r => r.resolved && (!(r as any).score || (r as any).score >= 0.85)).length;
-  const warning = results.filter(r => r.resolved && (r as any).score !== undefined && (r as any).score < 0.85).length;
-  const broken = results.filter(r => !r.resolved).length;
+  const valid = results.filter(r => r.status === 'valid').length;
+  const warning = results.filter(r => r.status === 'warning').length;
+  const broken = results.filter(r => r.status === 'broken').length;
 
   return {
     content: [{
