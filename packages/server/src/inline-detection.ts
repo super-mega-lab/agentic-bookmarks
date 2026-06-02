@@ -275,11 +275,19 @@ export function detectInlinedConstruct(
           if (cand.type !== 'addition' || cand.newLineNumber === undefined) continue;
           if (!bodyMatches(body.bodyExpr, decl.paramNames, body.isExpression, cand.content)) continue;
           const line0 = cand.newLineNumber - 1;
+          // SML-1556: cand.newLineNumber is HEAD-relative (the diff is fromCommit ->
+          // HEAD) but currentFileLines is the working tree. If the working tree has
+          // drifted at this row (uncommitted edits above the call site), line0 indexes
+          // the wrong line and the reported line/content would disagree — distrust the
+          // position rather than point at a bogus call site. An absent row (out of
+          // range, or the pure-diff [] usage) keeps the recorded addition as fallback.
+          const current = currentFileLines[line0];
+          if (current !== undefined && current !== cand.content) continue;
           if (seen.has(line0)) continue;
           seen.add(line0);
           // Report the line as it stands in the current file (the source of truth
           // the agent will open); fall back to the diff's recorded addition.
-          candidates.push({ line: line0, content: currentFileLines[line0] ?? cand.content });
+          candidates.push({ line: line0, content: current ?? cand.content });
         }
       }
 

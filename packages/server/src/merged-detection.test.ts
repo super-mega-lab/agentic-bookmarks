@@ -210,4 +210,36 @@ describe('detectMergedConstruct', () => {
   it('returns null for an empty diff', () => {
     expect(detectMergedConstruct({ lineCache: 'set x(v: string) {', lastUpdatedLine: 1 }, mkDiff(), [])).toBeNull();
   });
+
+  it('does not report a merge target when the working tree has drifted from HEAD (SML-1556)', () => {
+    // mergeDiff's additions are HEAD-relative: cleanseAnsi -> line0 12, listr -> line0 13.
+    // But currentFileLines is the WORKING TREE, which the user has edited above the
+    // construct — a `decoy` method now occupies those rows. Indexing the working tree
+    // with HEAD-relative numbers would walk up to `decoy` and misattribute the merge.
+    // The guard must distrust the position and decline rather than report a bogus target.
+    const driftedFile = [
+      'export class TaskWrapper {',         // 0
+      '  private listr: any;',              // 1
+      '  private task = {};',               // 2
+      '',                                   // 3
+      '  public decoy(a: string): void {',  // 4  <- unrelated decl the stale line0s land under
+      '    const a1 = a;',                  // 5
+      '    const a2 = a;',                  // 6
+      '    const a3 = a;',                  // 7
+      '    const a4 = a;',                  // 8
+      '    const a5 = a;',                  // 9
+      '    const a6 = a;',                  // 10
+      '    const a7 = a;',                  // 11
+      '    const a8 = a;',                  // 12  <- cleanseAnsi addition (line0 12) indexes here
+      '    const a9 = a;',                  // 13  <- listr addition (line0 13) indexes here
+      '  }',                                // 14
+      '}',                                  // 15
+    ];
+    const result = detectMergedConstruct(
+      { lineCache: 'set promptOutput$(data: string) {', lastUpdatedLine: 41 },
+      mergeDiff,
+      driftedFile,
+    );
+    expect(result).toBeNull();
+  });
 });
