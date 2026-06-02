@@ -57,10 +57,11 @@ export interface VerifyClaudeInstallDeps {
 }
 
 /**
- * Polls readConfig up to `attempts` times. Returns 'confirmed' as soon as seen
- * (and does NOT sleep again after a confirm). Otherwise returns the LAST verdict.
- * Sleeps between attempts only (attempts-1 sleeps max). The terminal-driven
- * `claude mcp add` runs async, hence the retry.
+ * Polls readConfig up to `attempts` times. Returns as soon as it sees 'confirmed'
+ * OR 'inconclusive' (and does NOT sleep again) — only 'absent' is worth retrying,
+ * since the terminal-driven `claude mcp add` runs async and may not have written
+ * the entry yet, whereas an unreadable/corrupt config won't change on a re-read.
+ * Otherwise returns the LAST verdict. Sleeps between attempts only (attempts-1 sleeps max).
  */
 export async function verifyClaudeInstall(deps: VerifyClaudeInstallDeps): Promise<ClaudeInstallVerdict> {
   const attempts = deps.attempts ?? 10;
@@ -69,7 +70,11 @@ export async function verifyClaudeInstall(deps: VerifyClaudeInstallDeps): Promis
   for (let i = 0; i < attempts; i++) {
     const read = await deps.readConfig();
     last = evaluateClaudeInstall(read, deps.scope, deps.projectPath, deps.serverId);
-    if (last === 'confirmed') return last;
+    // 'confirmed' is success; 'inconclusive' means the config can't be read/parsed
+    // (EACCES, corrupt JSON, …) — retrying won't change that, so stop early instead of
+    // burning the whole attempts budget (~6s). Only 'absent' is worth retrying, since the
+    // async `claude mcp add` may not have written the entry yet.
+    if (last === 'confirmed' || last === 'inconclusive') return last;
     if (i < attempts - 1) await deps.sleep(delayMs);
   }
   return last;

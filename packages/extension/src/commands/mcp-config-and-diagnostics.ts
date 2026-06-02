@@ -177,7 +177,9 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
   // Verify a `claude mcp add` actually landed by reading ~/.claude.json, then record
   // the install only when confirmed. 'inconclusive' (config unreadable/corrupt — NOT
   // file-missing) degrades to recording so a momentarily-unreadable config never
-  // regresses an otherwise-working install. Returns the verdict for the caller.
+  // regresses an otherwise-working install. Returns the verdict so the caller can
+  // surface the appropriate user-facing warning (callers own the UI; the batch
+  // path aggregates per-scope verdicts into a single message).
   async function verifyAndRecordClaude(scope: 'local' | 'user'): Promise<ClaudeInstallVerdict> {
     const verdict = await verifyClaudeInstall({
       readConfig: readClaudeConfigFromDisk,
@@ -218,6 +220,11 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
       vscode.window.showWarningMessage(
         `Couldn't confirm the Claude Code MCP registration (${scope} scope). If the \`claude\` CLI isn't ` +
         `installed or the command failed, fix it and re-run setup — check the "Setup Claude MCP" terminal for details.`,
+      );
+    } else if (verdict === 'inconclusive') {
+      vscode.window.showWarningMessage(
+        `Couldn't verify the Claude Code MCP registration (${scope} scope) — ~/.claude.json couldn't be read or isn't valid JSON. ` +
+        `Recorded it anyway; if the server doesn't appear in Claude Code, make sure that file is readable and valid, then re-run setup.`,
       );
     }
     await applyGitignoreSetup({ workspaceRoot, workspaceState: context.workspaceState, log });
@@ -424,12 +431,22 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
       scopes.map(async (scope) => ({ scope, verdict: await verifyAndRecordClaude(scope) })),
     );
     const unconfirmed = verdicts.filter((v) => v.verdict === 'absent').map((v) => v.scope);
+    const inconclusiveScopes = verdicts.filter((v) => v.verdict === 'inconclusive').map((v) => v.scope);
     await applyGitignoreSetup({ workspaceRoot, workspaceState: context.workspaceState, log });
     refreshWelcomeView?.();
     if (unconfirmed.length) {
       vscode.window.showWarningMessage(
         `Couldn't confirm the Claude Code MCP registration for scope${unconfirmed.length === 1 ? '' : 's'}: ` +
         `${unconfirmed.join(', ')}. Check the "Setup Claude MCP" terminal; if the \`claude\` CLI isn't installed, install it and re-run.`,
+      );
+    }
+    // Both scopes read the same ~/.claude.json, so an unreadable/invalid file makes every
+    // scope inconclusive — aggregate into one warning rather than one toast per scope.
+    if (inconclusiveScopes.length) {
+      vscode.window.showWarningMessage(
+        `Couldn't verify the Claude Code MCP registration for scope${inconclusiveScopes.length === 1 ? '' : 's'}: ` +
+        `${inconclusiveScopes.join(', ')} — ~/.claude.json couldn't be read or isn't valid JSON. ` +
+        `Recorded ${inconclusiveScopes.length === 1 ? 'it' : 'them'} anyway; if the server doesn't appear in Claude Code, make sure that file is readable and valid, then re-run setup.`,
       );
     }
     return { unconfirmed };
