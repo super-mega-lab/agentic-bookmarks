@@ -31,7 +31,10 @@ export function applySort<T extends SortableItem>(
         if (service.has(i.kind, i.id, ctx)) ranked.push(i);
         else unranked.push(i);
       }
-      ranked.sort((a, b) => service.get(a.kind, a.id, ctx)! - service.get(b.kind, b.id, ctx)!);
+      // Secondary tiebreaker keeps ordering deterministic if two ranks are
+      // equal (e.g. duplicate ranks already persisted in ordering.json).
+      ranked.sort((a, b) =>
+        (service.get(a.kind, a.id, ctx)! - service.get(b.kind, b.id, ctx)!) || defaultCmp(a, b));
       unranked.sort(defaultCmp);
       return [...ranked, ...unranked];
     }
