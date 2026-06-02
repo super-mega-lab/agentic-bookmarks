@@ -148,9 +148,10 @@ export function tokenToHex(catalog: EffectiveCatalog, token?: string): string | 
 async function ensureTintedSvg(whitePath: string, colorHex: string, workspaceRoot: string, styleId: string, bookmarksDataRoot?: string): Promise<string | undefined> {
   try {
     const safe = colorHex.replace(/[^a-fA-F0-9#]/g, '').replace('#', '').toLowerCase();
+    const styleSafe = sanitizeStyleId(styleId || 'style');
     const dir = getIconCacheDir(workspaceRoot, bookmarksDataRoot);
     await fs.mkdir(dir, { recursive: true });
-    const out = path.join(dir, `tint-${styleId}-${safe}.svg`);
+    const out = path.join(dir, `tint-${styleSafe}-${safe}.svg`);
     try { await fs.access(out); return out; } catch {}
 
     const src = await fs.readFile(whitePath, 'utf8');
