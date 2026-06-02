@@ -159,10 +159,13 @@ export async function handleAnchorValidate(ctx: ServerContext, args: any) {
     showWarningOnShared = anchorSettings.showWarningOnShared ?? false;
   }
 
-  // Resolve all anchors against current file content
-  // Note: isLocal is per-file, but all matches here target the same source URI.
-  // Use the first match's data file isLocal status.
-  const isLocal = matches[0]?.data?.isLocal ?? isLocalPath(matches[0]?.fileEntry?.path ?? '');
+  // Resolve with isLocal:true to match anchor_listBroken (anchor-git.ts) and the extension
+  // (extension.ts getResolutionOptions); the per-file isLocal (fileIsLocal) is for
+  // classifyAnchorStatus only. Otherwise the flex gate (shouldFlex = enableFlex && (isLocal ||
+  // enableFlexShared)) wrongly drops flex for shared anchors when enableFlexContextShared:false,
+  // so validate would report a shared flex-only anchor as broken while listBroken/UI report it
+  // valid/warning. (SML-1555)
+  const fileIsLocal = matches[0]?.data?.isLocal ?? isLocalPath(matches[0]?.fileEntry?.path ?? '');
   const anchorsToResolve = matches.map(m => ({
     id: m.bookmark.id,
     anchor: m.bookmark.anchor,
@@ -170,7 +173,7 @@ export async function handleAnchorValidate(ctx: ServerContext, args: any) {
   const resolutionResults = resolveAnchors(anchorsToResolve, fileLines, {
     enableFlexContext,
     enableFlexContextShared,
-    isLocal,
+    isLocal: true,
   });
 
   // Build response (line numbers converted to 1-based wire). Classify each result with the same
@@ -179,7 +182,7 @@ export async function handleAnchorValidate(ctx: ServerContext, args: any) {
   // warning (deep-flex pending), and a resolved low-score shared bookmark is suppressed to valid
   // unless showWarningOnShared.
   const results = resolutionResults.map(r => {
-    const status = classifyAnchorStatus(r, { isLocal, showWarningOnShared });
+    const status = classifyAnchorStatus(r, { isLocal: fileIsLocal, showWarningOnShared });
     return {
       bookmarkId: r.anchorId,
       resolved: r.resolved,
@@ -276,8 +279,9 @@ export async function handleAnchorGetRepairPackage(ctx: ServerContext, args: any
     rpEnableFlexContextShared = anchorSettings.enableFlexContextShared ?? true;
   }
 
-  // Resolve all anchors to identify broken ones
-  const rpIsLocal = matches[0]?.data?.isLocal ?? isLocalPath(matches[0]?.fileEntry?.path ?? '');
+  // Resolve with isLocal:true to match anchor_listBroken / the extension, so getRepairPackage
+  // flags exactly the anchors the product considers broken — not extra shared flex-only anchors
+  // the flex gate would drop under enableFlexContextShared:false. (SML-1555)
   const anchorsToResolve = matches.map(m => ({
     id: m.bookmark.id,
     anchor: m.bookmark.anchor,
@@ -285,7 +289,7 @@ export async function handleAnchorGetRepairPackage(ctx: ServerContext, args: any
   const resolutionResults = resolveAnchors(anchorsToResolve, fileLines, {
     enableFlexContext: rpEnableFlexContext,
     enableFlexContextShared: rpEnableFlexContextShared,
-    isLocal: rpIsLocal,
+    isLocal: true,
   });
 
   // Build a map of resolution results by anchor ID
@@ -470,7 +474,12 @@ export async function handleAnchorRepair(ctx: ServerContext, args: any) {
         continue;
       }
 
-      // Determine isLocal from bookmarks file
+      // Determine isLocal from the bookmarks file for anchor CONSTRUCTION. Unlike resolution
+      // (anchor_validate / anchor_getRepairPackage resolve with isLocal:true for the flex gate),
+      // createAnchor's isLocal controls how much context the NEW anchor captures — and the
+      // extension rebuilds repaired anchors with the per-file isLocal too
+      // (anchor-repair-helpers.ts). Keep per-file here for construction parity; hardcoding true
+      // would make MCP-repaired shared anchors diverge from extension-repaired ones. (SML-1555)
       const isLocal = found.data.isLocal ?? isLocalPath(path.relative(workspace.workspaceRoot, filePath));
 
       // Create new anchor at the repaired position

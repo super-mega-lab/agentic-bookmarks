@@ -17,7 +17,7 @@ import {
   createAnchor,
   type WorkspaceInfo,
 } from '@agentic-bookmarks/core';
-import { handleAnchorRepair, handleAnchorValidate } from './anchor-repair';
+import { handleAnchorRepair, handleAnchorValidate, handleAnchorGetRepairPackage } from './anchor-repair';
 
 describe('handleAnchorRepair', () => {
   let testDir: string;
@@ -216,6 +216,13 @@ describe('handleAnchorValidate summary classification', () => {
     await writeRegistry(testDir, reg);
   }
 
+  async function setEnableFlexContextShared(value: boolean): Promise<void> {
+    const reg = await readRegistry(testDir);
+    reg.settings = reg.settings ?? ({} as any);
+    (reg.settings as any).anchors = { ...((reg.settings as any).anchors ?? {}), enableFlexContextShared: value };
+    await writeRegistry(testDir, reg);
+  }
+
   async function validate(uri: string) {
     const result = await handleAnchorValidate(makeCtx(), { uri });
     return JSON.parse(result.content[0].text);
@@ -249,6 +256,39 @@ describe('handleAnchorValidate summary classification', () => {
     'CHANGED_after_one',    // changed
     'after_ggg',            // keep
     'CHANGED_after_two',    // changed
+  ];
+
+  // A smart anchor that resolves ONLY via flex (rigid contiguous-context match fails, windowed
+  // flex succeeds): two non-matching lines inserted on BOTH sides of the target break the rigid
+  // match but stay within the flex window. Mirrors the SML-1508 listBroken fixture
+  // (anchor-git-tools.test.ts:645). Created with anchorIsLocal:true so it carries context;
+  // resolution-time isLocal is independent (false, from living under .bookmarks/shared/).
+  const FLEXONLY_ANCHOR_LINES = [
+    'alpha_unique_marker_aaa',
+    'beta_unique_marker_bbb',
+    'gamma_unique_marker_ccc',
+    'delta_unique_marker_ddd',
+    'TARGET_unique_line_zzz',
+    'epsilon_unique_marker_eee',
+    'zeta_unique_marker_fff',
+    'eta_unique_marker_ggg',
+    'theta_unique_marker_hhh',
+  ];
+  const FLEXONLY_TARGET_IDX = 4;
+  const FLEXONLY_DISK_LINES = [
+    'alpha_unique_marker_aaa',
+    'beta_unique_marker_bbb',
+    'gamma_unique_marker_ccc',
+    'delta_unique_marker_ddd',
+    'inserted_before_one',
+    'inserted_before_two',
+    'TARGET_unique_line_zzz',
+    'inserted_after_one',
+    'inserted_after_two',
+    'epsilon_unique_marker_eee',
+    'zeta_unique_marker_fff',
+    'eta_unique_marker_ggg',
+    'theta_unique_marker_hhh',
   ];
 
   it('counts a cleanly resolved anchor as valid (positive control)', async () => {
@@ -334,6 +374,49 @@ describe('handleAnchorValidate summary classification', () => {
     expect(parsed.results[0].resolved).toBe(true);
     expect(parsed.results[0].status).toBe('warning');
     expect(parsed.summary).toMatchObject({ total: 1, valid: 0, warning: 1, broken: 0 });
+  });
+
+  // Parity guarantee (SML-1555): validate must resolve a shared flex-only anchor the same way
+  // anchor_listBroken (anchor-git-tools.test.ts:645) and the extension do. The anchor resolves
+  // ONLY via flex — two non-matching lines inserted on BOTH sides of the target break the rigid
+  // contiguous context match (Phase-1 fails) but stay within the flex window (Phase-2 succeeds).
+  // With enableFlexContextShared:false the flex gate is shouldFlex = enableFlex && (isLocal ||
+  // enableFlexShared). Pre-fix, validate resolves shared anchors with the per-file isLocal:false →
+  // gate OFF → flex skipped → the anchor is reported broken. Post-fix, validate resolves with
+  // isLocal:true (matching listBroken/UI) → gate ON → the anchor resolves → not broken.
+  it('resolves a shared flex-only anchor (not broken) under enableFlexContextShared:false, matching anchor_listBroken (SML-1555)', async () => {
+    await writeSource('src/flexshared.ts', FLEXONLY_DISK_LINES);
+    // registerBookmarksFile writes under .bookmarks/shared/ → resolution-time isLocal:false.
+    await registerBookmarksFile([
+      { id: 'bm1', targetRel: 'src/flexshared.ts', anchorLines: FLEXONLY_ANCHOR_LINES, line: FLEXONLY_TARGET_IDX, anchorIsLocal: true },
+    ]);
+    await setEnableFlexContextShared(false);
+
+    const parsed = await validate('src/flexshared.ts');
+    expect(parsed.results[0].resolved).toBe(true);
+    expect(parsed.results[0].status).not.toBe('broken');
+    expect(parsed.summary.broken).toBe(0);
+    expect(parsed.summary.total).toBe(1);
+  });
+
+  // Sibling parity guarantee (SML-1555): handleAnchorGetRepairPackage resolves with the same
+  // isLocal:true as validate/listBroken, so under enableFlexContextShared:false it does NOT
+  // package a shared flex-only anchor the product considers fine. Pre-fix it resolved with the
+  // per-file isLocal:false → flex gate OFF → the anchor was reported broken and packaged for
+  // repair (summary.broken:1, packages:[1]). Post-fix it resolves → not broken → not packaged.
+  it('does not package a shared flex-only anchor under enableFlexContextShared:false (getRepairPackage parity, SML-1555)', async () => {
+    await writeSource('src/flexshared-rp.ts', FLEXONLY_DISK_LINES);
+    await registerBookmarksFile([
+      { id: 'bm1', targetRel: 'src/flexshared-rp.ts', anchorLines: FLEXONLY_ANCHOR_LINES, line: FLEXONLY_TARGET_IDX, anchorIsLocal: true },
+    ]);
+    await setEnableFlexContextShared(false);
+
+    const result = await handleAnchorGetRepairPackage(makeCtx(), { uri: 'src/flexshared-rp.ts' });
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+    expect(parsed.summary.total).toBe(1);
+    expect(parsed.summary.broken).toBe(0);
+    expect(parsed.packages).toHaveLength(0);
   });
 
   it('returns an all-zero summary when the file has no bookmarks', async () => {
