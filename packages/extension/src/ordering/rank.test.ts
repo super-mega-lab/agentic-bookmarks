@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { assignRankBetween, ensureRanksAround, rebalance, RANK_STEP } from './rank';
+import { assignRankBetween, ensureRanksAround, rankForInsert, rebalance, RANK_STEP } from './rank';
 
 // Minimal "sibling" shape — id + getRank/setRank callbacks let us test rank.ts
 // without instantiating OrderingService.
@@ -84,5 +84,37 @@ describe('rebalance', () => {
     const sibs = siblings(['a', 1], ['b', 2], ['c', 3]);
     rebalance(sibs, setRank);
     expect(sibs.map(s => s.rank)).toEqual([100, 200, 300]);
+  });
+});
+
+describe('rankForInsert', () => {
+  it('returns a rank strictly between two ranked neighbors when room exists', () => {
+    const sibs = siblings(['a', 100], ['b', 300]);
+    const rank = rankForInsert(sibs, 1, getRank, setRank);
+    expect(rank).toBeGreaterThan(100);
+    expect(rank).toBeLessThan(300);
+  });
+
+  it('rebalances and recomputes when the midpoint is exhausted', () => {
+    // prev=100, next=101: floor((100+101)/2)=100 would collide with prev.
+    const sibs = siblings(['a', 100], ['b', 101]);
+    const rank = rankForInsert(sibs, 1, getRank, setRank);
+    // Neighbors are re-spaced and the new rank lands strictly between them,
+    // so the dropped item keeps its intended position instead of colliding.
+    expect(sibs[0].rank).not.toBe(sibs[1].rank);
+    expect(rank).toBeGreaterThan(sibs[0].rank!);
+    expect(rank).toBeLessThan(sibs[1].rank!);
+  });
+
+  it('appends past the last sibling without colliding', () => {
+    const sibs = siblings(['a', 100]);
+    const rank = rankForInsert(sibs, 1, getRank, setRank);
+    expect(rank).toBeGreaterThan(100);
+  });
+
+  it('prepends before the first sibling without colliding', () => {
+    const sibs = siblings(['a', 100]);
+    const rank = rankForInsert(sibs, 0, getRank, setRank);
+    expect(rank).toBeLessThan(100);
   });
 });

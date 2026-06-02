@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import type { OrderingService } from './service';
-import { assignRankBetween, ensureRanksAround } from './rank';
+import { rankForInsert } from './rank';
 import { canReorder, type DragSpec } from './dnd-validation';
 
 /** A sibling in the current visual order. The rank may be null (unranked). */
@@ -82,8 +82,8 @@ export function makeDnDController(opts: DnDOptions): vscode.TreeDragAndDropContr
       const { siblings } = resolved;
       let { insertIdx } = resolved;
 
-      // Persistence is wired through the setRank callback so ensureRanksAround
-      // and the final assignRankBetween both flow into the debounced service.
+      // Persistence is wired through the setRank callback so rankForInsert's
+      // internal ensure/rebalance steps both flow into the debounced service.
       const getRank = (s: RankedSibling) => s.rank;
       const setRank = (s: RankedSibling, r: number) => {
         s.rank = r;
@@ -99,10 +99,7 @@ export function makeDnDController(opts: DnDOptions): vscode.TreeDragAndDropContr
           if (existingIdx < insertIdx) insertIdx--;
         }
 
-        ensureRanksAround(siblings, insertIdx, getRank, setRank);
-        const prevRank = insertIdx > 0               ? siblings[insertIdx - 1].rank : null;
-        const nextRank = insertIdx < siblings.length ? siblings[insertIdx].rank     : null;
-        const newRank  = assignRankBetween(prevRank, nextRank);
+        const newRank = rankForInsert(siblings, insertIdx, getRank, setRank);
 
         opts.service.set(src.kind, src.id, src.ctx, newRank);
 

@@ -89,6 +89,39 @@ export function ensureRanksAround<S>(
   }
 }
 
+/**
+ * Assign a rank for an item being inserted at `insertIdx` of `siblings` (the
+ * item is NOT yet in the list). Routes through `ensureRanksAround`, then guards
+ * the midpoint-exhaustion case: if the computed rank would collide with a
+ * bounding sibling (no integer strictly between `prev` and `next`), the whole
+ * sibling list is rebalanced — restoring RANK_STEP gaps — and the rank is
+ * recomputed. A single rebalance is sufficient: it guarantees adjacent gaps of
+ * RANK_STEP, so the recomputed midpoint always has room. Returns the rank to
+ * assign to the inserted item.
+ */
+export function rankForInsert<S>(
+  siblings: S[],
+  insertIdx: number,
+  getRank: (s: S) => number | null,
+  setRank: (s: S, rank: number) => void,
+): number {
+  ensureRanksAround(siblings, insertIdx, getRank, setRank);
+  let prev = insertIdx > 0               ? getRank(siblings[insertIdx - 1]) : null;
+  let next = insertIdx < siblings.length ? getRank(siblings[insertIdx])     : null;
+  let rank = assignRankBetween(prev, next);
+
+  // Midpoint exhaustion: with both neighbors ranked and their gap collapsed,
+  // floor((prev+next)/2) can land on prev (e.g. 100,101 -> 100), colliding.
+  // Re-space the whole sibling list and recompute against the fresh gaps.
+  if ((prev != null && rank <= prev) || (next != null && rank >= next)) {
+    rebalance(siblings, setRank);
+    prev = insertIdx > 0               ? getRank(siblings[insertIdx - 1]) : null;
+    next = insertIdx < siblings.length ? getRank(siblings[insertIdx])     : null;
+    rank = assignRankBetween(prev, next);
+  }
+  return rank;
+}
+
 /** Re-space every sibling at RANK_STEP intervals starting from RANK_STEP. */
 export function rebalance<S>(siblings: S[], setRank: (s: S, rank: number) => void): void {
   for (let i = 0; i < siblings.length; i++) {
