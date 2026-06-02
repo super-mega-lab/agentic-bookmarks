@@ -39,6 +39,7 @@ import { registerBookmarkQuickpicksCommands } from './commands/bookmark-quickpic
 import { registerBookmarkBulkOpenCommands } from './commands/bookmark-bulk-open';
 import { registerAgentRepairCommands } from './commands/agent-repair-launch';
 import { ScanQueue, type ScanTarget, type ScanFileValidation } from './scanQueue';
+import { AsyncMutex } from './asyncMutex';
 import { markFileValidated, isFileValidated } from './scanCoverage';
 import { countBroken } from './brokenCount';
 import { missingFileEntries, buildAuthoritativeCache, mergeCoveredUris, pruneCoveredUris, type ScanResultEntry } from './scanValidate';
@@ -469,13 +470,20 @@ async function activateForWorkspace(
   );
 
   // --- Debounced cache sync ---
+  // Serializes both in-process broken-anchors.json read-merge-write writers
+  // (this sync timer + the scan-cache writer) so they can't interleave at awaits
+  // and lose updates (SML-1534). Per-activation so distinct multi-root folders
+  // keep independent locks.
+  const brokenAnchorsCacheMutex = new AsyncMutex();
   let cacheSyncTimer: ReturnType<typeof setTimeout> | null = null;
   function debouncedCacheSync() {
     if (cacheSyncTimer) clearTimeout(cacheSyncTimer);
     cacheSyncTimer = setTimeout(async () => {
       cacheSyncTimer = null;
       const reg = await readRegistry(workspaceRoot);
-      await syncBrokenAnchorsCache(workspaceRoot, reg, (msg) => log.debug(msg));
+      await brokenAnchorsCacheMutex.runExclusive(() =>
+        syncBrokenAnchorsCache(workspaceRoot, reg, (msg) => log.debug(msg)),
+      );
     }, 1000);
   }
   context.subscriptions.push({ dispose: () => { if (cacheSyncTimer) clearTimeout(cacheSyncTimer); } });
@@ -962,18 +970,22 @@ async function activateForWorkspace(
 
   // Write the authoritative broken-anchor cache for the files a scan validated.
   async function writeAuthoritativeScanCache(scannedUris: Set<string>, entries: ScanResultEntry[]): Promise<void> {
-    const reg = await readRegistry(workspaceRoot);
-    const cacheDir = getCacheDir(workspaceRoot, getBookmarksDataRoot(reg));
-    const existing = await brokenAnchorsCache.readBrokenAnchorsCache(cacheDir);
-    const merged = buildAuthoritativeCache(existing.entries, scannedUris, entries, Date.now());
-    // scannedUris is exactly the set of files validated this scan — accumulate it.
-    let coveredUris = mergeCoveredUris(existing.coveredUris ?? [], scannedUris);
-    // Then drop coverage for files no longer bookmarked so the set stays bounded (SML-1509).
-    // Skip when the universe read is unreliable (a data file failed to load) to avoid dropping
-    // coverage for a momentarily-unreadable file.
-    const { uris, reliable } = await collectBookmarkedUris(workspaceRoot, reg);
-    if (reliable) coveredUris = pruneCoveredUris(coveredUris, uris);
-    await brokenAnchorsCache.writeBrokenAnchorsCache(cacheDir, merged, coveredUris);
+    // Share the broken-anchors.json mutex with debouncedCacheSync so the
+    // read-merge-write below can't interleave with the sync writer (SML-1534).
+    return brokenAnchorsCacheMutex.runExclusive(async () => {
+      const reg = await readRegistry(workspaceRoot);
+      const cacheDir = getCacheDir(workspaceRoot, getBookmarksDataRoot(reg));
+      const existing = await brokenAnchorsCache.readBrokenAnchorsCache(cacheDir);
+      const merged = buildAuthoritativeCache(existing.entries, scannedUris, entries, Date.now());
+      // scannedUris is exactly the set of files validated this scan — accumulate it.
+      let coveredUris = mergeCoveredUris(existing.coveredUris ?? [], scannedUris);
+      // Then drop coverage for files no longer bookmarked so the set stays bounded (SML-1509).
+      // Skip when the universe read is unreliable (a data file failed to load) to avoid dropping
+      // coverage for a momentarily-unreadable file.
+      const { uris, reliable } = await collectBookmarkedUris(workspaceRoot, reg);
+      if (reliable) coveredUris = pruneCoveredUris(coveredUris, uris);
+      await brokenAnchorsCache.writeBrokenAnchorsCache(cacheDir, merged, coveredUris);
+    });
   }
 
   // --- Background scan queue (validates from disk; reuses repair queue to finalize) ---
