@@ -963,9 +963,10 @@ You now have both old and current surrounding content. If the bookmark's label d
    - \`shifted\`: Line just moved due to insertions/deletions. The new line number is provided — repair directly.
    - \`exact_match\`: Content found at a new location. Verify and repair.
    - \`fuzzy_match\`: Similar content found. Review candidates and pick the best match.
+   - \`signature_changed\`: The bookmarked function/method declaration was refactored in place (params→options object, generics added/removed, async conversion, return-type or visibility change) but the same-named function still exists. \`detail.newLine\` is the new declaration line and \`detail.confidence\` (high|medium) reflects body-continuity strength — verify the body is the same function and repair there.
    - \`no_match\`: Full diff provided. Read it to understand what happened.
 
-A \`shifted\` diagnosis is already high confidence — label adds nothing. For \`exact_match\` with multiple hits or \`fuzzy_match\`, the bookmark's label and note can disambiguate between candidates.
+A \`shifted\` diagnosis is already high confidence — label adds nothing. For \`exact_match\` with multiple hits or \`fuzzy_match\`, the bookmark's label and note can disambiguate between candidates. A \`signature_changed\` hit with high confidence is a strong repair target; at medium confidence, confirm the body matches before repairing.
 
 4. **Cross-File Search** — Call \`anchor_searchMovedCode\`. This tool searches only lines that were *introduced* (added) since the anchor was placed — pre-existing lines in other files are excluded. If found, note that anchor_repair works within the original file — cross-file moves may require creating a new bookmark.
 
