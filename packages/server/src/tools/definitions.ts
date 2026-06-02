@@ -14,6 +14,9 @@ Parameters:
 - label (required): Short description of the bookmark (can be empty string)
 - note (optional): Longer notes about this location
 - tags (optional): Array of tags for categorization
+- filePath / fileId (optional): destination file for a NEWLY auto-created group — seed it into an already-registered shared file (e.g. a ".bookmarks/shared/*.json") instead of the default local file. Ignored when the group already exists.
+
+The success response includes "filePath" (the destination file, workspace-relative) so you can confirm where the bookmark landed.
 
 Group names are unique per workspace. The same group name in different workspaces creates separate groups.
 You do NOT need to manage files or IDs - just provide groupName and the MCP server handles the rest.
@@ -37,6 +40,14 @@ For guidance on bookmarking a system or set of files, read bookmarks://skill/add
         groupName: {
           type: 'string',
           description: 'Name of the group to add to (e.g., "API Endpoints", "Bug Fixes"). Auto-created if it does not exist. Recommended over groupId.',
+        },
+        filePath: {
+          type: 'string',
+          description: 'Optional destination bookmarks file (path) for a NEWLY auto-created group. Use to seed a group into an already-registered shared file (e.g. ".bookmarks/shared/foo.json") instead of the default local file. Ignored when the group already exists. Must reference a registered file.',
+        },
+        fileId: {
+          type: 'string',
+          description: 'Optional destination bookmarks file (fileId) for a NEWLY auto-created group. Alternative to filePath; takes precedence when both are given. Must reference a registered file.',
         },
         anchor: {
           oneOf: [

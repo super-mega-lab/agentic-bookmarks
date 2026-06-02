@@ -6,6 +6,7 @@ import type {
   Bookmark,
   AnchorType,
   TagAnchor,
+  WorkspaceInfo,
 } from '@agentic-bookmarks/core';
 import {
   readFileAt,
@@ -38,6 +39,35 @@ import {
 } from '../helpers.js';
 import { anchorToInternal, anchorToWire, toWire } from './line-basis.js';
 
+/**
+ * SML-1392: resolve an explicit bookmark_add destination hint (fileId or filePath)
+ * to a registered, enabled file within the given workspace. Returns null when a
+ * hint was supplied but matches no registered file, so the caller can fail loudly
+ * instead of silently routing to the local file. `fileId` takes precedence over
+ * `filePath` when both are supplied (mirrors group_create).
+ */
+async function resolveRegisteredFile(
+  workspace: WorkspaceInfo,
+  fileId?: string,
+  filePath?: string,
+): Promise<{ fileId: string; filePath: string } | null> {
+  const registry = await getRegistryForWorkspace(workspace);
+  let entry;
+  if (fileId) {
+    entry = registry.files.find(f => f.fileId === fileId && f.enabled !== false);
+  } else if (filePath) {
+    const absHint = resolveWorkspacePath(filePath, workspace.workspaceRoot);
+    entry = registry.files.find(
+      f => f.enabled !== false && resolveWorkspacePath(f.path, workspace.workspaceRoot) === absHint
+    );
+  }
+  if (!entry) return null;
+  return {
+    fileId: entry.fileId,
+    filePath: resolveWorkspacePath(entry.path, workspace.workspaceRoot),
+  };
+}
+
 export async function handleBookmarkAdd(ctx: ServerContext, args: Record<string, any>) {
   const {
     uri,
@@ -49,6 +79,8 @@ export async function handleBookmarkAdd(ctx: ServerContext, args: Record<string,
     groupId: legacyGroupId,
     newGroupName,  // Deprecated, maps to groupName
     anchorType: requestedAnchorType,  // Smart/tag anchor support
+    fileId: destFileIdHint,      // SML-1392: direct a NEW group into a registered file
+    filePath: destFilePathHint,  // SML-1392: alternative to fileId (mirrors group_create)
   } = args;
 
   // 1. Determine workspace from URI
@@ -140,15 +172,39 @@ export async function handleBookmarkAdd(ctx: ServerContext, args: Record<string,
       targetGroupId = existingGroup.groupId;
       targetFilePath = existingGroup.filePath;
     } else {
-      // Group doesn't exist - create it (lazy init)
-      const { fileId, filePath } = await getOrCreateLocalFile(workspace);
-      targetFilePath = filePath;
-      targetFileId = fileId;
+      // Group doesn't exist - create it (lazy init).
+      // SML-1392: honor an explicit destination hint (filePath/fileId) so a new
+      // group can be seeded into an already-registered shared file. Without a
+      // hint, fall back to the workspace's local file (historical behavior).
+      let dest: { fileId: string; filePath: string };
+      if (destFilePathHint || destFileIdHint) {
+        const resolved = await resolveRegisteredFile(workspace, destFileIdHint, destFilePathHint);
+        if (!resolved) {
+          // Fail loudly rather than silently routing to the local file — silent
+          // misrouting is the exact bug this fix addresses.
+          return {
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                success: false,
+                error: `Destination not found in registry: ${
+                  destFileIdHint ? `fileId "${destFileIdHint}"` : `filePath "${destFilePathHint}"`
+                }. Register the file with file_register or file_create first.`,
+              }),
+            }],
+          };
+        }
+        dest = resolved;
+      } else {
+        dest = await getOrCreateLocalFile(workspace);
+      }
+      targetFilePath = dest.filePath;
+      targetFileId = dest.fileId;
 
       // Create the group
       targetGroupId = await createGroupWithAIStyle(
         workspace,
-        filePath,
+        dest.filePath,
         effectiveGroupName
       );
       wasGroupCreated = true;
@@ -284,7 +340,10 @@ export async function handleBookmarkAdd(ctx: ServerContext, args: Record<string,
     data.bookmarks.push(bookmark);
   });
 
-  // 9. Return success (with tag insertion instructions if needed)
+  // 9. Return success (with tag insertion instructions if needed).
+  // SML-1392: surface the destination file path (workspace-relative) so callers
+  // can confirm where the bookmark landed, not just the opaque fileId.
+  const destFilePathRelative = path.relative(workspace.workspaceRoot, targetFilePath);
   if (tagInsertionNeeded) {
     // For tag anchors, MCP server cannot edit files directly (MCPcanEditTagsDirectly defaults to false)
     // Return instructions for the client to insert the tag comment
@@ -302,6 +361,7 @@ export async function handleBookmarkAdd(ctx: ServerContext, args: Record<string,
           bookmarkId,
           groupId: targetGroupId,
           fileId: targetFileId,
+          filePath: destFilePathRelative,
           tagInsertions: [{
             file: relativePath,
             line: toWire(targetLine),
@@ -325,6 +385,7 @@ export async function handleBookmarkAdd(ctx: ServerContext, args: Record<string,
         bookmarkId,
         groupId: targetGroupId,
         fileId: targetFileId,
+        filePath: destFilePathRelative,
         message: wasGroupCreated
           ? `Created group "${effectiveGroupName}" and added bookmark`
           : 'Bookmark added successfully',
