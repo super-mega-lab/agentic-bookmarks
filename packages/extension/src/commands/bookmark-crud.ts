@@ -390,6 +390,13 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
           ? opts.activeEditor!.document
           : await vscode.workspace.openTextDocument(vscode.Uri.parse(absoluteUri));
 
+        // `openTextDocument` returns the existing in-memory document for an
+        // already-open tab. Sample dirtiness BEFORE our edit (removeTagComment
+        // always dirties the buffer) so the save below only persists OUR
+        // tag-comment removal and never flushes the user's unrelated unsaved
+        // edits in a background tab (SML-1536).
+        const wasDirtyBeforeEdit = doc.isDirty;
+
         for (const entry of entries) {
           const removed = await removeTagComment(doc, entry.line, entry.tagId);
           if (removed) {
@@ -403,7 +410,7 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
           }
         }
 
-        if (!isActive) {
+        if (!isActive && !wasDirtyBeforeEdit) {
           await doc.save();
         }
       } catch (e) {
