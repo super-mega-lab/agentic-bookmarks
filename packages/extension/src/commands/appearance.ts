@@ -19,7 +19,7 @@ import {
   pathsForDataFile,
   editFileV2,
   readRegistry,
-  registryPathForRoot,
+  writeRegistry,
   rebuildNameIndex,
 } from '@agentic-bookmarks/core';
 import type { Logger } from '../logger';
@@ -168,8 +168,7 @@ export function registerAppearanceCommands(deps: AppearanceDeps): vscode.Disposa
       (reg as any).settings = reg.settings || ({} as any);
       (reg as any).settings.appearance = reg.settings?.appearance || ({} as any);
       (reg as any).settings.appearance.uniformStyle = picked || undefined;
-      const fs = require('fs').promises as typeof import('node:fs/promises');
-      await fs.writeFile(registryPathForRoot(workspaceRoot), JSON.stringify(reg, null, 2));
+      await writeRegistry(workspaceRoot, reg);
       settingsProvider.refresh(); filesGroups.refresh(); provider.refresh();
       await refreshDecorationAppearance(); await updateDecorations();
     }),
@@ -192,8 +191,7 @@ export function registerAppearanceCommands(deps: AppearanceDeps): vscode.Disposa
       (reg as any).settings = reg.settings || ({} as any);
       (reg as any).settings.appearance = reg.settings?.appearance || ({} as any);
       (reg as any).settings.appearance.uniformColor = (picked && picked.token) || undefined;
-      const fs = require('fs').promises as typeof import('node:fs/promises');
-      await fs.writeFile(registryPathForRoot(workspaceRoot), JSON.stringify(reg, null, 2));
+      await writeRegistry(workspaceRoot, reg);
       settingsProvider.refresh(); filesGroups.refresh(); provider.refresh();
       await refreshDecorationAppearance(); await updateDecorations();
     }),
@@ -204,8 +202,7 @@ export function registerAppearanceCommands(deps: AppearanceDeps): vscode.Disposa
       (reg as any).settings = reg.settings || ({} as any);
       (reg as any).settings.appearance = reg.settings?.appearance || ({} as any);
       delete (reg as any).settings.appearance.uniformStyle;
-      const fs = require('fs').promises as typeof import('node:fs/promises');
-      await fs.writeFile(registryPathForRoot(workspaceRoot), JSON.stringify(reg, null, 2));
+      await writeRegistry(workspaceRoot, reg);
       settingsProvider.refresh();
       await refreshDecorationAppearance();
       await updateDecorations();
@@ -217,8 +214,7 @@ export function registerAppearanceCommands(deps: AppearanceDeps): vscode.Disposa
       (reg as any).settings = reg.settings || ({} as any);
       (reg as any).settings.appearance = reg.settings?.appearance || ({} as any);
       delete (reg as any).settings.appearance.uniformColor;
-      const fs = require('fs').promises as typeof import('node:fs/promises');
-      await fs.writeFile(registryPathForRoot(workspaceRoot), JSON.stringify(reg, null, 2));
+      await writeRegistry(workspaceRoot, reg);
       settingsProvider.refresh();
       await refreshDecorationAppearance();
       await updateDecorations();
@@ -231,8 +227,7 @@ export function registerAppearanceCommands(deps: AppearanceDeps): vscode.Disposa
       (reg as any).settings = reg.settings || ({} as any);
       (reg as any).settings.appearance = reg.settings?.appearance || ({} as any);
       (reg as any).settings.appearance.showDifferentStyles = !cur;
-      const fs = require('fs').promises as typeof import('node:fs/promises');
-      await fs.writeFile(registryPathForRoot(workspaceRoot), JSON.stringify(reg, null, 2));
+      await writeRegistry(workspaceRoot, reg);
       settingsProvider.refresh(); filesGroups.refresh(); provider.refresh();
       await refreshDecorationAppearance(); await updateDecorations();
     }),
@@ -244,8 +239,7 @@ export function registerAppearanceCommands(deps: AppearanceDeps): vscode.Disposa
       (reg as any).settings = reg.settings || ({} as any);
       (reg as any).settings.appearance = reg.settings?.appearance || ({} as any);
       (reg as any).settings.appearance.showDifferentColors = !cur;
-      const fs = require('fs').promises as typeof import('node:fs/promises');
-      await fs.writeFile(registryPathForRoot(workspaceRoot), JSON.stringify(reg, null, 2));
+      await writeRegistry(workspaceRoot, reg);
       settingsProvider.refresh(); filesGroups.refresh(); provider.refresh();
       await refreshDecorationAppearance(); await updateDecorations();
     }),

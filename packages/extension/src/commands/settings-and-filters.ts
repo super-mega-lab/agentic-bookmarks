@@ -23,7 +23,7 @@
 import * as vscode from 'vscode';
 import {
   readRegistry,
-  registryPathForRoot,
+  writeRegistry,
   setWatchersEnabled,
   setFileWatch,
   getDefaultAnchorType,
@@ -104,8 +104,7 @@ export function registerSettingsAndFilterCommands(deps: SettingsAndFilterDeps): 
       (reg as any).settings.general = reg.settings?.general || ({} as any);
       const cur = (reg as any).settings.general.showInlineDots;
       (reg as any).settings.general.showInlineDots = !(cur === true);
-      const fs = require('fs').promises as typeof import('node:fs/promises');
-      await fs.writeFile(registryPathForRoot(workspaceRoot), JSON.stringify(reg, null, 2));
+      await writeRegistry(workspaceRoot, reg);
       settingsProvider.refresh(); filesGroups.refresh(); provider.refresh();
       await updateDecorations();
     }),
@@ -163,11 +162,10 @@ export function registerSettingsAndFilterCommands(deps: SettingsAndFilterDeps): 
     vscode.commands.registerCommand('agenticBookmarks.toggleNotesAndLabels', async () => {
       const reg = await readRegistry(workspaceRoot);
       (reg as any).settings = reg.settings || ({} as any);
-      (reg as any).settings.general = reg.settings?.general || ({} as any);
+      (reg as any).settings.general = reg.settings?.general || ({ showInlineDots: false } as any);
       const cur = (reg as any).settings.general.showNotesAndLabels;
       (reg as any).settings.general.showNotesAndLabels = !(cur !== false);
-      const fs = require('fs').promises as typeof import('node:fs/promises');
-      await fs.writeFile(registryPathForRoot(workspaceRoot), JSON.stringify(reg, null, 2));
+      await writeRegistry(workspaceRoot, reg);
       settingsProvider.refresh(); filesGroups.refresh(); provider.refresh();
       await updateDecorations();
       if (codeLensProvider) {
