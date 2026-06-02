@@ -11,6 +11,7 @@ import {
   shiftValidation,
   anchorForensics,
   comments,
+  tokenMatch,
   type Bookmark,
 } from '@agentic-bookmarks/core';
 import * as fs from 'node:fs/promises';
@@ -563,19 +564,40 @@ function leadingWhitespace(s: string): string {
 }
 
 /**
+ * Minimum per-hop content similarity for a renamed_chain to keep high/medium
+ * confidence. Below this, the deleted/added pair was matched only by position
+ * within a grouped hunk and may be an unrelated replacement, so confidence is
+ * demoted to 'low'. (SML-1553)
+ */
+const RENAME_STRONG_SIMILARITY = 0.5;
+
+/**
+ * Confidence for a renamed_chain. Demoted to 'low' when the weakest hop is
+ * content-dissimilar (positional pairing of an unrelated block); otherwise the
+ * existing chain-length rule applies. (SML-1553)
+ */
+function renameChainConfidence(chainLength: number, minSimilarity: number): 'high' | 'medium' | 'low' {
+  if (minSimilarity < RENAME_STRONG_SIMILARITY) return 'low';
+  return chainLength <= 3 ? 'high' : 'medium';
+}
+
+/**
  * When a line is deleted as part of a grouped hunk (git emits all deletions
  * before all additions), detect whether it was renamed *in place* — i.e. there
  * is an added line at the same position within the change block that replaces
- * it. Returns the replacement's new (1-based) line number and content, or null
- * if this is a genuine deletion with no same-position replacement.
+ * it. Returns the replacement's new (1-based) line number, content, and the
+ * content-similarity between the deleted and replacement lines, or null if this
+ * is a genuine deletion with no same-position replacement.
  *
  * @param fileDiff - The FileDiff for the target file in the deletion patch
  * @param deletedLine1Based - The 1-based old-file line number that was deleted
+ * @param language - The target file's language (for weighted token similarity)
  */
 function findSamePositionReplacement(
   fileDiff: { oldPath: string | null; newPath: string | null; hunks: Array<{ oldStart: number; oldCount: number; newStart: number; newCount: number; lines: Array<{ type: string; content: string; oldLineNumber?: number; newLineNumber?: number }> }> },
   deletedLine1Based: number,
-): { newLineNumber: number; content: string } | null {
+  language: string | undefined,
+): { newLineNumber: number; content: string; similarity: number } | null {
   // Locate the hunk whose old-line range contains the deleted line.
   const hunk = fileDiff.hunks.find(
     h => deletedLine1Based >= h.oldStart && deletedLine1Based < h.oldStart + h.oldCount,
@@ -623,7 +645,11 @@ function findSamePositionReplacement(
   }
   if (replacement.content.trim().length === 0) return null;
 
-  return { newLineNumber: replacement.newLineNumber, content: replacement.content };
+  // Per-hop content similarity (language-weighted) drives renamed_chain
+  // confidence — it does NOT gate hop acceptance. (SML-1553)
+  const similarity = tokenMatch.tokenFuzzyScore(deletedLine.content, replacement.content, { language });
+
+  return { newLineNumber: replacement.newLineNumber, content: replacement.content, similarity };
 }
 
 export async function handleTraceLineHistory(
@@ -697,6 +723,9 @@ export async function handleTraceLineHistory(
       // in the hunk), which core's tracer can't follow past. Walk forward,
       // detecting same-position replacements, reconstructing a rename chain.
       const chain: Array<{ commit: string; from: string; to: string; commitMessage: string }> = [];
+      // Language for weighted per-hop content similarity (drives confidence). (SML-1553)
+      const language = comments.getLanguageForPath(targetRelPath) ?? undefined;
+      let minHopSimilarity = Number.POSITIVE_INFINITY;
 
       // Build the existing `deleted` inner result for a dead-end. `globalDeletedIdx`
       // is the patch index where the deletion occurred; `priorLine0Based` is the
@@ -764,7 +793,7 @@ export async function handleTraceLineHistory(
               chain,
               finalLine: finalLine0Based,
               finalContent,
-              confidence: chain.length <= 3 ? 'high' : 'medium',
+              confidence: renameChainConfidence(chain.length, minHopSimilarity),
               commitCount: patches.length,
             },
           };
@@ -791,7 +820,7 @@ export async function handleTraceLineHistory(
         const deletedPatch = patches[globalDeletedIdx];
         const fileDiff = deletedPatch?.diff.find(d => d.oldPath === targetRelPath || d.newPath === targetRelPath);
         const replacement = fileDiff
-          ? findSamePositionReplacement(fileDiff, deletedLine1Based)
+          ? findSamePositionReplacement(fileDiff, deletedLine1Based, language)
           : null;
 
         if (!replacement) {
@@ -814,6 +843,7 @@ export async function handleTraceLineHistory(
           to: replacement.content,
           commitMessage: deletedPatch?.commit.subject ?? '',
         });
+        minHopSimilarity = Math.min(minHopSimilarity, replacement.similarity);
         lastContent = replacement.content;
         currentLine = replacement.newLineNumber;
         startIdx = globalDeletedIdx + 1;
@@ -833,7 +863,7 @@ export async function handleTraceLineHistory(
               chain,
               finalLine: finalLine0Based,
               finalContent,
-              confidence: chain.length <= 3 ? 'high' : 'medium',
+              confidence: renameChainConfidence(chain.length, minHopSimilarity),
               commitCount: patches.length,
             },
           };
@@ -1182,7 +1212,7 @@ When evaluating candidates from cross-file search or trace results, use your und
 
 5. **Line Tracing** — Call \`anchor_traceLineHistory\`. Mechanical trace through patches may reveal where the line went.
 
-If trace returns \`status: "renamed_chain"\`, the line was renamed in place across one or more commits and is now at \`finalLine\` (with \`finalContent\`); the \`chain\` documents each rename hop (\`from\`/\`to\`/\`commit\`/\`commitMessage\`). Treat this as a high/medium-confidence resolved location — repair to \`finalLine\`.
+If trace returns \`status: "renamed_chain"\`, the line was renamed in place across one or more commits and is now at \`finalLine\` (with \`finalContent\`); the \`chain\` documents each rename hop (\`from\`/\`to\`/\`commit\`/\`commitMessage\`). Read \`confidence\`: at \`high\`/\`medium\`, the hops share substantial content (a reshaped same-named declaration) — treat \`finalLine\` as a resolved location and repair there. At \`low\`, the hops were paired only by position within a grouped hunk and may be an unrelated replacement rather than a true rename — treat \`finalLine\`/\`finalContent\` as a hypothesis: verify \`finalContent\` is genuinely your bookmarked line (compare it against the lineCache/label) before repairing, and never auto-repair from a low-confidence chain.
 
 If trace returns \`status: "deleted"\`, the line was removed from this file at a specific commit. The response includes a \`deletedHunk\` — a unified diff excerpt from the commit where deletion occurred. Inspect it to understand what happened:
    - If the hunk shows the code was removed and replaced with a different API call or import, the code was refactored away — this is strong evidence for declaring non-repairable.
