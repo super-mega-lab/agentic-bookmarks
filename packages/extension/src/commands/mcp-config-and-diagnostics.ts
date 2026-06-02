@@ -190,6 +190,10 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     }
     if (verdict === 'inconclusive') {
       log.info(`[mcpSetup:claude] could not verify ${scope}-scope install against ~/.claude.json; recorded optimistically`);
+      vscode.window.showWarningMessage(
+        `Couldn't verify the Claude Code MCP registration (${scope} scope) — ~/.claude.json couldn't be read. ` +
+        `Recorded it anyway; if the server doesn't appear in Claude Code, check the file's permissions and re-run setup.`,
+      );
     }
     return verdict;
   }

@@ -134,13 +134,24 @@ describe('verifyClaudeInstall', () => {
     expect(delays).toHaveLength(2);
   });
 
-  it('returns "inconclusive" when every read is inconclusive', async () => {
-    const { readConfig } = scriptedReadConfig([INCONCLUSIVE]);
-    const { sleep } = recordingSleep();
+  it('returns "inconclusive" immediately and stops polling (1 read, 0 sleeps)', async () => {
+    const { readConfig, calls } = scriptedReadConfig([INCONCLUSIVE]);
+    const { sleep, delays } = recordingSleep();
     const verdict = await verifyClaudeInstall({
-      readConfig, sleep, scope: 'user', projectPath: PROJECT, attempts: 3,
+      readConfig, sleep, scope: 'user', projectPath: PROJECT, attempts: 10,
     });
     expect(verdict).toBe('inconclusive');
+    expect(calls.count).toBe(1);   // early-exit: an unreadable config won't change on retry
+    expect(delays).toHaveLength(0);
+  });
+
+  it('short-circuits on the first inconclusive even if a later read would confirm', async () => {
+    const { readConfig, calls } = scriptedReadConfig([INCONCLUSIVE, CONFIRMED]);
+    const { sleep, delays } = recordingSleep();
+    const verdict = await verifyClaudeInstall({ readConfig, sleep, scope: 'user', projectPath: PROJECT });
+    expect(verdict).toBe('inconclusive');
+    expect(calls.count).toBe(1);
+    expect(delays).toHaveLength(0);
   });
 
   it('honors a custom attempts/delayMs (sleeps with the given delay)', async () => {
