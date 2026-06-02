@@ -124,6 +124,37 @@ export function parseWorkspaceConfig(meta: any): WorkspaceInfo[] {
 }
 
 /**
+ * Merge registry `loadedWorkspaceFolders` into an existing set of workspaces.
+ *
+ * Preserves the existing WorkspaceInfo for any root already present — keeping the
+ * registryPath/bookmarksDataRoot parsed from init meta — and only synthesizes a
+ * default WorkspaceInfo for genuinely-new folders. Existing roots keep their order
+ * and identity, so the primary workspace (index 0) is unchanged.
+ *
+ * Roots are matched by their resolved absolute path, so path-equivalent inputs
+ * (e.g. a trailing slash) dedup to the existing entry rather than duplicating it.
+ *
+ * SML-1547: the previous inline merge rebuilt every root via createWorkspaceInfo
+ * with no options, silently dropping a non-default bookmarks.dataRoot.
+ */
+export function mergeLoadedWorkspaceFolders(
+  existing: WorkspaceInfo[],
+  loadedFolders: string[]
+): WorkspaceInfo[] {
+  const byRoot = new Map<string, WorkspaceInfo>();
+  for (const ws of existing) {
+    byRoot.set(path.resolve(ws.workspaceRoot), ws);
+  }
+  for (const folder of loadedFolders) {
+    const resolved = path.resolve(folder);
+    if (!byRoot.has(resolved)) {
+      byRoot.set(resolved, createWorkspaceInfo(resolved));
+    }
+  }
+  return Array.from(byRoot.values());
+}
+
+/**
  * Get the primary workspace (first one, for backward compatibility).
  */
 export function getPrimaryWorkspace(workspaces: WorkspaceInfo[]): WorkspaceInfo | null {

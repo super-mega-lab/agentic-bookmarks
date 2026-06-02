@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { findWorkspaceRootUpward, findGroupByName } from './workspace';
+import { findWorkspaceRootUpward, findGroupByName, mergeLoadedWorkspaceFolders } from './workspace';
 import {
   createWorkspaceInfo,
   emptyFileV2,
@@ -135,5 +135,72 @@ describe('findGroupByName', () => {
       groupId: gId,
       filePath: path.join(root, fileEntry.path),
     });
+  });
+});
+
+describe('mergeLoadedWorkspaceFolders', () => {
+  // SML-1547: merging registry loadedWorkspaceFolders must NOT discard the custom
+  // registryPath/bookmarksDataRoot that init meta parsed for roots already present.
+  it('preserves custom bookmarksDataRoot for a root already present', () => {
+    const existing = [
+      createWorkspaceInfo('/ws/a', {
+        bookmarksDataRoot: '.bookmarks-custom',
+        registryPath: 'custom/reg.json',
+      }),
+    ];
+
+    const result = mergeLoadedWorkspaceFolders(existing, ['/ws/a']);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].bookmarksDataRoot).toBe('.bookmarks-custom');
+    expect(result[0].registryPath).toBe('custom/reg.json');
+  });
+
+  it('adds a new loaded folder with createWorkspaceInfo defaults', () => {
+    const existing = [createWorkspaceInfo('/ws/a', { bookmarksDataRoot: '.bookmarks-custom' })];
+
+    const result = mergeLoadedWorkspaceFolders(existing, ['/ws/a', '/ws/b']);
+
+    expect(result).toHaveLength(2);
+    const a = result.find(w => w.workspaceRoot === '/ws/a')!;
+    const b = result.find(w => w.workspaceRoot === '/ws/b')!;
+    expect(a.bookmarksDataRoot).toBe('.bookmarks-custom');
+    // The genuinely-new root gets standard defaults.
+    expect(b).toEqual(createWorkspaceInfo('/ws/b'));
+  });
+
+  it('preserves existing order; result[0] is the original primary', () => {
+    const existing = [
+      createWorkspaceInfo('/ws/a', { bookmarksDataRoot: '.bm-a' }),
+      createWorkspaceInfo('/ws/b', { bookmarksDataRoot: '.bm-b' }),
+    ];
+
+    const result = mergeLoadedWorkspaceFolders(existing, ['/ws/c']);
+
+    expect(result).toHaveLength(3);
+    // Existing entries kept first, by identity, so the primary is unchanged.
+    expect(result[0]).toBe(existing[0]);
+    expect(result[1]).toBe(existing[1]);
+    expect(result[2].workspaceRoot).toBe('/ws/c');
+  });
+
+  it('deduplicates a path-equivalent loaded folder to the existing entry', () => {
+    const existing = [createWorkspaceInfo('/ws/a', { bookmarksDataRoot: '.bookmarks-custom' })];
+
+    // Trailing slash resolves to the same root — must dedup to the existing entry.
+    const result = mergeLoadedWorkspaceFolders(existing, ['/ws/a/']);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(existing[0]);
+    expect(result[0].bookmarksDataRoot).toBe('.bookmarks-custom');
+  });
+
+  it('returns existing unchanged when there are no loaded folders', () => {
+    const existing = [createWorkspaceInfo('/ws/a', { bookmarksDataRoot: '.bookmarks-custom' })];
+
+    const result = mergeLoadedWorkspaceFolders(existing, []);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBe(existing[0]);
   });
 });

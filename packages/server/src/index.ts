@@ -19,6 +19,7 @@ import { toolDefinitions } from './tools/definitions.js';
 import {
   pickRoot,
   parseWorkspaceConfig,
+  mergeLoadedWorkspaceFolders,
 } from './workspace';
 import {
   handleBookmarkAdd,
@@ -129,9 +130,9 @@ server.setRequestHandler(InitializeRequestSchema, async (request) => {
         ? (reg as any).loadedWorkspaceFolders.map((f: string) => path.resolve(f))
         : [];
       if (folders.length > 0) {
-        const currentRoots = new Set(ctx.workspaces.map(ws => path.resolve(ws.workspaceRoot)));
-        for (const f of folders) currentRoots.add(path.resolve(f));
-        ctx.workspaces = Array.from(currentRoots).map(wr => createWorkspaceInfo(wr));
+        // SML-1547: preserve the registryPath/bookmarksDataRoot parsed from init
+        // meta for roots already present; only synthesize defaults for new folders.
+        ctx.workspaces = mergeLoadedWorkspaceFolders(ctx.workspaces, folders);
         ctx.workspaceRoot = ctx.workspaces[0]?.workspaceRoot || ctx.workspaceRoot;
         console.error(`Agentic Bookmarks server merged loadedWorkspaceFolders into workspaces (total=${ctx.workspaces.length})`);
       }
