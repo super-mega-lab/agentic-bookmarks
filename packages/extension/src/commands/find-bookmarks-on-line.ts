@@ -18,6 +18,8 @@ export interface FindOptions {
    * focused group always passes — even if also listed in hidden.
    */
   visibility?: { hidden: string[]; focus: string | null };
+  /** Resolves a smart/tag bookmark's live line; undefined when unresolved/broken. Point/range ignore it. */
+  resolveLine?: (bookmarkId: string) => number | undefined;
 }
 
 export interface LineMatch {
@@ -53,6 +55,17 @@ function isVisible(
   return !visibility.hidden.includes(groupId);
 }
 
+/** point -> anchor.line; range -> anchor.start.line; smart/tag -> resolveLive() ?? anchor.lastUpdatedLine */
+export function effectiveAnchorLine(
+  anchor: any,
+  resolveLive: () => number | undefined,
+): number {
+  if (anchor.kind === 'point') return anchor.line;
+  if (anchor.kind === 'range') return anchor.start.line;
+  const live = resolveLive();
+  return typeof live === 'number' ? live : anchor.lastUpdatedLine;
+}
+
 export function findBookmarksOnLineMatching(
   file: BookmarksFileV2,
   opts: FindOptions
@@ -79,18 +92,20 @@ export function findBookmarksOnLineMatching(
         match = { bookmarkId: b.id, groupId: b.groupId, anchorKind: 'range' };
       }
     } else if (anchor.kind === 'tag') {
-      lineMatches = anchor.lastUpdatedLine === opts.line;
+      const liveLine = effectiveAnchorLine(anchor, () => opts.resolveLine?.(b.id));
+      lineMatches = liveLine === opts.line;
       if (lineMatches) {
         match = {
           bookmarkId: b.id,
           groupId: b.groupId,
           anchorKind: 'tag',
           tagId: anchor.tagId,
-          tagLine: anchor.lastUpdatedLine,
+          tagLine: liveLine,
         };
       }
     } else if (anchor.kind === 'smart') {
-      lineMatches = anchor.lastUpdatedLine === opts.line;
+      const liveLine = effectiveAnchorLine(anchor, () => opts.resolveLine?.(b.id));
+      lineMatches = liveLine === opts.line;
       if (lineMatches) {
         match = { bookmarkId: b.id, groupId: b.groupId, anchorKind: 'smart' };
       }

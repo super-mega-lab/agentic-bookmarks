@@ -17,6 +17,7 @@ import {
 } from '@agentic-bookmarks/core';
 import type { Logger } from '../logger';
 import type { BookmarksProvider } from '../treeProvider';
+import { getResolvedLine } from '../anchorState';
 import { getConfiguredDataRoot, resolveLineFromArg } from '../workspace-helpers';
 import { findBookmarksOnLineMatching } from './find-bookmarks-on-line';
 import { findBookmarkNodeInTree } from './reveal-in-panel-helpers';
@@ -71,6 +72,7 @@ export function registerRevealInPanelCommand(deps: RevealInPanelDeps): vscode.Di
           workspaceRoot: fileWorkspaceRoot,
           line,
           visibility,
+          resolveLine: (id: string) => getResolvedLine(editor.document.uri.toString(), id),
         });
         if (matches.length > 0) {
           bookmarkId = matches[0].bookmarkId;

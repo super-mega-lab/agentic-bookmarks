@@ -48,7 +48,7 @@ import {
   buildAgentRepairPrompt,
   getConfiguredDataRoot,
 } from '../workspace-helpers';
-import { findBookmarksOnLineMatching, type LineMatch } from './find-bookmarks-on-line';
+import { findBookmarksOnLineMatching, effectiveAnchorLine, type LineMatch } from './find-bookmarks-on-line';
 import {
   partitionBookmarksForClear,
   bookmarkMatchesActiveFile,
@@ -142,6 +142,7 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
         workspaceRoot: fileWorkspaceRoot,
         line,
         visibility,
+        resolveLine: (id: string) => getResolvedLine(editor.document.uri.toString(), id),
       });
       if (matches.length > 0) matchesPerFile.push({ rfPath: rf.path, matches });
     }
@@ -755,14 +756,16 @@ export function registerBookmarkCrudCommands(deps: BookmarkCrudDeps): vscode.Dis
                 if (!keep) log.info(`RemoveAtLine: removing range id=${(b as any).id} [${b.anchor.start.line + 1}..${b.anchor.end.line + 1}] label="${b.label}" from ${vscode.workspace.asRelativePath(rf.path)}`);
                 return keep;
               } else if (b.anchor.kind === 'tag') {
-                const keep = b.anchor.lastUpdatedLine !== line;
+                const effective = effectiveAnchorLine(b.anchor, () => getResolvedLine(uri, (b as any).id));
+                const keep = effective !== line;
                 if (!keep) {
                   log.info(`RemoveAtLine: removing tag id=${(b as any).id} label="${b.label}" from ${vscode.workspace.asRelativePath(rf.path)}`);
-                  tagAnchorsToRemove.push({ tagId: b.anchor.tagId, line: b.anchor.lastUpdatedLine });
+                  tagAnchorsToRemove.push({ tagId: b.anchor.tagId, line: effective });
                 }
                 return keep;
               } else if (b.anchor.kind === 'smart') {
-                const keep = b.anchor.lastUpdatedLine !== line;
+                const effective = effectiveAnchorLine(b.anchor, () => getResolvedLine(uri, (b as any).id));
+                const keep = effective !== line;
                 if (!keep) log.info(`RemoveAtLine: removing smart id=${(b as any).id} label="${b.label}" from ${vscode.workspace.asRelativePath(rf.path)}`);
                 return keep;
               } else {
