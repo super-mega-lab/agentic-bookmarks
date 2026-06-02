@@ -57,7 +57,7 @@ import {
 } from './anchor-repair-helpers';
 import { createDecorationManager } from './decorations';
 import { registerStickyHandler } from './sticky';
-import { createWatcherManager } from './watchers';
+import { createWatcherManagerSet, type WatcherDeps } from './watchers';
 import { createRevalidateAndRepaint } from './revalidate-and-repaint';
 import { getBuiltinCatalog, clearCatalogCache, getCatalogCache } from './catalog-cache';
 import { createAnchorResolution, resolveUriAnchors } from './anchor-resolution';
@@ -608,51 +608,61 @@ async function activateForWorkspace(
   });
   context.subscriptions.push(sticky.disposable);
 
-  // --- MCP → extension IPC queue consumer ---
-  // Generic one-way channel from the bundled MCP server. First consumer:
-  // `bookmark-repaired` messages drive the streaming broken-count update.
-  // Truncate on activation so stale messages from a previous session don't
-  // skew the in-memory state populated by the next scan.
-  const { queuePath: mcpQueuePath } = getMcpToExtensionQueuePaths(
-    workspaceRoot,
-    getBookmarksDataRoot(await readRegistry(workspaceRoot)),
-  );
-  await ipc.truncateQueue(mcpQueuePath);
-  const mcpConsumer = new QueueConsumer(mcpQueuePath, {
-    log,
-    handlers: {
-      // Streaming decrement: each successful MCP repair removes its ID from
-      // the broken-ID set and re-renders the tree. Repairs of IDs that aren't
-      // in the set (already healed, or never-broken) are silently ignored.
-      'bookmark-repaired': (payload: { bookmarkId?: string }) => {
-        const id = payload?.bookmarkId;
-        if (typeof id !== 'string') return;
-        if (lastBrokenIds.delete(id)) {
-          provider.refresh();
-        }
-      },
-    },
-  });
+  // --- File, registry & MCP watchers — one manager per workspace folder ---
+  // (SML-1540) A multi-root workspace gets a watcher manager per folder, each
+  // with its own data/registry watchers and its own mcp-to-extension queue
+  // consumer, so SECONDARY folders' external writes invalidate caches + refresh
+  // the UI, and folders added/removed after activation are (un)watched without a
+  // window reload. The UI-refresh callbacks below are workspace-wide and shared.
 
-  // --- File & registry watchers ---
-  const watchers = createWatcherManager(
-    {
-      workspaceRoot,
+  // Streaming decrement: each successful MCP repair removes its ID from the
+  // broken-ID set and re-renders the tree. Repairs of IDs that aren't in the
+  // set (already healed, or never-broken) are silently ignored. Shared across
+  // every folder's consumer.
+  const onBookmarkRepaired = (payload: { bookmarkId?: string }) => {
+    const id = payload?.bookmarkId;
+    if (typeof id !== 'string') return;
+    if (lastBrokenIds.delete(id)) {
+      provider.refresh();
+    }
+  };
+  const refreshAllTrees = () => { settingsProvider.refresh(); filesGroups.refresh(); provider.refresh(); };
+  const refreshBookmarkTreesFn = () => { filesGroups.refresh(); provider.refresh(); };
+
+  const makeWatcherDeps = async (root: string): Promise<WatcherDeps> => {
+    // Generic one-way MCP → extension channel for this folder. Truncate on
+    // activation so stale messages from a previous session don't skew the
+    // in-memory state populated by the next scan.
+    const dataRoot = getBookmarksDataRoot(await readRegistry(root));
+    const { queuePath } = getMcpToExtensionQueuePaths(root, dataRoot);
+    await ipc.truncateQueue(queuePath);
+    const consumer = new QueueConsumer(queuePath, {
       log,
-      context,
+      handlers: { 'bookmark-repaired': onBookmarkRepaired },
+    });
+    return {
+      workspaceRoot: root,
+      log,
       updateDecorations,
       refreshDecorationAppearance,
-      refreshTrees: () => { settingsProvider.refresh(); filesGroups.refresh(); provider.refresh(); },
-      refreshBookmarkTrees: () => { filesGroups.refresh(); provider.refresh(); },
+      refreshTrees: refreshAllTrees,
+      refreshBookmarkTrees: refreshBookmarkTreesFn,
       refreshCodeLens: () => codeLensProvider.refresh(),
       revalidateAndRepaint,
-      onMcpToExtensionPulse: () => mcpConsumer.drain(),
-    },
-    sticky.getLastStickyRefreshAt,
+      onMcpToExtensionPulse: () => consumer.drain(),
+    };
+  };
+
+  const watcherSet = createWatcherManagerSet({
+    getRoots: () => (vscode.workspace.workspaceFolders ?? []).map(f => f.uri.fsPath),
+    makeDeps: makeWatcherDeps,
+    getLastStickyRefreshAt: sticky.getLastStickyRefreshAt,
+  });
+  await watcherSet.sync();
+  context.subscriptions.push({ dispose: () => watcherSet.dispose() });
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeWorkspaceFolders(() => { void watcherSet.sync(); }),
   );
-  await watchers.setupWatchers();
-  await watchers.setupMcpToExtensionWatcher();
-  context.subscriptions.push(watchers.setupRegistryWatcher());
 
   // --- Document lifecycle ---
   context.subscriptions.push(
