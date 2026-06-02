@@ -22,7 +22,6 @@ const STICKY_PULSE_SUPPRESS_MS = 300;
 export interface WatcherDeps {
   workspaceRoot: string;
   log: Logger;
-  context: vscode.ExtensionContext;
   updateDecorations: () => Promise<void>;
   refreshDecorationAppearance: () => Promise<void>;
   refreshTrees: () => void;          // provider + filesGroups + settingsProvider
@@ -43,7 +42,6 @@ export function createWatcherManager(
   const {
     workspaceRoot,
     log,
-    context,
     updateDecorations,
     refreshDecorationAppearance,
     refreshTrees,
@@ -55,7 +53,11 @@ export function createWatcherManager(
   // Internal state — every per-file pulse/data watcher of the current batch.
   // Disposing them all is how we tear down the batch for a restart (SML-1504).
   let fileWatchers: vscode.Disposable[] = [];
-  let teardownRegistered = false;
+  // Manager-owned long-lived watchers (registry + mcp). Torn down via dispose()
+  // rather than self-registering into context.subscriptions, so the per-folder
+  // set can own each manager's lifecycle in a multi-root workspace (SML-1540).
+  const ownDisposables: vscode.Disposable[] = [];
+  let disposed = false;
 
   const disposeFileWatchers = () => {
     for (const w of fileWatchers) {
@@ -75,13 +77,9 @@ export function createWatcherManager(
     const reg = await readRegistry(workspaceRoot);
     if (reg.settings && reg.settings.watchersEnabled === false) return;
 
-    // Register a single umbrella disposable so the per-file watchers are torn
-    // down on extension deactivate, without growing context.subscriptions on
-    // repeated restarts (SML-1504).
-    if (!teardownRegistered) {
-      context.subscriptions.push({ dispose: disposeFileWatchers });
-      teardownRegistered = true;
-    }
+    // The per-file watchers are torn down via the manager's dispose() (which the
+    // per-folder set owns), not by self-registering into context.subscriptions
+    // (SML-1540).
 
     const debounce = (fn: () => void, ms = 100) => {
       let timeout: NodeJS.Timeout;
@@ -190,6 +188,9 @@ export function createWatcherManager(
     watcher.onDidChange(onChange);
     watcher.onDidCreate(onChange);
     watcher.onDidDelete(onChange);
+    // Tracked for manager-owned teardown (SML-1540); still returned for callers
+    // (e.g. existing tests) that grab the disposable directly.
+    ownDisposables.push(watcher);
     return watcher;
   };
 
@@ -209,7 +210,24 @@ export function createWatcherManager(
     watcher.onDidChange(fire);
     watcher.onDidCreate(fire);
     watcher.onDidDelete(fire);
-    context.subscriptions.push(watcher);
+    // Tracked for manager-owned teardown (SML-1540).
+    ownDisposables.push(watcher);
+  };
+
+  // -------------------------------------------------------------------
+  // dispose — tear down EVERY watcher this manager owns (per-file batch +
+  // registry + mcp). Idempotent so the per-folder set can dispose freely on
+  // folder-remove / deactivate (SML-1540). Preserves SML-1504: the whole
+  // per-file batch is disposed via disposeFileWatchers().
+  // -------------------------------------------------------------------
+  const dispose = () => {
+    if (disposed) return;
+    disposed = true;
+    disposeFileWatchers();
+    for (const d of ownDisposables) {
+      try { d.dispose(); } catch {}
+    }
+    ownDisposables.length = 0;
   };
 
   return {
@@ -217,5 +235,81 @@ export function createWatcherManager(
     restartWatchers,
     setupRegistryWatcher,
     setupMcpToExtensionWatcher,
+    dispose,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Per-folder watcher set — one manager per workspace folder, re-synced on
+// onDidChangeWorkspaceFolders so SECONDARY folders' data/registry/mcp writes
+// are watched too, and folders added/removed after activation are handled
+// without a window reload (SML-1540).
+// ---------------------------------------------------------------------------
+export interface WatcherManagerSetDeps {
+  getRoots: () => string[];
+  makeDeps: (root: string) => Promise<WatcherDeps>;
+  getLastStickyRefreshAt: () => number;
+}
+
+export function createWatcherManagerSet(deps: WatcherManagerSetDeps): {
+  sync: () => Promise<void>;
+  dispose: () => void;
+  roots: () => string[];
+} {
+  const managers = new Map<string, ReturnType<typeof createWatcherManager>>();
+
+  const doSync = async (): Promise<void> => {
+    const roots = new Set(deps.getRoots());
+
+    // Add managers for newly-present roots.
+    for (const root of roots) {
+      if (managers.has(root)) continue;
+      let mgr: ReturnType<typeof createWatcherManager> | undefined;
+      try {
+        const d = await deps.makeDeps(root);
+        mgr = createWatcherManager(d, deps.getLastStickyRefreshAt);
+        managers.set(root, mgr);
+        await mgr.setupWatchers();
+        await mgr.setupMcpToExtensionWatcher();
+        mgr.setupRegistryWatcher();
+      } catch (err) {
+        // makeDeps may throw before we have a logger; fall back to console.error
+        // (consistent with this file's other error paths). Don't let one bad
+        // folder abort the rest, and don't leave a half-set-up folder lingering.
+        console.error(`[watcherManagerSet] failed to set up watchers for ${root}:`, err);
+        if (mgr && managers.get(root) === mgr) {
+          mgr.dispose();
+          managers.delete(root);
+        }
+      }
+    }
+
+    // Dispose managers for roots that are no longer present.
+    for (const [root, mgr] of managers) {
+      if (!roots.has(root)) {
+        mgr.dispose();
+        managers.delete(root);
+      }
+    }
+  };
+
+  // Serialize sync() so an in-flight sync can't race a new one into
+  // double-adding a root (SML-1540).
+  let chain: Promise<void> = Promise.resolve();
+  const sync = (): Promise<void> => {
+    const next = chain.then(() => doSync()).catch(() => { /* swallow; doSync logs per-folder */ });
+    chain = next;
+    return next;
+  };
+
+  const dispose = () => {
+    for (const mgr of managers.values()) {
+      mgr.dispose();
+    }
+    managers.clear();
+  };
+
+  const roots = () => [...managers.keys()];
+
+  return { sync, dispose, roots };
 }

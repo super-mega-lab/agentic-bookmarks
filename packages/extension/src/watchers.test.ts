@@ -58,7 +58,7 @@ vi.mock('./ipc-paths', () => ({
   getMcpToExtensionQueuePaths: vi.fn(() => ({ pulsePath: '/ws/.bookmarks/local/mcp2ext.pulse' })),
 }));
 
-import { createWatcherManager, type WatcherDeps } from './watchers';
+import { createWatcherManager, createWatcherManagerSet, type WatcherDeps } from './watchers';
 import { invalidateFileCache, readRegistry, invalidateRegistryCache } from '@agentic-bookmarks/core';
 
 function makeDeps(): WatcherDeps {
@@ -66,7 +66,6 @@ function makeDeps(): WatcherDeps {
   return {
     workspaceRoot: '/ws',
     log,
-    context: { subscriptions: [] } as any,
     // Not driven by the pulse path (which routes through revalidateAndRepaint);
     // present only to satisfy WatcherDeps. The registry-watcher path that uses it
     // is not exercised here.
@@ -335,5 +334,167 @@ describe('watchers — registry-change watcher restart (SML-1504)', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe('watchers — manager dispose (SML-1540)', () => {
+  beforeEach(() => {
+    createdWatchers.length = 0;
+    vi.clearAllMocks();
+  });
+
+  it('dispose() tears down file, registry, and mcp watchers', async () => {
+    vi.mocked(readRegistry).mockResolvedValue({
+      settings: {},
+      files: [{ path: 'shared/a.json', enabled: true }],
+    } as any);
+
+    const deps = makeDeps();
+    const mgr = createWatcherManager(deps, () => -100000);
+
+    // 1 file → pulse + data (2); + mcp (1); + registry (1) = 4 watchers.
+    await mgr.setupWatchers();
+    await mgr.setupMcpToExtensionWatcher();
+    mgr.setupRegistryWatcher();
+    expect(createdWatchers.length).toBe(4);
+
+    mgr.dispose();
+
+    expect(createdWatchers.every((w) => w.disposed)).toBe(true);
+  });
+
+  it('dispose() is idempotent', async () => {
+    vi.mocked(readRegistry).mockResolvedValue({
+      settings: {},
+      files: [{ path: 'shared/a.json', enabled: true }],
+    } as any);
+
+    const deps = makeDeps();
+    const mgr = createWatcherManager(deps, () => -100000);
+
+    await mgr.setupWatchers();
+    await mgr.setupMcpToExtensionWatcher();
+    mgr.setupRegistryWatcher();
+
+    mgr.dispose();
+    expect(() => mgr.dispose()).not.toThrow();
+  });
+});
+
+describe('watchers — per-folder manager set (SML-1540)', () => {
+  beforeEach(() => {
+    createdWatchers.length = 0;
+    vi.clearAllMocks();
+    vi.mocked(readRegistry).mockResolvedValue({
+      settings: {},
+      files: [{ path: 'shared/a.json', enabled: true }],
+    } as any);
+  });
+
+  // makeDeps in the set path is async and stamps the per-folder root onto the deps.
+  const makeSetDeps = async (root: string): Promise<WatcherDeps> => {
+    const deps = makeDeps();
+    deps.workspaceRoot = root;
+    return deps;
+  };
+
+  it('sync() creates a manager (4 watchers) per workspace folder', async () => {
+    let roots = ['/a'];
+    const set = createWatcherManagerSet({
+      getRoots: () => roots,
+      makeDeps: makeSetDeps,
+      getLastStickyRefreshAt: () => -100000,
+    });
+
+    await set.sync();
+    // 1 folder × (pulse, data, mcp, registry) = 4.
+    expect(createdWatchers.length).toBe(4);
+    expect(set.roots()).toEqual(['/a']);
+
+    roots = ['/a', '/b'];
+    await set.sync();
+    // +4 for /b.
+    expect(createdWatchers.length).toBe(8);
+    expect(set.roots()).toEqual(['/a', '/b']);
+  });
+
+  it('sync() disposes watchers for a removed folder, leaving others intact', async () => {
+    let roots = ['/a', '/b'];
+    const set = createWatcherManagerSet({
+      getRoots: () => roots,
+      makeDeps: makeSetDeps,
+      getLastStickyRefreshAt: () => -100000,
+    });
+
+    await set.sync();
+    // indices 0-3 = /a, 4-7 = /b (creation order per root: pulse, data, mcp, registry).
+    expect(createdWatchers.length).toBe(8);
+
+    roots = ['/a'];
+    await set.sync();
+
+    expect(createdWatchers.slice(4, 8).every((w) => w.disposed)).toBe(true);
+    expect(createdWatchers.slice(0, 4).every((w) => !w.disposed)).toBe(true);
+    expect(set.roots()).toEqual(['/a']);
+  });
+
+  it('sync() is idempotent for unchanged roots', async () => {
+    const roots = ['/a', '/b'];
+    const set = createWatcherManagerSet({
+      getRoots: () => roots,
+      makeDeps: makeSetDeps,
+      getLastStickyRefreshAt: () => -100000,
+    });
+
+    await set.sync();
+    const countAfterFirst = createdWatchers.length;
+    expect(countAfterFirst).toBe(8);
+
+    await set.sync();
+    // No new watchers created, none disposed.
+    expect(createdWatchers.length).toBe(countAfterFirst);
+    expect(createdWatchers.every((w) => !w.disposed)).toBe(true);
+  });
+
+  it('dispose() tears down every folder\'s watchers', async () => {
+    const roots = ['/a', '/b'];
+    const set = createWatcherManagerSet({
+      getRoots: () => roots,
+      makeDeps: makeSetDeps,
+      getLastStickyRefreshAt: () => -100000,
+    });
+
+    await set.sync();
+    expect(createdWatchers.length).toBe(8);
+
+    set.dispose();
+
+    expect(createdWatchers.every((w) => w.disposed)).toBe(true);
+    expect(set.roots()).toEqual([]);
+  });
+
+  it('sync() isolates a failing folder — others are still set up, the set does not reject, and the failure is logged', async () => {
+    // One folder's makeDeps throws; the rest must still be set up (SML-1540).
+    const roots = ['/bad', '/good'];
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const set = createWatcherManagerSet({
+      getRoots: () => roots,
+      makeDeps: async (root) => {
+        if (root === '/bad') throw new Error('boom');
+        const deps = makeDeps();
+        deps.workspaceRoot = root;
+        return deps;
+      },
+      getLastStickyRefreshAt: () => -100000,
+    });
+
+    // The chained sync resolves (per-folder failure is swallowed), never rejects.
+    await expect(set.sync()).resolves.toBeUndefined();
+
+    // Only the healthy folder is tracked + watched; the failure was logged.
+    expect(set.roots()).toEqual(['/good']);
+    expect(createdWatchers.length).toBe(4);
+    expect(errSpy).toHaveBeenCalled();
+    errSpy.mockRestore();
   });
 });
