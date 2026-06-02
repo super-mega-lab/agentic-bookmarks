@@ -534,6 +534,76 @@ function extractDeletedHunk(
   return null;
 }
 
+/** Leading-whitespace prefix of a line (for structural-similarity gating). */
+function leadingWhitespace(s: string): string {
+  const m = /^[ \t]*/.exec(s);
+  return m ? m[0] : '';
+}
+
+/**
+ * When a line is deleted as part of a grouped hunk (git emits all deletions
+ * before all additions), detect whether it was renamed *in place* — i.e. there
+ * is an added line at the same position within the change block that replaces
+ * it. Returns the replacement's new (1-based) line number and content, or null
+ * if this is a genuine deletion with no same-position replacement.
+ *
+ * @param fileDiff - The FileDiff for the target file in the deletion patch
+ * @param deletedLine1Based - The 1-based old-file line number that was deleted
+ */
+function findSamePositionReplacement(
+  fileDiff: { oldPath: string | null; newPath: string | null; hunks: Array<{ oldStart: number; oldCount: number; newStart: number; newCount: number; lines: Array<{ type: string; content: string; oldLineNumber?: number; newLineNumber?: number }> }> },
+  deletedLine1Based: number,
+): { newLineNumber: number; content: string } | null {
+  // Locate the hunk whose old-line range contains the deleted line.
+  const hunk = fileDiff.hunks.find(
+    h => deletedLine1Based >= h.oldStart && deletedLine1Based < h.oldStart + h.oldCount,
+  );
+  if (!hunk) return null;
+
+  // Find the deletion line for the target old line number.
+  const targetIdx = hunk.lines.findIndex(
+    l => l.type === 'deletion' && l.oldLineNumber === deletedLine1Based,
+  );
+  if (targetIdx < 0) return null;
+
+  // Walk back to the start of the contiguous deletion run containing it.
+  let runStart = targetIdx;
+  while (runStart > 0 && hunk.lines[runStart - 1].type === 'deletion') {
+    runStart--;
+  }
+  // Walk forward to the end of the deletion run.
+  let runEnd = targetIdx;
+  while (runEnd + 1 < hunk.lines.length && hunk.lines[runEnd + 1].type === 'deletion') {
+    runEnd++;
+  }
+  const k = targetIdx - runStart; // index of the target within the deletion run
+
+  // The replacement block is the contiguous run of additions IMMEDIATELY after
+  // the deletion run (no intervening context line). If not an addition, it's a
+  // pure deletion.
+  const afterIdx = runEnd + 1;
+  if (afterIdx >= hunk.lines.length || hunk.lines[afterIdx].type !== 'addition') {
+    return null;
+  }
+  const additionRun: Array<{ type: string; content: string; newLineNumber?: number }> = [];
+  for (let i = afterIdx; i < hunk.lines.length && hunk.lines[i].type === 'addition'; i++) {
+    additionRun.push(hunk.lines[i]);
+  }
+
+  const replacement = additionRun[k];
+  if (!replacement || replacement.newLineNumber === undefined) return null;
+
+  // Structural-similarity gate: same leading whitespace and non-empty trimmed
+  // content. A differently-indented or blank replacement is not an in-place rename.
+  const deletedLine = hunk.lines[targetIdx];
+  if (leadingWhitespace(deletedLine.content) !== leadingWhitespace(replacement.content)) {
+    return null;
+  }
+  if (replacement.content.trim().length === 0) return null;
+
+  return { newLineNumber: replacement.newLineNumber, content: replacement.content };
+}
+
 export async function handleTraceLineHistory(
   bookmark: Bookmark,
   repoPath: string,
@@ -600,39 +670,153 @@ export async function handleTraceLineHistory(
     }
 
     if (lastTrace.status === 'deleted') {
-      // Find the commit where the line was deleted
-      const deletedIdx = traces.findIndex(t => t.status === 'deleted');
-      const deletedTrace = traces[deletedIdx];
-      const deletedPatch = patches[deletedIdx];
-      const priorLine = deletedIdx > 0 ? traces[deletedIdx - 1].lineNumber : undefined;
+      // The line dead-ended at a deletion. This can be either a genuine deletion
+      // or an in-place rename that git grouped (all deletions before all additions
+      // in the hunk), which core's tracer can't follow past. Walk forward,
+      // detecting same-position replacements, reconstructing a rename chain.
+      const chain: Array<{ commit: string; from: string; to: string; commitMessage: string }> = [];
 
-      // Extract the hunk snippet from the patch where deletion occurred.
-      // The trace uses 0-based line numbers (converted above), but the patch
-      // hunks use 1-based diff coordinates. We need the 1-based line number
-      // to locate the hunk — either the prior trace's line + 1 (converted back)
-      // or the original lastUpdatedLine + 1 if deleted in the first patch.
-      const deletedLine1Based = deletedIdx > 0
-        ? (traces[deletedIdx - 1].lineNumber !== undefined ? traces[deletedIdx - 1].lineNumber! + 1 : lastUpdatedLine + 1)
-        : lastUpdatedLine + 1;
-      const deletedHunk = deletedPatch
-        ? extractDeletedHunk(deletedPatch, targetRelPath, deletedLine1Based)
-        : null;
-
-      return {
-        success: true,
-        bookmarkId: bookmark.id,
-        originalLine: lastUpdatedLine,
-        fromCommit: commitInfo.commit,
-        baselineSource: commitInfo.baselineSource,
-        result: {
+      // Build the existing `deleted` inner result for a dead-end. `globalDeletedIdx`
+      // is the patch index where the deletion occurred; `priorLine0Based` is the
+      // 0-based line just before deletion (undefined when the deletion is the first
+      // trace entry of its slice). Kept byte-identical to the pre-SML-1468 result
+      // for the no-hop case (existing tests depend on it), with `renameChain` added
+      // only when ≥1 hop was reconstructed.
+      const buildDeletedResult = (
+        deletedCommit: string,
+        deletedContent: string | null,
+        priorLine0Based: number | undefined,
+        globalDeletedIdx: number,
+        deletedLine1Based: number,
+      ): Record<string, unknown> => {
+        const deletedPatch = patches[globalDeletedIdx];
+        const deletedHunk = deletedPatch
+          ? extractDeletedHunk(deletedPatch, targetRelPath, deletedLine1Based)
+          : null;
+        const inner: Record<string, unknown> = {
           status: 'deleted',
-          deletedAtCommit: deletedTrace.commit,
+          deletedAtCommit: deletedCommit,
           deletedAtCommitMessage: deletedPatch?.commit.subject ?? '',
-          lastSeenLine: priorLine,
-          lastSeenContent: deletedTrace.content ?? null,
+          lastSeenLine: priorLine0Based,
+          lastSeenContent: deletedContent ?? null,
           deletedHunk,
-        },
+        };
+        if (chain.length > 0) inner.renameChain = chain;
+        return {
+          success: true,
+          bookmarkId: bookmark.id,
+          originalLine: lastUpdatedLine,
+          fromCommit: commitInfo.commit,
+          baselineSource: commitInfo.baselineSource,
+          result: inner,
+        };
       };
+
+      // Follow-through loop. All coordinates are 1-based here (matching the patch
+      // hunk coordinates); we convert to 0-based only when building the output.
+      let currentLine = lastUpdatedLine + 1; // 1-based starting line
+      let startIdx = 0;
+      let lastContent: string | null = null;
+      const MAX_HOPS = 25; // defensive cap; the loop strictly advances startIdx
+
+      for (let guard = 0; guard <= MAX_HOPS; guard++) {
+        const slice = patches.slice(startIdx);
+        const t = gitHistory.traceLineThroughPatches(slice, targetRelPath, currentLine);
+        const last = t[t.length - 1];
+
+        // Resolved (not deleted) within this slice.
+        if (!last || last.status !== 'deleted') {
+          if (chain.length === 0) break; // no hops — fall through to existing logic
+          // ≥1 hop and the line survived to HEAD. Resolve at the last known line.
+          const finalLine1Based = last && last.lineNumber !== undefined ? last.lineNumber : currentLine;
+          const finalLine0Based = finalLine1Based - 1;
+          const finalContent = currentFileLines[finalLine0Based] ?? (last?.content ?? lastContent) ?? null;
+          return {
+            success: true,
+            bookmarkId: bookmark.id,
+            originalLine: lastUpdatedLine,
+            fromCommit: commitInfo.commit,
+            baselineSource: commitInfo.baselineSource,
+            result: {
+              status: 'renamed_chain',
+              chain,
+              finalLine: finalLine0Based,
+              finalContent,
+              confidence: chain.length <= 3 ? 'high' : 'medium',
+              commitCount: patches.length,
+            },
+          };
+        }
+
+        // Deletion within this slice. Locate it.
+        const localDeletedIdx = t.findIndex(tr => tr.status === 'deleted');
+        const globalDeletedIdx = startIdx + localDeletedIdx;
+        // 1-based line that was deleted, in the deletion patch's OLD file. The prior
+        // trace entry's lineNumber is already 1-based (traceLineThroughPatches output),
+        // so use it as-is; fall back to the slice's starting line when the deletion is
+        // the first entry of the slice.
+        const deletedLine1Based = localDeletedIdx > 0
+          ? (t[localDeletedIdx - 1].lineNumber !== undefined ? t[localDeletedIdx - 1].lineNumber! : currentLine)
+          : currentLine;
+        // 0-based "last seen" line just before the deletion (undefined when first entry).
+        // The trace lineNumber is 1-based, so convert to 0-based for the result.
+        const priorLine0Based = localDeletedIdx > 0
+          ? (t[localDeletedIdx - 1].lineNumber !== undefined ? t[localDeletedIdx - 1].lineNumber! - 1 : undefined)
+          : undefined;
+        const deletedTrace = t[localDeletedIdx];
+        lastContent = deletedTrace.content ?? lastContent;
+
+        const deletedPatch = patches[globalDeletedIdx];
+        const fileDiff = deletedPatch?.diff.find(d => d.oldPath === targetRelPath || d.newPath === targetRelPath);
+        const replacement = fileDiff
+          ? findSamePositionReplacement(fileDiff, deletedLine1Based)
+          : null;
+
+        if (!replacement) {
+          // Genuine deletion (no same-position replacement) — return the existing
+          // `deleted` result (plus renameChain if we already reconstructed hops).
+          return buildDeletedResult(
+            deletedTrace.commit,
+            deletedTrace.content ?? null,
+            priorLine0Based,
+            globalDeletedIdx,
+            deletedLine1Based,
+          );
+        }
+
+        // Same-position replacement → record a rename hop and follow it.
+        // core sets the deleted trace's `content` to the deleted line's text.
+        chain.push({
+          commit: deletedTrace.commit,
+          from: deletedTrace.content ?? '',
+          to: replacement.content,
+          commitMessage: deletedPatch?.commit.subject ?? '',
+        });
+        lastContent = replacement.content;
+        currentLine = replacement.newLineNumber;
+        startIdx = globalDeletedIdx + 1;
+
+        if (startIdx >= patches.length) {
+          // The replacement is in HEAD — resolved.
+          const finalLine0Based = currentLine - 1;
+          const finalContent = currentFileLines[finalLine0Based] ?? replacement.content ?? null;
+          return {
+            success: true,
+            bookmarkId: bookmark.id,
+            originalLine: lastUpdatedLine,
+            fromCommit: commitInfo.commit,
+            baselineSource: commitInfo.baselineSource,
+            result: {
+              status: 'renamed_chain',
+              chain,
+              finalLine: finalLine0Based,
+              finalContent,
+              confidence: chain.length <= 3 ? 'high' : 'medium',
+              commitCount: patches.length,
+            },
+          };
+        }
+      }
     }
 
     // Line was traced — require valid line evidence
@@ -974,6 +1158,8 @@ Each match includes a \`contextScore\` (0-1) showing how well the anchor's origi
 When evaluating candidates from cross-file search or trace results, use your understanding of code structure as supplemental context for assessing whether a candidate makes sense.
 
 5. **Line Tracing** — Call \`anchor_traceLineHistory\`. Mechanical trace through patches may reveal where the line went.
+
+If trace returns \`status: "renamed_chain"\`, the line was renamed in place across one or more commits and is now at \`finalLine\` (with \`finalContent\`); the \`chain\` documents each rename hop (\`from\`/\`to\`/\`commit\`/\`commitMessage\`). Treat this as a high/medium-confidence resolved location — repair to \`finalLine\`.
 
 If trace returns \`status: "deleted"\`, the line was removed from this file at a specific commit. The response includes a \`deletedHunk\` — a unified diff excerpt from the commit where deletion occurred. Inspect it to understand what happened:
    - If the hunk shows the code was removed and replaced with a different API call or import, the code was refactored away — this is strong evidence for declaring non-repairable.

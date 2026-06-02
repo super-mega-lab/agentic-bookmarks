@@ -234,6 +234,9 @@ export async function handleAnchorTraceLineHistoryTool(ctx: ServerContext, args:
   if (inner) {
     if (typeof inner.newLine === 'number') inner.newLine = toWire(inner.newLine);
     if (typeof inner.lastSeenLine === 'number') inner.lastSeenLine = toWire(inner.lastSeenLine);
+    // renamed_chain: finalLine is 0-based internally. Chain entries carry only
+    // content strings — no line conversion.
+    if (typeof inner.finalLine === 'number') inner.finalLine = toWire(inner.finalLine);
   }
   return { content: [{ type: 'text', text: JSON.stringify(result) }] };
 }

@@ -311,7 +311,7 @@ For guidance on bookmarking a system or set of files, read bookmarks://skill/add
   },
   {
     name: 'anchor_traceLineHistory',
-    description: 'Mechanically trace a line through commit-by-commit patches. Shows where the line ended up or where it was lost. Lines are 1-based.',
+    description: 'Mechanically trace a line through commit-by-commit patches. Shows where the line ended up or where it was lost. Reconstructs multi-hop in-place renames across commits and may return a renamed_chain result with the ordered rename hops and the line\'s final location. Lines are 1-based.',
     inputSchema: {
       type: 'object',
       properties: {
