@@ -16,6 +16,7 @@ import {
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { detectInlinedConstruct } from './inline-detection.js';
+import { detectMergedConstruct } from './merged-detection.js';
 
 const {
   validateShiftDiagnosis,
@@ -235,15 +236,20 @@ export async function handleGetFileDiff(
     // line has no exact/fuzzy match yields `no_match` — but its body may have been
     // inlined at a call site that is right here in the diff. Upgrade that bare
     // no_match to a more actionable `inlined` diagnosis pointing at the call site(s).
-    // Only fires on no_match, so every other diagnosis path is unchanged.
+    // SML-1466: if it wasn't inlined at a call site, the body may instead have been
+    // *merged* into another method/function in the same commit — upgrade to `merged`
+    // pointing at the surviving method's declaration. Both fire only on no_match, so
+    // every other diagnosis path is unchanged.
     let resolvedDiagnosis: { diagnosis: string; detail: unknown } = diagnosis;
     if (diagnosis.diagnosis === 'no_match' && diffs.length > 0) {
-      const inlined = detectInlinedConstruct(
-        { lineCache: getLineCache(bookmark.anchor), lastUpdatedLine },
-        diffs[0],
-        currentFileLines,
-      );
-      if (inlined) resolvedDiagnosis = inlined;
+      const anchorForDetect = { lineCache: getLineCache(bookmark.anchor), lastUpdatedLine };
+      const inlined = detectInlinedConstruct(anchorForDetect, diffs[0], currentFileLines);
+      if (inlined) {
+        resolvedDiagnosis = inlined;
+      } else {
+        const merged = detectMergedConstruct(anchorForDetect, diffs[0], currentFileLines);
+        if (merged) resolvedDiagnosis = merged;
+      }
     }
 
     // Supplementary: detect if the file was renamed/moved

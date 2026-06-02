@@ -156,6 +156,12 @@ function convertFileDiffLinesToWire(result: Record<string, unknown>): void {
     if (inlinedAt && typeof inlinedAt.line === 'number') {
       inlinedAt.line = toWire(inlinedAt.line);
     }
+    // SML-1466: `merged` diagnosis reports the surviving method in detail.mergedInto;
+    // detail.candidates[].line is handled by the candidates loop below.
+    const mergedInto = detail.mergedInto as Record<string, unknown> | undefined;
+    if (mergedInto && typeof mergedInto.line === 'number') {
+      mergedInto.line = toWire(mergedInto.line);
+    }
     if (Array.isArray(detail.matches)) {
       for (const m of detail.matches as Array<Record<string, unknown>>) {
         if (typeof m.line === 'number') m.line = toWire(m.line);

@@ -97,11 +97,11 @@ function parseParams(raw: string): string[] {
     .filter(Boolean);
 }
 
-function isBraceOnly(t: string): boolean {
+export function isBraceOnly(t: string): boolean {
   return t === '{' || t === '}' || t === '};' || t === '})' || t === '});' || t === ')' || t === '),';
 }
 
-function isCommentOnly(t: string): boolean {
+export function isCommentOnly(t: string): boolean {
   return t.startsWith('//') || t.startsWith('/*') || t.startsWith('*') || t === '*/';
 }
 
@@ -138,7 +138,7 @@ function extractBody(
 }
 
 /** Reject generic bodies (e.g. `return x;`) that would match too much. */
-function bodyIsSpecific(bodyExpr: string, paramNames: string[]): boolean {
+export function bodyIsSpecific(bodyExpr: string, paramNames: string[]): boolean {
   let skeleton = bodyExpr;
   for (const p of paramNames) {
     skeleton = skeleton.replace(new RegExp(`\\b${escapeRegExp(p)}\\b`, 'g'), '');
@@ -175,7 +175,7 @@ function bodyMatches(
   return re ? re.test(c) : false;
 }
 
-function buildTemplate(body: string, paramNames: string[], anchored: boolean): RegExp | null {
+export function buildTemplate(body: string, paramNames: string[], anchored: boolean): RegExp | null {
   let pattern = escapeRegExp(body);
   for (const p of paramNames) {
     pattern = pattern.replace(new RegExp(`\\b${escapeRegExp(p)}\\b`, 'g'), '[A-Za-z_$][\\w$.]*');
@@ -201,7 +201,7 @@ function hunkHasSymbolUseDeletion(hunk: DiffHunk, symbol: string, declIndex: num
 }
 
 /** Is the deleted declaration the construct this anchor pointed at? */
-function declTiedToAnchor(
+export function declTiedToAnchor(
   anchor: { lineCache?: string; lastUpdatedLine: number },
   declContent: string,
   bodyDeletionLines: string[],
@@ -220,7 +220,7 @@ function declTiedToAnchor(
   return oldLine1 >= hunk.oldStart && oldLine1 < hunk.oldStart + hunk.oldCount;
 }
 
-function kindLabel(kind: DeclKind): string {
+export function kindLabel(kind: DeclKind): string {
   switch (kind) {
     case 'setter': return 'Setter';
     case 'getter': return 'Getter';
