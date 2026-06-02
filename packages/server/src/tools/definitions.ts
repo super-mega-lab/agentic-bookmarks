@@ -300,7 +300,7 @@ For guidance on bookmarking a system or set of files, read bookmarks://skill/add
   },
   {
     name: 'anchor_getFileDiff',
-    description: 'Diagnose what happened to an anchor\'s code. Returns structured diagnosis: shifted (line moved), exact_match, fuzzy_match, signature_changed (same function/method, refactored declaration — repair at detail.newLine), or no_match with full diff. Lines are 1-based.',
+    description: 'Diagnose what happened to an anchor\'s code. Returns structured diagnosis: shifted (line moved), exact_match, fuzzy_match, signature_changed (same function/method, refactored declaration — repair at detail.newLine), inlined (a deleted construct\'s body was substituted at a call site — see detail.inlinedAt), or no_match with full diff. Lines are 1-based.',
     inputSchema: {
       type: 'object',
       properties: {

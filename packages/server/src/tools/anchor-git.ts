@@ -150,6 +150,12 @@ function convertFileDiffLinesToWire(result: Record<string, unknown>): void {
   if (detail) {
     if (typeof detail.originalLine === 'number') detail.originalLine = toWire(detail.originalLine);
     if (typeof detail.newLine === 'number') detail.newLine = toWire(detail.newLine);
+    // SML-1465: `inlined` diagnosis reports the call site in detail.inlinedAt;
+    // detail.candidates[].line is handled by the candidates loop below.
+    const inlinedAt = detail.inlinedAt as Record<string, unknown> | undefined;
+    if (inlinedAt && typeof inlinedAt.line === 'number') {
+      inlinedAt.line = toWire(inlinedAt.line);
+    }
     if (Array.isArray(detail.matches)) {
       for (const m of detail.matches as Array<Record<string, unknown>>) {
         if (typeof m.line === 'number') m.line = toWire(m.line);
