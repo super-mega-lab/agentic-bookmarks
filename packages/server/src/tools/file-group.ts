@@ -9,6 +9,7 @@ import {
   deregisterFile,
   resolveWorkspacePath,
   isLocalPath,
+  isWithinWorkspace,
 } from '@agentic-bookmarks/core';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -26,6 +27,14 @@ import { toWire } from './line-basis.js';
 export async function handleFileCreate(ctx: ServerContext, args: Record<string, any>) {
   const { path: p, title } = args as { path: string; title?: string };
   const abs = path.resolve(p);
+  if (!isWithinWorkspace(abs, ctx.workspaceRoot)) {
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({ success: false, error: 'Path is outside the workspace', path: abs }, null, 2)
+      }]
+    };
+  }
   try {
     await fs.stat(abs);
     return {
@@ -54,6 +63,9 @@ export async function handleFileCreate(ctx: ServerContext, args: Record<string, 
 export async function handleFileRegister(ctx: ServerContext, args: Record<string, any>) {
   const { path: p, title } = args as { path: string; title?: string };
   const abs = path.resolve(p);
+  if (!isWithinWorkspace(abs, ctx.workspaceRoot)) {
+    return { content: [{ type: 'text', text: `Error: path is outside the workspace: ${abs}` }] };
+  }
   try { await fs.stat(abs); } catch { return { content: [{ type: 'text', text: `Error: file not found: ${abs}` }] } }
   try {
     const raw = await fs.readFile(abs, 'utf8');
@@ -175,6 +187,9 @@ export async function handleGroupMoveFile(ctx: ServerContext, args: Record<strin
   const root = workspace?.workspaceRoot ?? ctx.workspaceRoot;
   const s = resolveWorkspacePath(sourceFile, root);
   const d = resolveWorkspacePath(destFile, root);
+  if (!isWithinWorkspace(s, root) || !isWithinWorkspace(d, root)) {
+    return { content: [{ type: 'text', text: `Error: source or destination is outside the workspace` }] };
+  }
   if (s === d) return { content: [{ type: 'text', text: `Error: source and destination must differ` }] };
 
   const moveResult = await moveGroupBetweenFiles(root, s, d, groupId, workspace?.bookmarksDataRoot);
@@ -221,6 +236,10 @@ export async function handleGroupDelete(ctx: ServerContext, args: Record<string,
   const { filePath, groupId } = args as { filePath: string; groupId: string };
   const workspace = getWorkspaceForUri(filePath, ctx.workspaces);
   const root = workspace?.workspaceRoot ?? ctx.workspaceRoot;
+  const resolved = resolveWorkspacePath(filePath, root);
+  if (!isWithinWorkspace(resolved, root)) {
+    return { content: [{ type: 'text', text: `Error: filePath is outside the workspace` }] };
+  }
   await deleteGroupInFile(root, filePath, groupId, workspace?.bookmarksDataRoot);
   return { content: [{ type: 'text', text: `Group deleted/cleared` }] };
 }
