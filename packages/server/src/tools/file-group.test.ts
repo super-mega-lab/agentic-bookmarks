@@ -7,6 +7,7 @@ import * as path from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   handleFileCreate,
+  handleFileRegister,
   handleGroupDelete,
   handleGroupRename,
   handleGroupMoveFile,
@@ -339,5 +340,118 @@ describe('multi-workspace group ops', () => {
     expect(after.nameIndex['Solo']).toBeUndefined();
 
     await fs.rm(root, { recursive: true, force: true });
+  });
+});
+
+describe('workspace path containment (SML-1546)', () => {
+  let insideDir: string;
+  let outsideDir: string;
+
+  function mkDir(label: string): string {
+    return path.join(
+      tmpdir(),
+      `file-group-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    );
+  }
+
+  beforeEach(async () => {
+    insideDir = mkDir('inside');
+    outsideDir = mkDir('outside');
+    await fs.mkdir(insideDir, { recursive: true });
+    await fs.mkdir(outsideDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    for (const dir of [insideDir, outsideDir]) {
+      try {
+        await fs.rm(dir, { recursive: true, force: true });
+      } catch {}
+    }
+  });
+
+  it('handleFileCreate rejects a path outside the workspace and writes nothing', async () => {
+    const ctx: any = { workspaceRoot: insideDir };
+    const target = path.join(outsideDir, 'escape.json');
+
+    const result = await handleFileCreate(ctx, { path: target });
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(false);
+    expect(parsed.error).toMatch(/outside the workspace/i);
+
+    // Nothing was written outside the workspace.
+    await expect(fs.stat(target)).rejects.toThrow();
+  });
+
+  it('handleFileRegister rejects a path outside the workspace and registers nothing', async () => {
+    // A VALID v2 file at the outside path: the ONLY reason to reject is containment.
+    const target = path.join(outsideDir, 'reg.json');
+    await fs.writeFile(target, JSON.stringify(emptyFileV2(), null, 2), 'utf8');
+
+    const ctx: any = { workspaceRoot: insideDir };
+    const result = await handleFileRegister(ctx, { path: target });
+
+    expect(result.content[0].text).toMatch(/Error/);
+    expect(result.content[0].text).toMatch(/outside the workspace/i);
+
+    // No file got registered.
+    const registry = await readRegistry(insideDir);
+    expect(registry.files.length).toBe(0);
+  });
+
+  it('handleGroupMoveFile rejects a destination outside the workspace', async () => {
+    const primaryRoot = mkDir('mv-primary');
+    const secondaryRoot = mkDir('mv-secondary');
+    await fs.mkdir(primaryRoot, { recursive: true });
+    await fs.mkdir(secondaryRoot, { recursive: true });
+    await readRegistry(primaryRoot);
+    const ctx: any = {
+      workspaceRoot: primaryRoot,
+      workspaces: [createWorkspaceInfo(primaryRoot), createWorkspaceInfo(secondaryRoot)],
+    };
+
+    const sourceFile = path.join(secondaryRoot, '.bookmarks', 'shared', 'source.json');
+    await fs.mkdir(path.dirname(sourceFile), { recursive: true });
+    await fs.writeFile(sourceFile, JSON.stringify(emptyFileV2(), null, 2), 'utf8');
+    await addFileToRegistry(secondaryRoot, sourceFile);
+    const groupId = await createGroupInFile(secondaryRoot, sourceFile, 'G');
+
+    const destFile = path.join(outsideDir, 'dest.json');
+
+    const result = await handleGroupMoveFile(ctx, { sourceFile, destFile, groupId });
+
+    expect(result.content[0].text).toMatch(/Error/);
+    expect(result.content[0].text).toMatch(/outside the workspace/i);
+
+    // The move did not happen: source still contains the group.
+    const sourceData = await readFileAt(sourceFile);
+    expect(sourceData.groups.some(g => g.id === groupId)).toBe(true);
+
+    for (const dir of [primaryRoot, secondaryRoot]) {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('handleGroupDelete rejects a filePath outside the workspace', async () => {
+    const primaryRoot = mkDir('del-primary');
+    const secondaryRoot = mkDir('del-secondary');
+    await fs.mkdir(primaryRoot, { recursive: true });
+    await fs.mkdir(secondaryRoot, { recursive: true });
+    await readRegistry(primaryRoot);
+    const ctx: any = {
+      workspaceRoot: primaryRoot,
+      workspaces: [createWorkspaceInfo(primaryRoot), createWorkspaceInfo(secondaryRoot)],
+    };
+
+    const filePath = path.join(outsideDir, 'x.json');
+
+    const result = await handleGroupDelete(ctx, { filePath, groupId: 'any-group-id' });
+
+    expect(result.content[0].text).toMatch(/Error/);
+    expect(result.content[0].text).toMatch(/outside the workspace/i);
+
+    for (const dir of [primaryRoot, secondaryRoot]) {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 });
