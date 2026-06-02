@@ -169,6 +169,13 @@ export function detectMergedConstruct(
         for (const cand of diff.hunks[hh].lines) {
           if (cand.type !== 'addition' || cand.newLineNumber === undefined) continue;
           const line0 = cand.newLineNumber - 1;
+          // SML-1556: line0 is HEAD-relative (the diff is fromCommit -> HEAD) but
+          // currentFileLines is the working tree. Only seed findEnclosingDeclaration's
+          // walk-up from line0 when the working tree actually holds this added line
+          // there; otherwise drift would walk up from the wrong row and report a wrong
+          // merge target. (merged never runs on an empty file, so an exact match is the
+          // right bar — there is no pure-diff fallback as in inline detection.)
+          if (currentFileLines[line0] !== cand.content) continue;
           for (const frag of fragments) {
             if (!fragmentInAddition(frag, decl.paramNames, cand.content)) continue;
             const enc = findEnclosingDeclaration(currentFileLines, line0);

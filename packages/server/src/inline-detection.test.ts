@@ -211,4 +211,21 @@ describe('detectInlinedConstruct', () => {
     expect(result!.detail.deletedSymbol).toBe('value');
     expect(result!.detail.inlinedAt.confidence).toBe('medium');
   });
+
+  it('does not report an inline site when the working tree has drifted from HEAD (SML-1556)', () => {
+    // setterDiff's inlined addition is HEAD-relative (newLineNumber 197 -> line0 196).
+    // currentFileLines is the WORKING TREE, which the user edited above the call site,
+    // so row 196 now holds an unrelated line. Reporting line0 196 with that row's
+    // content would yield an inlinedAt whose line/content disagree with the real site.
+    // (Note: the other tests pass [] — the pure-diff fallback — and must keep working;
+    // the guard only fires on a PRESENT, mismatched row, never an absent one.)
+    const driftedFile = new Array(200).fill('// unrelated drifted working-tree line');
+    driftedFile[196] = '          someOtherCall();';
+    const result = detectInlinedConstruct(
+      { lineCache: 'private set promptOutput(output: string) {', lastUpdatedLine: 159 },
+      setterDiff,
+      driftedFile,
+    );
+    expect(result).toBeNull();
+  });
 });

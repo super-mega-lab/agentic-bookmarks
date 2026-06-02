@@ -172,4 +172,51 @@ describe('anchor_getFileDiff merged detection (SML-1466)', () => {
     expect(parsed.detail.mergedInto.line).toBe(MERGED_DECL_LINE_0BASED + 1);
     expect(parsed.detail.mergedInto.symbol).toBe('emitData');
   });
+
+  it('declines (no_match) when the working tree differs from HEAD (SML-1556)', async () => {
+    // E2E mixed-base case: the diff is still COMMIT_1 -> HEAD (so emitData's body
+    // additions carry HEAD-relative line numbers — cleanseAnsi at 0-based 11, listr
+    // at 0-based 12), but the working tree the agent has open is NOT HEAD. The user
+    // inserted a `decoy` method above emitData while fixing the bookmark, so those
+    // HEAD-relative rows now land INSIDE decoy. Pre-fix this walked up to `decoy` and
+    // reported a bogus `merged -> decoy`; post-fix the detector distrusts the drifted
+    // position and the handler keeps the original no_match.
+    const driftedWorkingTree = [
+      'export class TaskWrapper {',                                          // 0
+      '  private listr: any = { events: { emit(_x: string) {} } };',        // 1
+      "  private task = { output$: '', promptOutput$: '' };",               // 2
+      '',                                                                   // 3
+      '  public decoy(a: string): void {',                                  // 4
+      '    const a1 = a;',                                                  // 5
+      '    const a2 = a;',                                                  // 6
+      '    const a3 = a;',                                                  // 7
+      '    const a4 = a;',                                                  // 8
+      '    const a5 = a;',                                                  // 9
+      '    const a6 = a;',                                                  // 10
+      '    const a7 = a;',                                                  // 11  <- cleanseAnsi line0 11
+      '    const a8 = a;',                                                  // 12  <- listr line0 12
+      '    const a9 = a;',                                                  // 13
+      '  }',                                                                // 14
+      '  public emitData(type: "output" | "prompt", data: string): void {', // 15  (real target, now drifted)
+      '    if (type === "output") {',                                       // 16
+      '      this.task.output$ = data;',                                    // 17
+      '    } else {',                                                       // 18
+      '      this.emit(ListrTaskEventType.PROMPT, data);',                  // 19
+      '    }',                                                              // 20
+      '    if (type === "output" || cleanseAnsi(data)) {',                  // 21
+      '      this.listr.events.emit(ListrEventType.SHOULD_REFRESH_RENDER);',// 22
+      '    }',                                                              // 23
+      '  }',                                                                // 24
+      '}',                                                                  // 25
+      '',
+    ];
+    const dataFilePath = path.join(repoPath, '.vscode', 'bookmarks.json');
+
+    const result = await handleGetFileDiff(makeBookmark(), repoPath, REL_PATH, driftedWorkingTree, dataFilePath);
+
+    expect(result.success).toBe(true);
+    expect(result.diagnosis).toBe('no_match');
+    // Must never misattribute the deleted setter to the unrelated decoy method.
+    expect(JSON.stringify(result)).not.toContain('decoy');
+  });
 });
