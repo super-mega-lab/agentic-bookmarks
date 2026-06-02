@@ -85,6 +85,7 @@ import {
   applyCodexUninstall as applyCodexUninstallPure,
   type FsDeps,
 } from './mcp-uninstall-helpers';
+import { verifyClaudeInstall, readClaudeConfig, type ClaudeInstallVerdict } from './mcp-claude-verify';
 import { isPathRegistered, resolveNewFileAction } from './new-file-helpers';
 
 const AGENT_DOCS_URLS: Record<McpAgent, string> = {
@@ -167,6 +168,41 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     return choice === 'Proceed';
   }
 
+  function realSleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+  function readClaudeConfigFromDisk() {
+    return readClaudeConfig((p) => fsp.readFile(p, 'utf8'));
+  }
+  // Verify a `claude mcp add` actually landed by reading ~/.claude.json, then record
+  // the install only when confirmed. 'inconclusive' (config unreadable/corrupt — NOT
+  // file-missing) degrades to recording so a momentarily-unreadable config never
+  // regresses an otherwise-working install. Returns the verdict for the caller.
+  async function verifyAndRecordClaude(scope: 'local' | 'user'): Promise<ClaudeInstallVerdict> {
+    const verdict = await verifyClaudeInstall({
+      readConfig: readClaudeConfigFromDisk,
+      sleep: realSleep,
+      scope,
+      projectPath: workspaceRoot,
+    });
+    if (verdict === 'confirmed' || verdict === 'inconclusive') {
+      await recordMcpInstall(context, 'claude', scope, currentVersion);
+    }
+    if (verdict === 'inconclusive') {
+      log.info(`[mcpSetup:claude] could not verify ${scope}-scope install against ~/.claude.json; recorded optimistically`);
+    }
+    return verdict;
+  }
+
+  /**
+   * Sets up the agentic_bookmarks MCP server in Claude Code by firing `claude mcp add`
+   * into a terminal (terminal.sendText is fire-and-forget — there is no exit code to
+   * await, and spawning `claude` directly is unreliable because the extension host
+   * often lacks the user's shell PATH). Because of that, success is confirmed by
+   * reconciling against claude's own config (~/.claude.json) via verifyAndRecordClaude:
+   * the install is recorded only when the server entry actually appears for `scope`.
+   * Local-scope verification assumes the terminal cwd is the workspace root (the VS Code default).
+   */
   async function applyClaudeSetup(scope: 'local' | 'user'): Promise<void> {
     if (!(await confirmDualScopeInstall('claude', scope))) return;
     const serverPath = context.asAbsolutePath('server-bundle/index.js');
@@ -177,7 +213,13 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     vscode.window.showInformationMessage(
       `Running 'claude mcp add' (${scope} scope). Watch the terminal for output.`,
     );
-    await recordMcpInstall(context, 'claude', scope, currentVersion);
+    const verdict = await verifyAndRecordClaude(scope);
+    if (verdict === 'absent') {
+      vscode.window.showWarningMessage(
+        `Couldn't confirm the Claude Code MCP registration (${scope} scope). If the \`claude\` CLI isn't ` +
+        `installed or the command failed, fix it and re-run setup — check the "Setup Claude MCP" terminal for details.`,
+      );
+    }
     await applyGitignoreSetup({ workspaceRoot, workspaceState: context.workspaceState, log });
     refreshWelcomeView?.();
   }
@@ -368,8 +410,8 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
   // scopes before adding — running setup twice would otherwise wipe the first
   // install. Cursor and Codex loop sequentially since their setups upsert at
   // a single scope without touching the other.
-  async function applyClaudeSetupAll(scopes: Array<'local' | 'user'>): Promise<void> {
-    if (scopes.length === 0) return;
+  async function applyClaudeSetupAll(scopes: Array<'local' | 'user'>): Promise<{ unconfirmed: Array<'local' | 'user'> }> {
+    if (scopes.length === 0) return { unconfirmed: [] };
     const serverPath = context.asAbsolutePath('server-bundle/index.js');
     const cmd = buildClaudeMcpSetupCommand(scopes, serverPath, getLocalDir(workspaceRoot));
     const terminal = vscode.window.createTerminal('Setup Claude MCP');
@@ -378,11 +420,19 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     vscode.window.showInformationMessage(
       `Running 'claude mcp add' for scope${scopes.length === 1 ? '' : 's'}: ${scopes.join(', ')}. Watch the terminal for output.`,
     );
-    for (const scope of scopes) {
-      await recordMcpInstall(context, 'claude', scope, currentVersion);
-    }
+    const verdicts = await Promise.all(
+      scopes.map(async (scope) => ({ scope, verdict: await verifyAndRecordClaude(scope) })),
+    );
+    const unconfirmed = verdicts.filter((v) => v.verdict === 'absent').map((v) => v.scope);
     await applyGitignoreSetup({ workspaceRoot, workspaceState: context.workspaceState, log });
     refreshWelcomeView?.();
+    if (unconfirmed.length) {
+      vscode.window.showWarningMessage(
+        `Couldn't confirm the Claude Code MCP registration for scope${unconfirmed.length === 1 ? '' : 's'}: ` +
+        `${unconfirmed.join(', ')}. Check the "Setup Claude MCP" terminal; if the \`claude\` CLI isn't installed, install it and re-run.`,
+      );
+    }
+    return { unconfirmed };
   }
 
   async function applyAgentSetupAll(agent: McpAgent, scopes: AnyScope[]): Promise<{ failed: AnyScope[] }> {
@@ -391,7 +441,8 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     if (agent === 'claude') {
       const claudeScopes = scopes.filter((s) => s === 'local' || s === 'user') as Array<'local' | 'user'>;
       try {
-        await applyClaudeSetupAll(claudeScopes);
+        const { unconfirmed } = await applyClaudeSetupAll(claudeScopes);
+        for (const s of unconfirmed) failed.push(s);
       } catch (e) {
         log.error(`[setupAll:claude] ${e}`);
         for (const s of claudeScopes) failed.push(s);
