@@ -14,6 +14,9 @@ Parameters:
 - label (required): Short description of the bookmark (can be empty string)
 - note (optional): Longer notes about this location
 - tags (optional): Array of tags for categorization
+- filePath / fileId (optional): destination file for a NEWLY auto-created group — seed it into an already-registered shared file (e.g. a ".bookmarks/shared/*.json") instead of the default local file. Ignored when the group already exists.
+
+The success response includes "filePath" (the destination file, workspace-relative) so you can confirm where the bookmark landed.
 
 Group names are unique per workspace. The same group name in different workspaces creates separate groups.
 You do NOT need to manage files or IDs - just provide groupName and the MCP server handles the rest.
@@ -37,6 +40,14 @@ For guidance on bookmarking a system or set of files, read bookmarks://skill/add
         groupName: {
           type: 'string',
           description: 'Name of the group to add to (e.g., "API Endpoints", "Bug Fixes"). Auto-created if it does not exist. Recommended over groupId.',
+        },
+        filePath: {
+          type: 'string',
+          description: 'Optional destination bookmarks file (path) for a NEWLY auto-created group. Use to seed a group into an already-registered shared file (e.g. ".bookmarks/shared/foo.json") instead of the default local file. Ignored when the group already exists. Must reference a registered file.',
+        },
+        fileId: {
+          type: 'string',
+          description: 'Optional destination bookmarks file (fileId) for a NEWLY auto-created group. Alternative to filePath; takes precedence when both are given. Must reference a registered file.',
         },
         anchor: {
           oneOf: [
@@ -289,7 +300,7 @@ For guidance on bookmarking a system or set of files, read bookmarks://skill/add
   },
   {
     name: 'anchor_getFileDiff',
-    description: 'Diagnose what happened to an anchor\'s code. Returns structured diagnosis: shifted (line moved), exact_match, fuzzy_match, inlined (a deleted construct\'s body was substituted at a call site — see detail.inlinedAt), or no_match with full diff. Lines are 1-based.',
+    description: 'Diagnose what happened to an anchor\'s code. Returns structured diagnosis: shifted (line moved), exact_match, fuzzy_match, signature_changed (same function/method, refactored declaration — repair at detail.newLine), inlined (a deleted construct\'s body was substituted at a call site — see detail.inlinedAt), or no_match with full diff. Lines are 1-based.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -311,7 +322,7 @@ For guidance on bookmarking a system or set of files, read bookmarks://skill/add
   },
   {
     name: 'anchor_traceLineHistory',
-    description: 'Mechanically trace a line through commit-by-commit patches. Shows where the line ended up or where it was lost. Lines are 1-based.',
+    description: 'Mechanically trace a line through commit-by-commit patches. Shows where the line ended up or where it was lost. Reconstructs multi-hop in-place renames across commits and may return a renamed_chain result with the ordered rename hops and the line\'s final location. Lines are 1-based.',
     inputSchema: {
       type: 'object',
       properties: {

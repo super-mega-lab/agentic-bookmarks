@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execSync } from 'node:child_process';
 import * as fs from 'node:fs/promises';
+import * as fsSync from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import type { Bookmark } from '@agentic-bookmarks/core';
@@ -141,12 +142,11 @@ describe('handleTraceLineHistory', () => {
     expect(r.deletedAtCommit.length).toBeGreaterThan(0);
     expect(typeof r.deletedAtCommitMessage).toBe('string');
 
-    // lastSeenLine should be a number (from the pre-deletion trace) or undefined
-    // It should NOT be fabricated from lastUpdatedLine
-    if (r.lastSeenLine !== undefined) {
-      expect(typeof r.lastSeenLine).toBe('number');
-      expect(r.lastSeenLine).toBeGreaterThanOrEqual(0);
-    }
+    // lastSeenLine is the 0-based line beta occupied AFTER the commit-2 header shift,
+    // just before deletion in commit 3 — that is 0-based line 6 in commit 2's file.
+    // Pinned exactly (not just >= 0) to guard the off-by-one where a 1-based trace
+    // lineNumber could leak through unconverted (SML-1468 follow-through refactor).
+    expect(r.lastSeenLine).toBe(6);
 
     // Should include a deletedHunk with the diff context
     expect(r.deletedHunk).not.toBeNull();
@@ -217,4 +217,280 @@ describe('handleTraceLineHistory', () => {
     // Should not be trace_invalid for a valid traced line
     expect(r.status).not.toBe('trace_invalid');
   });
+});
+
+// ---------------------------------------------------------------------------
+// Multi-hop rename tracing (SML-1468)
+//
+// When the bookmarked line is renamed together with an adjacent line, git
+// groups all deletions before all additions in the hunk. Core's tracer then
+// sees the bookmarked deletion followed by another deletion and dead-ends at
+// `deleted`. handleTraceLineHistory must follow the same-position replacement
+// across each commit and reconstruct a `renamed_chain`.
+// ---------------------------------------------------------------------------
+
+/** Create a temp git repo, run a callback with its path, then clean it up. */
+async function withTempRepo(fn: (repo: string) => Promise<void>): Promise<void> {
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'trace-multihop-'));
+  try {
+    execSync('git init', { cwd: repo, stdio: 'pipe' });
+    execSync('git config user.email "test@test.com"', { cwd: repo, stdio: 'pipe' });
+    execSync('git config user.name "Test User"', { cwd: repo, stdio: 'pipe' });
+    await fn(repo);
+  } finally {
+    await fs.rm(repo, { recursive: true, force: true });
+  }
+}
+
+function commitFile(repo: string, relPath: string, lines: string[], message: string): void {
+  // Use a trailing newline so the last line is a complete line.
+  fsSync.writeFileSync(path.join(repo, relPath), lines.join('\n') + '\n');
+  execSync(`git add ${relPath}`, { cwd: repo, stdio: 'pipe' });
+  execSync(`git commit -m "${message}"`, { cwd: repo, stdio: 'pipe' });
+}
+
+describe('handleTraceLineHistory — multi-hop renames', () => {
+  it('traces a grouped two-hop rename to a renamed_chain', async () => {
+    await withTempRepo(async (repo) => {
+      // Bookmarked signature line + the line below it both rename each hop, so
+      // git groups the deletions before the additions (forcing the gap).
+      commitFile(repo, 'sample.ts', [
+        'function traceRetryAlpha() {',
+        '  let counter = 0;',
+        '  return counter;',
+        '}',
+      ], 'add traceRetryAlpha');
+      commitFile(repo, 'sample.ts', [
+        'function traceRetryBeta() {',
+        '  let counterValue = 0;',
+        '  return counterValue;',
+        '}',
+      ], 'rename to traceRetryBeta');
+      commitFile(repo, 'sample.ts', [
+        'function traceRetryGamma() {',
+        '  let counterTotal = 0;',
+        '  return counterTotal;',
+        '}',
+      ], 'rename to traceRetryGamma');
+
+      const bookmark = makeBookmark({
+        lineCache: 'function traceRetryAlpha() {',
+        lastUpdatedLine: 0,
+      });
+      const currentLines = (await fs.readFile(path.join(repo, 'sample.ts'), 'utf-8')).split('\n');
+      const dataFilePath = path.join(repo, '.vscode', 'bookmarks.json');
+      const result = await handleTraceLineHistory(bookmark, repo, 'sample.ts', currentLines, dataFilePath);
+
+      expect(result.success).toBe(true);
+      const r = result.result as any;
+      expect(r.status).toBe('renamed_chain');
+      expect(r.chain.length).toBe(2);
+      for (const hop of r.chain) {
+        expect(typeof hop.commit).toBe('string');
+        expect(hop.commit.length).toBeGreaterThan(0);
+        expect(typeof hop.from).toBe('string');
+        expect(typeof hop.to).toBe('string');
+        expect(typeof hop.commitMessage).toBe('string');
+      }
+      // Chain reflects the rename progression: alpha -> beta -> gamma.
+      expect(r.chain[0].from).toContain('traceRetryAlpha');
+      expect(r.chain[0].to).toContain('traceRetryBeta');
+      expect(r.chain[1].from).toContain('traceRetryBeta');
+      expect(r.chain[1].to).toContain('traceRetryGamma');
+    });
+  }, 30000);
+
+  it('renamed_chain reports finalLine and finalContent of the resolved line', async () => {
+    await withTempRepo(async (repo) => {
+      commitFile(repo, 'sample.ts', [
+        '// header line one',
+        '// header line two',
+        'function resolveAlphaOne() {',
+        '  let scratch = 0;',
+        '  return scratch;',
+        '}',
+      ], 'add resolveAlphaOne');
+      commitFile(repo, 'sample.ts', [
+        '// header line one',
+        '// header line two',
+        'function resolveBetaOne() {',
+        '  let scratchValue = 0;',
+        '  return scratchValue;',
+        '}',
+      ], 'rename to resolveBetaOne');
+
+      const bookmark = makeBookmark({
+        lineCache: 'function resolveAlphaOne() {',
+        lastUpdatedLine: 2,
+      });
+      const currentLines = (await fs.readFile(path.join(repo, 'sample.ts'), 'utf-8')).split('\n');
+      const dataFilePath = path.join(repo, '.vscode', 'bookmarks.json');
+      const result = await handleTraceLineHistory(bookmark, repo, 'sample.ts', currentLines, dataFilePath);
+
+      expect(result.success).toBe(true);
+      const r = result.result as any;
+      expect(r.status).toBe('renamed_chain');
+      expect(typeof r.finalLine).toBe('number');
+      expect(r.finalLine).toBeGreaterThanOrEqual(0);
+      expect(r.finalLine).toBeLessThan(currentLines.length);
+      // finalContent is the resolved (0-based) line in the current file.
+      expect(r.finalContent).toBe(currentLines[r.finalLine]);
+      expect(r.finalContent).toContain('resolveBetaOne');
+    });
+  }, 30000);
+
+  it('renamed_chain confidence is high for a short chain', async () => {
+    await withTempRepo(async (repo) => {
+      commitFile(repo, 'sample.ts', [
+        'function confAlpha() {',
+        '  let token = 0;',
+        '  return token;',
+        '}',
+      ], 'add confAlpha');
+      commitFile(repo, 'sample.ts', [
+        'function confBeta() {',
+        '  let tokenValue = 0;',
+        '  return tokenValue;',
+        '}',
+      ], 'rename to confBeta');
+      commitFile(repo, 'sample.ts', [
+        'function confGamma() {',
+        '  let tokenTotal = 0;',
+        '  return tokenTotal;',
+        '}',
+      ], 'rename to confGamma');
+
+      const bookmark = makeBookmark({
+        lineCache: 'function confAlpha() {',
+        lastUpdatedLine: 0,
+      });
+      const currentLines = (await fs.readFile(path.join(repo, 'sample.ts'), 'utf-8')).split('\n');
+      const dataFilePath = path.join(repo, '.vscode', 'bookmarks.json');
+      const result = await handleTraceLineHistory(bookmark, repo, 'sample.ts', currentLines, dataFilePath);
+
+      expect(result.success).toBe(true);
+      const r = result.result as any;
+      expect(r.status).toBe('renamed_chain');
+      expect(r.chain.length).toBe(2);
+      expect(r.confidence).toBe('high');
+    });
+  }, 30000);
+
+  it('traces a grouped single-hop rename to a renamed_chain', async () => {
+    await withTempRepo(async (repo) => {
+      commitFile(repo, 'sample.ts', [
+        'function singleAlpha() {',
+        '  let pending = 0;',
+        '  return pending;',
+        '}',
+      ], 'add singleAlpha');
+      commitFile(repo, 'sample.ts', [
+        'function singleBeta() {',
+        '  let pendingValue = 0;',
+        '  return pendingValue;',
+        '}',
+      ], 'rename to singleBeta');
+
+      const bookmark = makeBookmark({
+        lineCache: 'function singleAlpha() {',
+        lastUpdatedLine: 0,
+      });
+      const currentLines = (await fs.readFile(path.join(repo, 'sample.ts'), 'utf-8')).split('\n');
+      const dataFilePath = path.join(repo, '.vscode', 'bookmarks.json');
+      const result = await handleTraceLineHistory(bookmark, repo, 'sample.ts', currentLines, dataFilePath);
+
+      expect(result.success).toBe(true);
+      const r = result.result as any;
+      expect(r.status).toBe('renamed_chain');
+      expect(r.chain.length).toBe(1);
+      expect(r.chain[0].from).toContain('singleAlpha');
+      expect(r.chain[0].to).toContain('singleBeta');
+      expect(r.confidence).toBe('high');
+    });
+  }, 30000);
+
+  it('pure deletion in grouped hunk stays deleted', async () => {
+    await withTempRepo(async (repo) => {
+      // The bookmarked line is removed as part of a grouped change, but it has
+      // NO same-position replacement: the block purely shrinks (two adjacent
+      // lines deleted, nothing added in their place — the next line is context).
+      commitFile(repo, 'sample.ts', [
+        'function pureAlpha() {',
+        '  const removeMe = computeRetry();',
+        '  const alsoGone = secondary();',
+        '  return finalResult();',
+        '}',
+      ], 'add pureAlpha');
+      commitFile(repo, 'sample.ts', [
+        'function pureAlpha() {',
+        '  return finalResult();',
+        '}',
+      ], 'collapse pureAlpha body');
+
+      const bookmark = makeBookmark({
+        lineCache: '  const removeMe = computeRetry();',
+        lastUpdatedLine: 1,
+      });
+      const currentLines = (await fs.readFile(path.join(repo, 'sample.ts'), 'utf-8')).split('\n');
+      const dataFilePath = path.join(repo, '.vscode', 'bookmarks.json');
+      const result = await handleTraceLineHistory(bookmark, repo, 'sample.ts', currentLines, dataFilePath);
+
+      expect(result.success).toBe(true);
+      const r = result.result as any;
+      expect(r.status).toBe('deleted');
+    });
+  }, 30000);
+
+  it('follows a grouped rename that occurs after an unrelated shift commit', async () => {
+    // Guards the localDeletedIdx > 0 path: a non-renaming shift commit sits between
+    // the baseline and the grouped rename, so the deletion is NOT the first trace
+    // entry of the slice. The deleted line and lastSeen line must be read from the
+    // (1-based) prior trace entry WITHOUT an off-by-one, or the wrong line is paired
+    // as the replacement (SML-1468).
+    await withTempRepo(async (repo) => {
+      commitFile(repo, 'sample.ts', [
+        'function shiftAlpha() {',
+        '  let value = 0;',
+        '  return value;',
+        '}',
+      ], 'add shiftAlpha');
+      // Shift only — insert two header lines, no rename.
+      commitFile(repo, 'sample.ts', [
+        '// header one',
+        '// header two',
+        'function shiftAlpha() {',
+        '  let value = 0;',
+        '  return value;',
+        '}',
+      ], 'insert header (shift, no rename)');
+      // Grouped rename — signature + body lines change together.
+      commitFile(repo, 'sample.ts', [
+        '// header one',
+        '// header two',
+        'function shiftBeta() {',
+        '  let valueTotal = 0;',
+        '  return valueTotal;',
+        '}',
+      ], 'rename to shiftBeta');
+
+      const bookmark = makeBookmark({
+        lineCache: 'function shiftAlpha() {',
+        lastUpdatedLine: 0,
+      });
+      const currentLines = (await fs.readFile(path.join(repo, 'sample.ts'), 'utf-8')).split('\n');
+      const dataFilePath = path.join(repo, '.vscode', 'bookmarks.json');
+      const result = await handleTraceLineHistory(bookmark, repo, 'sample.ts', currentLines, dataFilePath);
+
+      expect(result.success).toBe(true);
+      const r = result.result as any;
+      expect(r.status).toBe('renamed_chain');
+      expect(r.chain.length).toBe(1);
+      // The hop must pair the SIGNATURE line, not an off-by-one neighbor.
+      expect(r.chain[0].from).toContain('shiftAlpha');
+      expect(r.chain[0].to).toContain('shiftBeta');
+      // Resolves to the signature line in HEAD, not the line below it.
+      expect(r.finalContent).toBe(currentLines[r.finalLine]);
+      expect(r.finalContent).toContain('shiftBeta');
+    });
+  }, 30000);
 });
