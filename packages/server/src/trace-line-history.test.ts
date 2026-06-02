@@ -339,7 +339,7 @@ describe('handleTraceLineHistory — multi-hop renames', () => {
     });
   }, 30000);
 
-  it('renamed_chain confidence is high for a short chain', async () => {
+  it('renamed_chain confidence is low when renamed hops are content-dissimilar (SML-1553)', async () => {
     await withTempRepo(async (repo) => {
       commitFile(repo, 'sample.ts', [
         'function confAlpha() {',
@@ -372,7 +372,9 @@ describe('handleTraceLineHistory — multi-hop renames', () => {
       const r = result.result as any;
       expect(r.status).toBe('renamed_chain');
       expect(r.chain.length).toBe(2);
-      expect(r.confidence).toBe('high');
+      // The fixture fully renames the identifier each hop (confAlpha->confBeta->confGamma),
+      // so per-hop content similarity is low (~0.05) → confidence demoted to 'low' (SML-1553).
+      expect(r.confidence).toBe('low');
     });
   }, 30000);
 
@@ -405,7 +407,7 @@ describe('handleTraceLineHistory — multi-hop renames', () => {
       expect(r.chain.length).toBe(1);
       expect(r.chain[0].from).toContain('singleAlpha');
       expect(r.chain[0].to).toContain('singleBeta');
-      expect(r.confidence).toBe('high');
+      expect(r.confidence).toBe('low'); // SML-1553: full identifier rename is content-dissimilar
     });
   }, 30000);
 
@@ -491,6 +493,80 @@ describe('handleTraceLineHistory — multi-hop renames', () => {
       // Resolves to the signature line in HEAD, not the line below it.
       expect(r.finalContent).toBe(currentLines[r.finalLine]);
       expect(r.finalContent).toContain('shiftBeta');
+    });
+  }, 30000);
+
+  it('grouped unrelated replacement is reported as low confidence (SML-1553)', async () => {
+    await withTempRepo(async (repo) => {
+      // The bookmarked line + an adjacent line are deleted as a grouped hunk and an
+      // UNRELATED block is added in their place. Positional pairing emits a
+      // renamed_chain, but the content is dissimilar (apple->zebra ~0.02), so the
+      // hop must be demoted to 'low' rather than the old false 'high'.
+      commitFile(repo, 'sample.ts', [
+        'function holder() {',
+        '  const apple = computeApple();',
+        '  const banana = computeBanana();',
+        '  return null;',
+        '}',
+      ], 'add holder');
+      commitFile(repo, 'sample.ts', [
+        'function holder() {',
+        '  const zebra = loadZebra();',
+        '  const yak = loadYak();',
+        '  return null;',
+        '}',
+      ], 'replace body with unrelated block');
+
+      const bookmark = makeBookmark({
+        lineCache: '  const apple = computeApple();',
+        lastUpdatedLine: 1,
+      });
+      const currentLines = (await fs.readFile(path.join(repo, 'sample.ts'), 'utf-8')).split('\n');
+      const dataFilePath = path.join(repo, '.vscode', 'bookmarks.json');
+      const result = await handleTraceLineHistory(bookmark, repo, 'sample.ts', currentLines, dataFilePath);
+
+      expect(result.success).toBe(true);
+      const r = result.result as any;
+      expect(r.status).toBe('renamed_chain');
+      expect(r.confidence).toBe('low');
+      expect(r.chain[0].from).toContain('apple');
+      expect(r.chain[0].to).toContain('zebra');
+      expect(r.finalContent).toContain('zebra');
+    });
+  }, 30000);
+
+  it('grouped same-name reshape keeps high confidence (SML-1553)', async () => {
+    await withTempRepo(async (repo) => {
+      // The same-named declaration is reshaped in place (async added, call swapped),
+      // so the bookmarked signature hop shares substantial content (~0.92) and the
+      // single-hop chain stays 'high'.
+      commitFile(repo, 'sample.ts', [
+        'function loadUserProfile(id) {',
+        '  const cache = buildCache();',
+        '  return cache;',
+        '}',
+      ], 'add loadUserProfile');
+      commitFile(repo, 'sample.ts', [
+        'async function loadUserProfile(id) {',
+        '  const cache = buildCacheAsync();',
+        '  return cache;',
+        '}',
+      ], 'make loadUserProfile async');
+
+      const bookmark = makeBookmark({
+        lineCache: 'function loadUserProfile(id) {',
+        lastUpdatedLine: 0,
+      });
+      const currentLines = (await fs.readFile(path.join(repo, 'sample.ts'), 'utf-8')).split('\n');
+      const dataFilePath = path.join(repo, '.vscode', 'bookmarks.json');
+      const result = await handleTraceLineHistory(bookmark, repo, 'sample.ts', currentLines, dataFilePath);
+
+      expect(result.success).toBe(true);
+      const r = result.result as any;
+      expect(r.status).toBe('renamed_chain');
+      expect(r.chain.length).toBe(1);
+      expect(r.confidence).toBe('high');
+      expect(r.finalContent).toContain('loadUserProfile');
     });
   }, 30000);
 });
