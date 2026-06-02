@@ -15,6 +15,7 @@ import {
 } from '@agentic-bookmarks/core';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { detectInlinedConstruct } from './inline-detection.js';
 
 const {
   validateShiftDiagnosis,
@@ -230,6 +231,21 @@ export async function handleGetFileDiff(
 
     const diagnosis = anchorRepair.diagnoseDiff(anchorInfo, diffs, currentFileLines);
 
+    // SML-1465: a deleted construct (setter/getter/method/util fn) whose declaration
+    // line has no exact/fuzzy match yields `no_match` — but its body may have been
+    // inlined at a call site that is right here in the diff. Upgrade that bare
+    // no_match to a more actionable `inlined` diagnosis pointing at the call site(s).
+    // Only fires on no_match, so every other diagnosis path is unchanged.
+    let resolvedDiagnosis: { diagnosis: string; detail: unknown } = diagnosis;
+    if (diagnosis.diagnosis === 'no_match' && diffs.length > 0) {
+      const inlined = detectInlinedConstruct(
+        { lineCache: getLineCache(bookmark.anchor), lastUpdatedLine },
+        diffs[0],
+        currentFileLines,
+      );
+      if (inlined) resolvedDiagnosis = inlined;
+    }
+
     // Supplementary: detect if the file was renamed/moved
     let fileMovedResults: Record<string, unknown> | undefined;
     try {
@@ -300,7 +316,7 @@ export async function handleGetFileDiff(
       bookmarkId: bookmark.id,
       fromCommit: commitInfo.commit,
       baselineSource: commitInfo.baselineSource,
-      ...diagnosis,
+      ...resolvedDiagnosis,
       ...(fileMovedResults ? { fileMovedResults } : {}),
     };
   } catch (err: any) {
