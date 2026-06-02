@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import type { BookmarksFileV2 } from '@agentic-bookmarks/core';
-import { findBookmarksOnLineMatching } from './find-bookmarks-on-line';
+import { findBookmarksOnLineMatching, effectiveAnchorLine } from './find-bookmarks-on-line';
 
 const WS = '/ws';
 const TARGET_FS = '/ws/src/foo.ts';
@@ -256,5 +256,162 @@ describe('findBookmarksOnLineMatching', () => {
       );
       expect(result.map(r => r.bookmarkId).sort()).toEqual(['b1', 'b2']);
     });
+  });
+
+  describe('live-line matching with resolveLine', () => {
+    it('matches a smart anchor on the resolved live line, not lastUpdatedLine', () => {
+      const file = makeFile([
+        bookmark({
+          id: 'b1',
+          anchor: {
+            kind: 'smart',
+            lineCache: '',
+            contextBefore: [],
+            contextAfter: [],
+            lastUpdatedLine: 5,
+            nonce: 0,
+          },
+        }),
+      ]);
+      const resolveLine = () => 9;
+
+      const onLive = findBookmarksOnLineMatching(file, {
+        fsPath: TARGET_FS,
+        workspaceRoot: WS,
+        line: 9,
+        resolveLine,
+      });
+      expect(onLive.map(r => r.bookmarkId)).toEqual(['b1']);
+
+      const onStale = findBookmarksOnLineMatching(file, {
+        fsPath: TARGET_FS,
+        workspaceRoot: WS,
+        line: 5,
+        resolveLine,
+      });
+      expect(onStale).toEqual([]);
+    });
+
+    it('matches a tag anchor on the resolved live line and surfaces tagLine = resolved line', () => {
+      const file = makeFile([
+        bookmark({
+          id: 'b1',
+          anchor: { kind: 'tag', tagId: 'TAG123', lastUpdatedLine: 5, nonce: 0 },
+        }),
+      ]);
+
+      const result = findBookmarksOnLineMatching(file, {
+        fsPath: TARGET_FS,
+        workspaceRoot: WS,
+        line: 9,
+        resolveLine: () => 9,
+      });
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        bookmarkId: 'b1',
+        anchorKind: 'tag',
+        tagId: 'TAG123',
+        tagLine: 9,
+      });
+    });
+
+    it('falls back to lastUpdatedLine when resolveLine returns undefined', () => {
+      const smartFile = makeFile([
+        bookmark({
+          id: 'b1',
+          anchor: {
+            kind: 'smart',
+            lineCache: '',
+            contextBefore: [],
+            contextAfter: [],
+            lastUpdatedLine: 5,
+            nonce: 0,
+          },
+        }),
+      ]);
+      const tagFile = makeFile([
+        bookmark({
+          id: 'b2',
+          anchor: { kind: 'tag', tagId: 'T', lastUpdatedLine: 5, nonce: 0 },
+        }),
+      ]);
+
+      const smartResult = findBookmarksOnLineMatching(smartFile, {
+        fsPath: TARGET_FS,
+        workspaceRoot: WS,
+        line: 5,
+        resolveLine: () => undefined,
+      });
+      expect(smartResult.map(r => r.bookmarkId)).toEqual(['b1']);
+
+      const tagResult = findBookmarksOnLineMatching(tagFile, {
+        fsPath: TARGET_FS,
+        workspaceRoot: WS,
+        line: 5,
+        resolveLine: () => undefined,
+      });
+      expect(tagResult.map(r => r.bookmarkId)).toEqual(['b2']);
+      expect(tagResult[0].tagLine).toBe(5);
+    });
+
+    it('point/range ignore resolveLine', () => {
+      const file = makeFile([
+        bookmark({ id: 'p1', anchor: { kind: 'point', line: 5 } }),
+        bookmark({
+          id: 'r1',
+          anchor: { kind: 'range', start: { line: 5 }, end: { line: 8 } },
+        }),
+      ]);
+      const resolveLine = () => 9;
+
+      const onStale = findBookmarksOnLineMatching(file, {
+        fsPath: TARGET_FS,
+        workspaceRoot: WS,
+        line: 5,
+        resolveLine,
+      });
+      expect(onStale.map(r => r.bookmarkId).sort()).toEqual(['p1', 'r1']);
+
+      const onLive = findBookmarksOnLineMatching(file, {
+        fsPath: TARGET_FS,
+        workspaceRoot: WS,
+        line: 9,
+        resolveLine,
+      });
+      expect(onLive).toEqual([]);
+    });
+  });
+});
+
+describe('effectiveAnchorLine', () => {
+  it('point → returns anchor.line, ignoring the resolver', () => {
+    expect(effectiveAnchorLine({ kind: 'point', line: 5 }, () => 9)).toBe(5);
+  });
+
+  it('range → returns anchor.start.line, ignoring the resolver', () => {
+    expect(
+      effectiveAnchorLine({ kind: 'range', start: { line: 5 }, end: { line: 8 } }, () => 9)
+    ).toBe(5);
+  });
+
+  it('smart → returns the resolver value when it returns a number', () => {
+    expect(
+      effectiveAnchorLine({ kind: 'smart', lastUpdatedLine: 5 }, () => 9)
+    ).toBe(9);
+  });
+
+  it('tag → returns the resolver value when it returns a number', () => {
+    expect(
+      effectiveAnchorLine({ kind: 'tag', tagId: 'T', lastUpdatedLine: 5 }, () => 9)
+    ).toBe(9);
+  });
+
+  it('smart/tag → falls back to lastUpdatedLine when the resolver returns undefined', () => {
+    expect(
+      effectiveAnchorLine({ kind: 'smart', lastUpdatedLine: 5 }, () => undefined)
+    ).toBe(5);
+    expect(
+      effectiveAnchorLine({ kind: 'tag', tagId: 'T', lastUpdatedLine: 5 }, () => undefined)
+    ).toBe(5);
   });
 });
