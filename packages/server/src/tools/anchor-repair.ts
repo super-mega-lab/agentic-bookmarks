@@ -533,12 +533,18 @@ export async function handleAnchorRepair(ctx: ServerContext, args: any) {
         );
       }
 
-      // Build result entry (echo newLine back as 1-based wire)
+      // Build result entry (echo newLine back as 1-based wire). Report the
+      // ACTUAL resulting kind, not the original: a non-smart/non-tag anchor is
+      // rebuilt as a point above, so a repaired range collapses to a point.
       const entry: Record<string, unknown> = {
         bookmarkId,
         newLine: toWire(newLine),
-        anchorKind,
+        anchorKind: newAnchor.kind,
       };
+
+      if (anchorKind === 'range' && newAnchor.kind === 'point') {
+        entry.rangeCollapsed = true;
+      }
 
       if (newUri) {
         entry.newUri = effectiveRelPath;
