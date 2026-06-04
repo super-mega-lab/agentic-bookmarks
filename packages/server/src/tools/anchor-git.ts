@@ -477,6 +477,7 @@ export async function handleAnchorListBroken(ctx: ServerContext, args: any) {
             // (shouldFlex = enableFlex && (isLocal || enableFlexShared)) wrongly drops flex for
             // shared anchors when enableFlexContextShared:false, diverging from the extension. (SML-1508)
             isLocal: true,
+            lineCacheLength: 120, // SML-1571: server captures at 120; match here so formatter-tier substring gate uses the correct cap.
           },
         );
         const resById = new Map(resolutionResults.map(r => [r.anchorId, r]));

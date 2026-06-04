@@ -64,9 +64,10 @@ const verifySmartStickyCandidate = (
   bookmarkId: string,
   candidateAnchor: BookmarksFileV2['bookmarks'][number]['anchor'],
   expectedLine: number,
-  fileLines: string[]
+  fileLines: string[],
+  lineCacheLength: number
 ): boolean => {
-  const [resolution] = resolveAnchors([{ id: bookmarkId, anchor: candidateAnchor }], fileLines);
+  const [resolution] = resolveAnchors([{ id: bookmarkId, anchor: candidateAnchor }], fileLines, { lineCacheLength }); // SML-1571
   if (!resolution?.resolved || resolution.line === undefined) return false;
   if (resolution.line !== expectedLine) return false;
   if (typeof resolution.score === 'number' && resolution.score < smartVerifyThreshold) return false;
@@ -231,7 +232,7 @@ export function registerStickyHandler(deps: StickyDeps): {
                       }
 
                       const candidateAnchor = updateAnchorLineCache(b.anchor, resolvedLine, newLineCache);
-                      if (stickyLane === 'medium' && !verifySmartStickyCandidate(b.id, candidateAnchor, resolvedLine, fileLines)) {
+                      if (stickyLane === 'medium' && !verifySmartStickyCandidate(b.id, candidateAnchor, resolvedLine, fileLines, lineCacheLen)) {
                         recordSkip('verification_failed', bookmarkRef);
                         continue;
                       }

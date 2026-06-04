@@ -174,6 +174,7 @@ export async function handleAnchorValidate(ctx: ServerContext, args: any) {
     enableFlexContext,
     enableFlexContextShared,
     isLocal: true,
+    lineCacheLength: 120, // SML-1571: server captures at 120; match here so formatter-tier substring gate uses the correct cap.
   });
 
   // Build response (line numbers converted to 1-based wire). Classify each result with the same
@@ -290,6 +291,7 @@ export async function handleAnchorGetRepairPackage(ctx: ServerContext, args: any
     enableFlexContext: rpEnableFlexContext,
     enableFlexContextShared: rpEnableFlexContextShared,
     isLocal: true,
+    lineCacheLength: 120, // SML-1571: server captures at 120; match here so formatter-tier substring gate uses the correct cap.
   });
 
   // Build a map of resolution results by anchor ID

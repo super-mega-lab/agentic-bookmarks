@@ -504,6 +504,7 @@ async function activateForWorkspace(
       isLocal: true, // default safe — per-bookmark isLocal is now threaded via getAllBookmarksForUri
       showWarningOnShared: anchorSettings.showWarningOnShared ?? false,
       enableLocalContextRefresh: anchorSettings.enableLocalContextRefresh ?? true,
+      lineCacheLength: getLineCacheLength(), // SML-1571: thread capture cap so formatter-tier substring gate uses the correct value.
     };
   };
 
