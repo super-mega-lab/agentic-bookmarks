@@ -142,6 +142,49 @@ describe('handleAnchorRepair', () => {
     const repaired = persisted.bookmarks.find(b => b.id === 'bm-smart-1');
     expect(repaired!.anchor.kind).toBe('smart');
   });
+
+  it('rejects undefined newLine with a failed entry and does not corrupt the stored anchor', async () => {
+    const smartAnchor = createAnchor('smart', sourceLines, 2, { isLocal: true, lineCacheLength: 120 });
+    const absFilePath = await setupBookmark('bm-nan-undef', smartAnchor);
+
+    const result = await handleAnchorRepair(ctx, {
+      repairs: [{ bookmarkId: 'bm-nan-undef', newLine: undefined as any }],
+    });
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(false);
+    expect(parsed.repaired).toHaveLength(0);
+    expect(parsed.failed).toHaveLength(1);
+    expect(parsed.failed[0].bookmarkId).toBe('bm-nan-undef');
+    expect(parsed.failed[0].error).toMatch(/integer/);
+
+    // Anchor on disk must not have been written with NaN→null
+    const persisted = await readFileAt(absFilePath);
+    const bm = persisted.bookmarks.find(b => b.id === 'bm-nan-undef');
+    expect(bm).toBeDefined();
+    expect(Number.isInteger((bm!.anchor as any).lastUpdatedLine)).toBe(true);
+  });
+
+  it('rejects NaN newLine with a failed entry and does not corrupt the stored anchor', async () => {
+    const smartAnchor = createAnchor('smart', sourceLines, 2, { isLocal: true, lineCacheLength: 120 });
+    const absFilePath = await setupBookmark('bm-nan-val', smartAnchor);
+
+    const result = await handleAnchorRepair(ctx, {
+      repairs: [{ bookmarkId: 'bm-nan-val', newLine: NaN }],
+    });
+
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(false);
+    expect(parsed.repaired).toHaveLength(0);
+    expect(parsed.failed).toHaveLength(1);
+    expect(parsed.failed[0].bookmarkId).toBe('bm-nan-val');
+    expect(parsed.failed[0].error).toMatch(/integer/);
+
+    const persisted = await readFileAt(absFilePath);
+    const bm = persisted.bookmarks.find(b => b.id === 'bm-nan-val');
+    expect(bm).toBeDefined();
+    expect(Number.isInteger((bm!.anchor as any).lastUpdatedLine)).toBe(true);
+  });
 });
 
 describe('handleAnchorValidate summary classification', () => {

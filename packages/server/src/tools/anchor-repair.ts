@@ -423,6 +423,11 @@ export async function handleAnchorRepair(ctx: ServerContext, args: any) {
     const { bookmarkId, newLine: wireNewLine, newUri } = repair;
     const newLine = toInternal(wireNewLine);
 
+    if (!Number.isInteger(newLine)) {
+      failed.push({ bookmarkId, error: `Line number must be a positive integer, got: ${wireNewLine}` });
+      continue;
+    }
+
     try {
       // Find the bookmark across all workspaces
       const found = await findBookmarkById(ctx, bookmarkId);
