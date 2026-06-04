@@ -139,6 +139,33 @@ describe('toggleNotesAndLabels — registry with no settings.general (SML-1538)'
   });
 });
 
+describe('toggleInlineDots — flips settings.general.showInlineDots via writeRegistry (SML-1538)', () => {
+  it('flips the value, persists schema-valid, and a fresh readRegistry reflects it (cache-coherent)', async () => {
+    // Seed has no settings.general, so the first toggle turns inline dots ON.
+    const handlers = settingsHandlers();
+    await handlers.get('agenticBookmarks.toggleInlineDots')();
+
+    // A fresh read returns the flipped value — only true if writeRegistry refreshed the
+    // read cache that the handler's own readRegistry warmed (a raw fs.writeFile would not).
+    const afterOn = await readRegistry(workspaceRoot);
+    expect(afterOn.settings?.general?.showInlineDots).toBe(true);
+
+    // Persisted on disk; readRegistry succeeding above already proves it is schema-valid.
+    const onDisk = JSON.parse(fs.readFileSync(registryPathForRoot(workspaceRoot), 'utf8'));
+    expect(onDisk.settings.general.showInlineDots).toBe(true);
+
+    // The atomic write path backed up the prior registry — a raw fs.writeFile would not.
+    // (mtime-aware read cache means the value assertions above also pass on a raw write,
+    // so this .bak check is the assertion that actually pins the SML-1538 fix.)
+    expect(fs.existsSync(registryPathForRoot(workspaceRoot) + '.bak')).toBe(true);
+
+    // A second toggle flips it back off.
+    await handlers.get('agenticBookmarks.toggleInlineDots')();
+    const afterOff = await readRegistry(workspaceRoot);
+    expect(afterOff.settings?.general?.showInlineDots).toBe(false);
+  });
+});
+
 describe('clearUniformColor — removes appearance.uniformColor via writeRegistry (SML-1538)', () => {
   it('removes the field and the persisted registry still validates via readRegistry', async () => {
     // Seed a uniformColor first.

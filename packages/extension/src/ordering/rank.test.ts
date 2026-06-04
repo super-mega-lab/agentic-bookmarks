@@ -117,4 +117,37 @@ describe('rankForInsert', () => {
     const rank = rankForInsert(sibs, 0, getRank, setRank);
     expect(rank).toBeLessThan(100);
   });
+
+  it('never collides under repeated reorders into the same gap (exhaustion stress) (SML-1542)', () => {
+    const sibs = siblings(['a', 100], ['b', 200]);
+    // Repeatedly drop a fresh item into the slot just after 'a'. Each drop narrows the
+    // gap until the midpoint is exhausted and a rebalance must fire — without the
+    // rebalance guard the ~7th drop returns 100, colliding with 'a'.
+    for (let i = 0; i < 12; i++) {
+      const rank = rankForInsert(sibs, 1, getRank, setRank);
+      const prev = sibs[0].rank!;
+      const next = sibs[1].rank!;
+      expect(rank).toBeGreaterThan(prev);
+      expect(rank).toBeLessThan(next);
+      sibs.splice(1, 0, { id: `n${i}`, rank });
+    }
+    // The whole list is strictly ordered with no duplicate ranks.
+    const ranks = sibs.map(s => s.rank!);
+    const sorted = [...ranks].sort((x, y) => x - y);
+    expect(ranks).toEqual(sorted);
+    expect(new Set(ranks).size).toBe(ranks.length);
+  });
+
+  it('restores RANK_STEP-spaced neighbors after a midpoint-exhaustion rebalance (SML-1542)', () => {
+    // a=100, b=101: no integer strictly between, so assignRankBetween floors to 100 and
+    // collides with prev, forcing a full rebalance of the sibling list.
+    const sibs = siblings(['a', 100], ['b', 101]);
+    const rank = rankForInsert(sibs, 1, getRank, setRank);
+    // Rebalance restored a clean RANK_STEP gap between the bounding siblings...
+    expect(sibs[1].rank! - sibs[0].rank!).toBe(RANK_STEP);
+    // ...and the inserted rank is the midpoint of that restored gap.
+    expect(rank).toBe(sibs[0].rank! + Math.floor(RANK_STEP / 2));
+    expect(rank).toBeGreaterThan(sibs[0].rank!);
+    expect(rank).toBeLessThan(sibs[1].rank!);
+  });
 });

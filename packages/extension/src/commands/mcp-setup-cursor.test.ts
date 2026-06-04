@@ -80,6 +80,33 @@ describe('applyCursorInstall', () => {
     expect(env.snapshot()[PATH]).toBe('[1, 2, 3]');
   });
 
+  it('rethrows a non-ENOENT read error (EACCES) and never clobbers the file (SML-1518)', async () => {
+    // A permission/IO error must surface, never be mistaken for "empty" and overwrite the file.
+    const ops: string[] = [];
+    const eaccesFs: FsDeps = {
+      async readFile(p: string): Promise<string> {
+        ops.push('readFile');
+        const err = new Error(`EACCES: permission denied, open '${p}'`) as Error & { code: string };
+        err.code = 'EACCES';
+        throw err;
+      },
+      async writeFile() {
+        ops.push('writeFile');
+      },
+      async rename() {
+        ops.push('rename');
+      },
+      async copyFile() {
+        ops.push('copyFile');
+      },
+    };
+    await expect(
+      applyCursorInstall({ configPath: PATH, serverEntry: ENTRY, fs: eaccesFs }),
+    ).rejects.toMatchObject({ code: 'EACCES' });
+    // Only the read was attempted — no backup, no write, no rename.
+    expect(ops).toEqual(['readFile']);
+  });
+
   it('merges into an existing valid config, preserving other servers and top-level keys', async () => {
     const before = {
       mcpServers: { other: { type: 'stdio', command: 'other-cmd' } },

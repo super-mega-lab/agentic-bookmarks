@@ -94,4 +94,48 @@ describe('resolveGroupIconPath — tinted-icon cache filename sanitization (SML-
     );
     expect(path.basename(resolved)).toBe('tint-rounded-0000ff.svg');
   });
+
+  it('sanitizes an absolute-path styleId so it cannot escape the icon cache dir (SML-1543)', async () => {
+    const malicious = '/abs/evil';
+    const defaultIcon = path.join(testDir, 'default.svg');
+
+    const resolved = await resolveGroupIconPath(
+      groupWith(malicious, '#abcdef'),
+      workspaceRoot,
+      catalogWithStyle(malicious),
+      defaultIcon,
+    );
+
+    const cacheDir = getIconCacheDir(workspaceRoot);
+    // With the bug the absolute path nests under a non-existent dir, the write fails, and
+    // resolveGroupIconPath falls back to the default icon — so this assertion pins the fix.
+    expect(resolved).not.toBe(defaultIcon);
+    expect(path.dirname(resolved)).toBe(cacheDir);
+    expect(path.basename(resolved)).toBe('tint-_abs_evil-abcdef.svg');
+    await expect(fs.access(resolved)).resolves.toBeUndefined();
+  });
+
+  it('sanitizes backslashes so no Windows-style separators leak into the cache filename (SML-1543)', async () => {
+    const resolved = await resolveGroupIconPath(
+      groupWith('..\\..\\evil', '#00ffff'),
+      workspaceRoot,
+      catalogWithStyle('..\\..\\evil'),
+      path.join(testDir, 'default.svg'),
+    );
+    const base = path.basename(resolved);
+    // On POSIX a backslash is a normal char, so the bug would leave it verbatim in the name.
+    expect(base).not.toContain('\\');
+    expect(base).not.toContain('/');
+    expect(base).toBe('tint-______evil-00ffff.svg');
+  });
+
+  it('sanitizes a dots-only styleId to underscores in the cache filename (SML-1543)', async () => {
+    const resolved = await resolveGroupIconPath(
+      groupWith('...', '#0a0b0c'),
+      workspaceRoot,
+      catalogWithStyle('...'),
+      path.join(testDir, 'default.svg'),
+    );
+    expect(path.basename(resolved)).toBe('tint-___-0a0b0c.svg');
+  });
 });
