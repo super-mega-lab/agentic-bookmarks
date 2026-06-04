@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { findWorkspaceRootUpward, findGroupByName, mergeLoadedWorkspaceFolders, getOrCreateLocalFile } from './workspace';
+import { findWorkspaceRootUpward, findGroupByName, mergeLoadedWorkspaceFolders, getOrCreateLocalFile, resolveBootstrapRoot } from './workspace';
 import {
   createWorkspaceInfo,
   emptyFileV2,
@@ -271,5 +271,53 @@ describe('getOrCreateLocalFile', () => {
     expect(result.fileId).toBeTruthy();
     const stat = await fs.stat(result.filePath);
     expect(stat.isFile()).toBe(true);
+  });
+});
+
+describe('resolveBootstrapRoot', () => {
+  let tmp: string;
+  let realTmp: string;
+
+  beforeEach(async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'bootstrap-root-'));
+    realTmp = await fs.realpath(tmp);
+  });
+
+  afterEach(async () => {
+    await fs.rm(tmp, { recursive: true, force: true });
+  });
+
+  it('walks up from cwd when BOOKMARKS_UPWARD_DISCOVERY is set and registry exists', async () => {
+    const registryDir = path.join(realTmp, '.bookmarks', 'local');
+    await fs.mkdir(registryDir, { recursive: true });
+    await fs.writeFile(path.join(registryDir, 'bookmarks.registry.json'), '{}');
+    const nested = path.join(realTmp, 'src', 'components');
+    await fs.mkdir(nested, { recursive: true });
+
+    const result = await resolveBootstrapRoot({ BOOKMARKS_UPWARD_DISCOVERY: 'true' }, nested);
+    expect(result).toBe(realTmp);
+  });
+
+  it('falls back to cwd when BOOKMARKS_UPWARD_DISCOVERY is set but no registry found', async () => {
+    const result = await resolveBootstrapRoot({ BOOKMARKS_UPWARD_DISCOVERY: 'true' }, realTmp);
+    expect(result).toBe(realTmp);
+  });
+
+  it('strips .bookmarks/local suffix from BOOKMARKS_DIR to get workspace root', async () => {
+    const localDir = path.join(realTmp, '.bookmarks', 'local');
+    const result = await resolveBootstrapRoot({ BOOKMARKS_DIR: localDir }, realTmp);
+    expect(result).toBe(realTmp);
+  });
+
+  it('uses BOOKMARKS_DIR as-is when it does not end in local', async () => {
+    const wsRoot = path.join(realTmp, 'my-workspace');
+    await fs.mkdir(wsRoot, { recursive: true });
+    const result = await resolveBootstrapRoot({ BOOKMARKS_DIR: wsRoot }, realTmp);
+    expect(result).toBe(wsRoot);
+  });
+
+  it('returns cwd when neither env var is set', async () => {
+    const result = await resolveBootstrapRoot({}, realTmp);
+    expect(result).toBe(realTmp);
   });
 });

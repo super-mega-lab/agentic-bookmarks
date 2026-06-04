@@ -20,6 +20,7 @@ import {
   pickRoot,
   parseWorkspaceConfig,
   mergeLoadedWorkspaceFolders,
+  resolveBootstrapRoot,
 } from './workspace';
 import {
   handleBookmarkAdd,
@@ -89,15 +90,21 @@ server.setRequestHandler(InitializeRequestSchema, async (request) => {
   const rootUris = (request.params as any)?.meta?.rootUris || (request.params as any)?._meta?.rootUris;
   ctx.lastInitRootUris = Array.isArray(rootUris) ? rootUris : undefined;
 
+  // Resolve the standalone workspace root from env vars before parsing workspace config.
+  // This handles the two contracts set by the extension's config writers:
+  // - BOOKMARKS_UPWARD_DISCOVERY=true → walk up from cwd
+  // - BOOKMARKS_DIR=…/.bookmarks/local → strip the local sub-dir to get workspace root
+  const standaloneRoot = await resolveBootstrapRoot(process.env);
+
   // Parse workspace configuration
-  ctx.workspaces = parseWorkspaceConfig(meta);
+  ctx.workspaces = parseWorkspaceConfig(meta, standaloneRoot);
 
   // Set legacy workspaceRoot for backward compatibility
-  ctx.workspaceRoot = ctx.workspaces[0]?.workspaceRoot || process.cwd();
+  ctx.workspaceRoot = ctx.workspaces[0]?.workspaceRoot || standaloneRoot;
 
-  // If no init workspaces were provided, derive from registry using BOOKMARKS_DIR or CWD
+  // If no init workspaces were provided, derive from registry using the resolved standalone root
   if (ctx.workspaces.length === 0) {
-    const baseRoot = process.env.BOOKMARKS_DIR ? path.resolve(process.env.BOOKMARKS_DIR) : process.cwd();
+    const baseRoot = standaloneRoot;
     let usedRoot = baseRoot;
     try {
       const reg = await readRegistry(baseRoot);
