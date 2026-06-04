@@ -27,6 +27,8 @@ export async function findBookmarkNodeInTree(
   const roots = await provider.getChildren();
   for (const item of roots) {
     const asFile = item as FileNodeLike;
+    const asBookmark = item as BookmarkNodeLike;
+    if (!asFile.resourceUri && asBookmark.id === bookmarkId) return asBookmark;
     if (asFile.resourceUri?.fsPath !== fsPath) continue;
 
     const children = await provider.getChildren(item);
