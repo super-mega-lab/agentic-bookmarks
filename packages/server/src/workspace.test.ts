@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { findWorkspaceRootUpward, findGroupByName, mergeLoadedWorkspaceFolders } from './workspace';
+import { findWorkspaceRootUpward, findGroupByName, mergeLoadedWorkspaceFolders, getOrCreateLocalFile } from './workspace';
 import {
   createWorkspaceInfo,
   emptyFileV2,
@@ -10,6 +10,7 @@ import {
   createGroupInFile,
   readRegistry,
   readFileAt,
+  type BookmarksFileV2,
 } from '@agentic-bookmarks/core';
 
 describe('findWorkspaceRootUpward', () => {
@@ -202,5 +203,73 @@ describe('mergeLoadedWorkspaceFolders', () => {
 
     expect(result).toHaveLength(1);
     expect(result[0]).toBe(existing[0]);
+  });
+});
+
+describe('getOrCreateLocalFile', () => {
+  let tmp: string;
+  let root: string;
+
+  beforeEach(async () => {
+    tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'get-local-'));
+    root = await fs.realpath(tmp);
+  });
+
+  afterEach(async () => {
+    await fs.rm(tmp, { recursive: true, force: true });
+  });
+
+  async function registerLocalFile(fileId: string): Promise<string> {
+    const localDir = path.join(root, '.bookmarks', 'local');
+    const localFile = path.join(localDir, 'bookmarks.json');
+    await fs.mkdir(localDir, { recursive: true });
+    const data: BookmarksFileV2 = { version: 2, fileId, isLocal: true, groups: [], bookmarks: [] };
+    await fs.writeFile(localFile, JSON.stringify(data, null, 2));
+    await addFileToRegistry(root, localFile);
+    return localFile;
+  }
+
+  it('returns the existing local file when one is already registered (POSIX path)', async () => {
+    const fileId = 'posix-local-id';
+    const localFile = await registerLocalFile(fileId);
+
+    const ws = createWorkspaceInfo(root);
+    const result = await getOrCreateLocalFile(ws);
+
+    expect(result.fileId).toBe(fileId);
+    expect(result.filePath).toBe(localFile);
+  });
+
+  it('does not overwrite an existing local file when the registry path uses backslash separators (Windows)', async () => {
+    // Simulate a Windows-style registry: f.path uses backslashes, so
+    // the old f.path.includes('/local/') check returned false and the
+    // create branch ran, clobbering the existing file. isLocalPath() is
+    // separator-agnostic and correctly identifies the entry.
+    const fileId = 'win-local-id';
+    await registerLocalFile(fileId);
+
+    // Patch the stored path to use Windows-style backslashes.
+    const regPath = path.join(root, '.bookmarks', 'local', 'bookmarks.registry.json');
+    const reg = JSON.parse(await fs.readFile(regPath, 'utf8'));
+    const entry = reg.files.find((f: any) => f.fileId === fileId);
+    entry.path = entry.path.replace(/\//g, '\\');
+    await fs.writeFile(regPath, JSON.stringify(reg, null, 2));
+
+    const ws = createWorkspaceInfo(root);
+    const result = await getOrCreateLocalFile(ws);
+
+    // Must find the existing entry, not create a new one.
+    expect(result.fileId).toBe(fileId);
+  });
+
+  it('creates a new local file when none is registered', async () => {
+    // Empty workspace — readRegistry returns an empty registry when no file exists,
+    // so getOrCreateLocalFile proceeds to the create branch.
+    const ws = createWorkspaceInfo(root);
+    const result = await getOrCreateLocalFile(ws);
+
+    expect(result.fileId).toBeTruthy();
+    const stat = await fs.stat(result.filePath);
+    expect(stat.isFile()).toBe(true);
   });
 });
