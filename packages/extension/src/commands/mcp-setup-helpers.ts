@@ -181,3 +181,72 @@ export async function applyCursorInstall(opts: CursorInstallOptions): Promise<In
 
   return { status: 'written' };
 }
+
+const CODEX_BLOCK_RE = /^\[mcp_servers\."agentic_bookmarks"\][\s\S]*?(?=^\[|(?![\s\S]))/m;
+const CODEX_LEGACY_KEYS = ['mcp.bookmarks', 'mcp_bookmarks'];
+
+export interface CodexInstallOptions {
+  configPath: string;
+  /** Complete TOML block text to upsert (e.g. '[mcp_servers."agentic_bookmarks"]\n...\n'). */
+  serverBlock: string;
+  fs: FsDeps;
+  /** Override the backup-path suffix; defaults to `.agentic-bookmarks-backup`. */
+  backupSuffix?: string;
+  /** Override the temp-file suffix; defaults to `.agentic-bookmarks.tmp`. */
+  tmpSuffix?: string;
+}
+
+/**
+ * Upserts the `[mcp_servers."agentic_bookmarks"]` block into Codex's `config.toml`,
+ * mirroring the safety guards of `applyCursorInstall` (SML-1578):
+ *
+ *   1. Only swallows ENOENT/ENOTDIR (first-install, no existing config); rethrows
+ *      EACCES/EBUSY/etc. so a permission/IO failure can never be mistaken for "empty"
+ *      and clobber the file.
+ *   2. One-shot backup: copies a valid existing file to `<path><backupSuffix>`
+ *      before mutating it. (No backup when the file is absent — nothing to save.)
+ *   3. Atomic write: writes to a sibling .tmp then renames over the target.
+ *   4. Surgical: strips only legacy server keys and (re)writes our own block; all
+ *      other `[mcp_servers.*]` sections are preserved byte-for-byte.
+ *
+ * Unlike the Cursor path there is no 'malformed' result: TOML is manipulated via
+ * regex on the raw string, so any readable file is a valid upsert target.
+ */
+export async function applyCodexInstall(opts: CodexInstallOptions): Promise<InstallResult> {
+  const { configPath, serverBlock, fs } = opts;
+  const backupSuffix = opts.backupSuffix ?? DEFAULT_BACKUP_SUFFIX;
+  const tmpSuffix = opts.tmpSuffix ?? DEFAULT_TMP_SUFFIX;
+
+  let raw: string | null = null;
+  try {
+    raw = await fs.readFile(configPath);
+  } catch (err) {
+    if (!isMissing(err)) throw err; // surface permission/IO errors; never clobber
+    raw = null; // ENOENT/ENOTDIR — first install, no existing config
+  }
+
+  let text = raw ?? '';
+  if (raw !== null) {
+    // Back up the existing file once, before any mutation.
+    await fs.copyFile(configPath, configPath + backupSuffix);
+  }
+
+  for (const legacyKey of CODEX_LEGACY_KEYS) {
+    const escapedKey = legacyKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const legacyRe = new RegExp(`^\\[mcp_servers\\."${escapedKey}"\\][\\s\\S]*?(?=^\\[|(?![\\s\\S]))`, 'm');
+    text = text.replace(legacyRe, '');
+  }
+
+  if (CODEX_BLOCK_RE.test(text)) {
+    text = text.replace(CODEX_BLOCK_RE, serverBlock);
+  } else {
+    if (text.length && !text.endsWith('\n')) text += '\n';
+    text += (text.length ? '\n' : '') + serverBlock;
+  }
+
+  const tmpPath = configPath + tmpSuffix;
+  await fs.writeFile(tmpPath, text);
+  await fs.rename(tmpPath, configPath);
+
+  return { status: 'written' };
+}
