@@ -1,11 +1,11 @@
 // ABOUTME: Guard for the broken-anchors.json cross-process lost-update fence (SML-1534/SML-1569) —
 // ABOUTME: a source-scan tripwire pinning both writers (debouncedCacheSync + writeAuthoritativeScanCache)
-// ABOUTME: to the one shared brokenAnchorsCacheMutex, plus a behavioral AsyncMutex non-interleaving test.
+// ABOUTME: to the one shared brokenAnchorsCacheMutex. The mutex's serialization itself is covered by
+// ABOUTME: asyncMutex.test.ts (incl. the broken-anchors lost-update regression), so it isn't re-tested here.
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { AsyncMutex } from './asyncMutex';
 
 const extensionSrc = readFileSync(join(__dirname, 'extension.ts'), 'utf8');
 
@@ -45,29 +45,5 @@ describe('broken-anchors shared-mutex guard (SML-1534/SML-1569)', () => {
     // Exactly one shared instance backs both writers.
     const decls = extensionSrc.match(/brokenAnchorsCacheMutex\s*=\s*new AsyncMutex\(\)/g) ?? [];
     expect(decls).toHaveLength(1);
-  });
-
-  it('a shared mutex serializes two read-merge-write critical sections (no interleaving)', async () => {
-    // Models the two writers' critical sections (read → await → write) sharing one
-    // mutex. Without it they interleave to [A:read, B:read, A:write, B:write] — the
-    // lost-update window. Serialized, each block completes before the next begins.
-    const mutex = new AsyncMutex();
-    const events: string[] = [];
-    const tick = () => new Promise<void>((r) => setTimeout(r, 0));
-
-    const writerA = () => mutex.runExclusive(async () => {
-      events.push('A:read');
-      await tick();
-      events.push('A:write');
-    });
-    const writerB = () => mutex.runExclusive(async () => {
-      events.push('B:read');
-      await tick();
-      events.push('B:write');
-    });
-
-    await Promise.all([writerA(), writerB()]);
-
-    expect(events).toEqual(['A:read', 'A:write', 'B:read', 'B:write']);
   });
 });

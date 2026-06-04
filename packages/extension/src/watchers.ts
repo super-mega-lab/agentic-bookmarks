@@ -267,6 +267,11 @@ export function createWatcherManagerSet(deps: WatcherManagerSetDeps): {
       let mgr: ReturnType<typeof createWatcherManager> | undefined;
       try {
         const d = await deps.makeDeps(root);
+        // The set may have been disposed while we awaited makeDeps (building deps +
+        // reading the registry is the dominant in-flight window). Bail before creating
+        // any watchers so a sync() racing dispose() leaves no orphaned manager whose
+        // FileSystemWatchers would never be torn down (SML-1569).
+        if (disposed) return;
         mgr = createWatcherManager(d, deps.getLastStickyRefreshAt);
         managers.set(root, mgr);
         await mgr.setupWatchers();
@@ -296,10 +301,12 @@ export function createWatcherManagerSet(deps: WatcherManagerSetDeps): {
   // Serialize sync() so an in-flight sync can't race a new one into
   // double-adding a root (SML-1540).
   let chain: Promise<void> = Promise.resolve();
-  // Once disposed, a later sync() (e.g. a queued onDidChangeWorkspaceFolders firing
-  // after deactivate) must be a no-op — otherwise it re-creates and leaks watchers
-  // for the still-present roots. Guarded inside the chain so a sync queued before
-  // dispose() but running after it is also dropped (SML-1569 / SML-1540 residual).
+  // Once disposed, sync() must not (re-)create watchers for the still-present roots
+  // (e.g. a queued onDidChangeWorkspaceFolders firing after deactivate). Two windows:
+  // a sync queued on the chain before dispose() whose doSync would run after — dropped
+  // by the chain guard below; and a doSync already in-flight when dispose() fires —
+  // caught by the `disposed` re-check after the makeDeps await in doSync
+  // (SML-1569 / SML-1540 residual).
   let disposed = false;
   const sync = (): Promise<void> => {
     const next = chain
