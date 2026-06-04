@@ -78,4 +78,17 @@ describe('findBookmarkNodeInTree', () => {
     const result = await findBookmarkNodeInTree(provider, '/ws/foo.ts', 'b1');
     expect(result).toBe(target);
   });
+
+  it('finds a BookmarkNode at the root in flat mode (no resourceUri)', async () => {
+    const target = bookmarkNode('b2');
+    const provider = mkProvider([bookmarkNode('b1') as any, target as any, bookmarkNode('b3') as any]);
+    const result = await findBookmarkNodeInTree(provider, '/ws/foo.ts', 'b2');
+    expect(result).toBe(target);
+  });
+
+  it('returns null when flat-mode root has no matching bookmark id', async () => {
+    const provider = mkProvider([bookmarkNode('b1') as any, bookmarkNode('b2') as any]);
+    const result = await findBookmarkNodeInTree(provider, '/ws/foo.ts', 'bX');
+    expect(result).toBeNull();
+  });
 });
