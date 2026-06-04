@@ -95,9 +95,13 @@ describe('handleTraceLineHistory', () => {
     await fs.rm(repoPath, { recursive: true, force: true });
   });
 
-  it('returns traced with valid newLine for a line still present', async () => {
-    // Bookmark on current line 3 ("function alpha()") — blame resolves to commit 1.
-    // Since the line hasn't moved since commit 2, trace should show no_history or traced.
+  it('returns no_history for an unmodified line already at its current position', async () => {
+    // Bookmark on "function alpha() {" recorded at its CURRENT 0-based line 3. The line
+    // was only ever shifted (commit 2 header insert), never content-modified, and its
+    // recorded position already matches HEAD — so there is no patch to trace and the
+    // handler reports no_history (not a fallback line). Pins the exact status so a
+    // regression that flips it to traced/trace_invalid is caught (the old
+    // not-trace_invalid oracle passed on no_history vacuously).
     const bookmark = makeBookmark({
       lineCache: 'function alpha() {',
       lastUpdatedLine: 3,
@@ -111,13 +115,9 @@ describe('handleTraceLineHistory', () => {
     expect(result.success).toBe(true);
     const r = result.result as any;
 
-    // Should NOT be trace_invalid
-    expect(r.status).not.toBe('trace_invalid');
-
-    if (r.status === 'traced') {
-      expect(r.newLine).toBeGreaterThanOrEqual(0);
-      expect(r.newLine).toBeLessThan(currentLines.length);
-    }
+    expect(r.status).toBe('no_history');
+    expect(typeof r.explanation).toBe('string');
+    expect(r.explanation.length).toBeGreaterThan(0);
   });
 
   it('returns deleted status with deletedAtCommit and deletedHunk for deleted line', async () => {
@@ -200,8 +200,10 @@ describe('handleTraceLineHistory', () => {
     await fs.rm(edgeRepo, { recursive: true, force: true });
   });
 
-  it('status is never trace_invalid for normal traced lines', async () => {
-    // Bookmark on line 1 ("  return 1;") at commit 1
+  it('traces a shifted line to its new 0-based position after a header insert', async () => {
+    // Bookmark on line 1 ("  return 1;") at commit 1; commit 2 inserts 3 header
+    // lines at the top, shifting it to 0-based line 4. Pins the shifted resolve so
+    // test 1 (stationary) and test 4 (shifted) cover distinct off-by-one paths.
     const bookmark = makeBookmark({
       lineCache: '  return 1;',
       lastUpdatedLine: 1,
@@ -214,8 +216,10 @@ describe('handleTraceLineHistory', () => {
     const result = await handleTraceLineHistory(bookmark, repoPath, 'sample.ts', currentLines, dataFilePath);
     expect(result.success).toBe(true);
     const r = result.result as any;
-    // Should not be trace_invalid for a valid traced line
-    expect(r.status).not.toBe('trace_invalid');
+    expect(r.status).toBe('traced');
+    expect(r.newLine).toBe(4);
+    expect(r.content).toBe('  return 1;');
+    expect(r.content).toBe(currentLines[r.newLine]); // 0-based coherence
   });
 });
 
