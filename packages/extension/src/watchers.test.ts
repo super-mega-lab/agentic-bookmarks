@@ -473,6 +473,29 @@ describe('watchers — per-folder manager set (SML-1540)', () => {
     expect(set.roots()).toEqual([]);
   });
 
+  it('sync() after dispose() creates no new watchers (SML-1569)', async () => {
+    // A queued onDidChangeWorkspaceFolders → watcherSet.sync() can fire after the
+    // set was disposed on deactivate. Without a disposed guard it re-creates (and
+    // leaks) FileSystemWatchers, since the roots are still present (SML-1540 residual).
+    const roots = ['/a'];
+    const set = createWatcherManagerSet({
+      getRoots: () => roots,
+      makeDeps: makeSetDeps,
+      getLastStickyRefreshAt: () => -100000,
+    });
+
+    await set.sync();
+    expect(createdWatchers.length).toBe(4);
+
+    set.dispose();
+    expect(createdWatchers.every((w) => w.disposed)).toBe(true);
+
+    await set.sync();
+    // No new watchers created, set stays empty.
+    expect(createdWatchers.length).toBe(4);
+    expect(set.roots()).toEqual([]);
+  });
+
   it('sync() isolates a failing folder — others are still set up, the set does not reject, and the failure is logged', async () => {
     // One folder's makeDeps throws; the rest must still be set up (SML-1540).
     const roots = ['/bad', '/good'];

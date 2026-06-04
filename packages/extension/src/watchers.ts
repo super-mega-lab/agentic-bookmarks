@@ -296,13 +296,21 @@ export function createWatcherManagerSet(deps: WatcherManagerSetDeps): {
   // Serialize sync() so an in-flight sync can't race a new one into
   // double-adding a root (SML-1540).
   let chain: Promise<void> = Promise.resolve();
+  // Once disposed, a later sync() (e.g. a queued onDidChangeWorkspaceFolders firing
+  // after deactivate) must be a no-op — otherwise it re-creates and leaks watchers
+  // for the still-present roots. Guarded inside the chain so a sync queued before
+  // dispose() but running after it is also dropped (SML-1569 / SML-1540 residual).
+  let disposed = false;
   const sync = (): Promise<void> => {
-    const next = chain.then(() => doSync()).catch(() => { /* swallow; doSync logs per-folder */ });
+    const next = chain
+      .then(() => { if (disposed) return; return doSync(); })
+      .catch(() => { /* swallow; doSync logs per-folder */ });
     chain = next;
     return next;
   };
 
   const dispose = () => {
+    disposed = true;
     for (const mgr of managers.values()) {
       mgr.dispose();
     }

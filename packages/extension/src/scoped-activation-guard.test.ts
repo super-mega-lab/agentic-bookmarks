@@ -79,6 +79,24 @@ describe('createScopedActivationGuard', () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it('never rejects even when onError itself throws (SML-1569)', async () => {
+    // onError is a logging callback; if IT throws, the never-rejects contract
+    // must still hold (callers fire the trigger via `void`). The throw is swallowed.
+    const boom = new Error('activation failed');
+    const run = vi.fn(async (): Promise<void> => { throw boom; });
+    const onError = vi.fn(() => { throw new Error('logger blew up'); });
+    const trigger = createScopedActivationGuard({ run, onError });
+
+    await expect(trigger()).resolves.toBeUndefined();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError).toHaveBeenCalledWith(boom);
+
+    // run threw and onError's throw was swallowed → guard reset → a later run retries.
+    run.mockImplementationOnce(async () => {});
+    await expect(trigger()).resolves.toBeUndefined();
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
   it('resets after an in-flight run rejects, allowing a later retry', async () => {
     const onError = vi.fn();
     const gate = deferred();
