@@ -107,21 +107,34 @@ function fragmentInAddition(fragment: string, paramNames: string[], candidate: s
   return re ? re.test(c) : c.includes(fragment);
 }
 
+interface EnclosingDeclaration {
+  line: number;
+  symbol: string;
+  content: string;
+  paramNames: string[];
+}
+
 /**
  * Walk up from a matched added line to the nearest enclosing declaration in the
- * current file. Returns its 0-based line + symbol, or null if none is in range.
+ * current file. Returns its 0-based line, symbol, and parameter names, or null if
+ * none is in range.
  */
 function findEnclosingDeclaration(
   currentFileLines: string[],
   fromLine0: number,
-): { line: number; symbol: string; content: string } | null {
+): EnclosingDeclaration | null {
   const start = Math.min(fromLine0, currentFileLines.length - 1);
   const floor = Math.max(0, start - MAX_DECL_LOOKUP);
   for (let i = start; i >= floor; i--) {
     const decl = parseDeclaration(currentFileLines[i] ?? '');
-    if (decl) return { line: i, symbol: decl.symbol, content: currentFileLines[i] };
+    if (decl) return { line: i, symbol: decl.symbol, content: currentFileLines[i], paramNames: decl.paramNames };
   }
   return null;
+}
+
+/** Two declarations share a signature when their parameter name lists match. */
+function sameParams(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((p, i) => p === b[i]);
 }
 
 /**
@@ -136,6 +149,18 @@ export function detectMergedConstruct(
 ): MergedDiagnosis | null {
   if (!diff || !diff.hunks || diff.hunks.length === 0) return null;
   if (currentFileLines.length === 0) return null;
+
+  // findEnclosingDeclaration walks up to MAX_DECL_LOOKUP lines; many matched added
+  // lines share the same enclosing declaration, so memoize the walk by start line
+  // within this call (currentFileLines is fixed here). (SML-1568)
+  const enclosingCache = new Map<number, EnclosingDeclaration | null>();
+  const enclosingAt = (line0: number): EnclosingDeclaration | null => {
+    const cached = enclosingCache.get(line0);
+    if (cached !== undefined) return cached;
+    const found = findEnclosingDeclaration(currentFileLines, line0);
+    enclosingCache.set(line0, found);
+    return found;
+  };
 
   for (let h = 0; h < diff.hunks.length; h++) {
     const hunk = diff.hunks[h];
@@ -178,9 +203,12 @@ export function detectMergedConstruct(
           if (currentFileLines[line0] !== cand.content) continue;
           for (const frag of fragments) {
             if (!fragmentInAddition(frag, decl.paramNames, cand.content)) continue;
-            const enc = findEnclosingDeclaration(currentFileLines, line0);
+            const enc = enclosingAt(line0);
             if (!enc) continue;
-            if (enc.symbol === decl.symbol) continue; // not "merged into" itself
+            // Skip only the SAME construct re-appearing (name + signature). A
+            // different method that merely shares the name can be a legitimate merge
+            // target, so it must not be excluded. (SML-1568)
+            if (enc.symbol === decl.symbol && sameParams(enc.paramNames, decl.paramNames)) continue;
             let g = groups.get(enc.line);
             if (!g) {
               g = { symbol: enc.symbol, content: enc.content, fragments: new Set<string>() };

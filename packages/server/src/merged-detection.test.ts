@@ -198,6 +198,42 @@ describe('detectMergedConstruct', () => {
     expect(result).toBeNull();
   });
 
+  it('merges into a same-named method with a different signature (SML-1568 item 4)', () => {
+    // The deleted `set config(v: string)` setter's body lands inside a method that
+    // happens to share the name `config` but has a DIFFERENT signature
+    // (`config(opts: Options)`). The self-merge guard must exclude only the same
+    // construct (name + signature), not every same-named method — otherwise this
+    // legitimate merge target is wrongly dropped and the result is null.
+    const file = [
+      'export class X {',                          // 0
+      '  config(opts: Options): void {',           // 1
+      '    this.alpha = computeAlpha(opts);',      // 2
+      '    this.beta = computeBeta(opts);',        // 3
+      '  }',                                        // 4
+      '}',                                          // 5
+    ];
+    const diff = mkDiff(
+      mkHunk(20, 20, [
+        ['del', '  set config(v: string) {'],
+        ['del', '    this.alpha = computeAlpha(v);'],
+        ['del', '    this.beta = computeBeta(v);'],
+        ['del', '  }'],
+      ]),
+      mkHunk(20, 2, [
+        ['add', '  config(opts: Options): void {'],
+        ['add', '    this.alpha = computeAlpha(opts);'],
+        ['add', '    this.beta = computeBeta(opts);'],
+        ['add', '  }'],
+      ]),
+    );
+    const result = detectMergedConstruct({ lineCache: 'set config(v: string) {', lastUpdatedLine: 19 }, diff, file);
+    expect(result).not.toBeNull();
+    expect(result!.detail.deletedSymbol).toBe('config');
+    expect(result!.detail.mergedInto.symbol).toBe('config');
+    expect(result!.detail.mergedInto.line).toBe(1);
+    expect(result!.detail.candidates).toHaveLength(1);
+  });
+
   it('returns null when no deleted declaration ties to the anchor', () => {
     const result = detectMergedConstruct(
       { lineCache: 'const totallyUnrelated = compute();', lastUpdatedLine: 41 },

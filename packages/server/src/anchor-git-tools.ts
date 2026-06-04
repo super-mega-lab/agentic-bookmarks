@@ -501,8 +501,11 @@ function extractDeletedHunk(
   targetRelPath: string,
   deletedLineNumber: number,
 ): { oldRange: { start: number; count: number }; newRange: { start: number; count: number }; excerpt: string } | null {
-  // Find the FileDiff for the target file
-  const fileDiff = patch.diff.find(d => d.oldPath === targetRelPath || d.newPath === targetRelPath);
+  // Find the FileDiff for the target file. Under trackRenames the patch carries
+  // only our file's diff; after a file rename its path differs from targetRelPath,
+  // so fall back to the sole entry. (SML-1568 item 3)
+  const fileDiff = patch.diff.find(d => d.oldPath === targetRelPath || d.newPath === targetRelPath)
+    ?? patch.diff[0];
   if (!fileDiff) return null;
 
   // Find the hunk containing the deleted line
@@ -678,6 +681,10 @@ export async function handleTraceLineHistory(
       fromCommit: commitInfo.commit,
       toCommit: 'HEAD',
       filePath: targetRelPath,
+      // Follow a mid-sequence file rename so a line whose file was moved still
+      // resolves (the trace + follow-through loop continue under the new path)
+      // instead of dead-ending where the original path disappears. (SML-1568 item 3)
+      trackRenames: true,
     });
 
     if (patches.length === 0) {
@@ -731,8 +738,8 @@ export async function handleTraceLineHistory(
       // is the patch index where the deletion occurred; `priorLine0Based` is the
       // 0-based line just before deletion (undefined when the deletion is the first
       // trace entry of its slice). Kept byte-identical to the pre-SML-1468 result
-      // for the no-hop case (existing tests depend on it), with `renameChain` added
-      // only when ≥1 hop was reconstructed.
+      // for the no-hop case (existing tests depend on it), with `chain` (the same
+      // field the renamed_chain result uses) added only when ≥1 hop was reconstructed.
       const buildDeletedResult = (
         deletedCommit: string,
         deletedContent: string | null,
@@ -752,7 +759,7 @@ export async function handleTraceLineHistory(
           lastSeenContent: deletedContent ?? null,
           deletedHunk,
         };
-        if (chain.length > 0) inner.renameChain = chain;
+        if (chain.length > 0) inner.chain = chain;
         return {
           success: true,
           bookmarkId: bookmark.id,
@@ -777,8 +784,10 @@ export async function handleTraceLineHistory(
 
         // Resolved (not deleted) within this slice.
         if (!last || last.status !== 'deleted') {
-          if (chain.length === 0) break; // no hops — fall through to existing logic
-          // ≥1 hop and the line survived to HEAD. Resolve at the last known line.
+          // Reached only with ≥1 reconstructed hop: guard 0 traces the full patch
+          // set and so always dead-ends at `deleted` (matching the outer trace that
+          // brought us into this branch); every later iteration pushes a hop before
+          // continuing. The line survived to HEAD — resolve at the last known line.
           const finalLine1Based = last && last.lineNumber !== undefined ? last.lineNumber : currentLine;
           const finalLine0Based = finalLine1Based - 1;
           const finalContent = currentFileLines[finalLine0Based] ?? (last?.content ?? lastContent) ?? null;
@@ -818,7 +827,11 @@ export async function handleTraceLineHistory(
         lastContent = deletedTrace.content ?? lastContent;
 
         const deletedPatch = patches[globalDeletedIdx];
-        const fileDiff = deletedPatch?.diff.find(d => d.oldPath === targetRelPath || d.newPath === targetRelPath);
+        // Under trackRenames each patch carries exactly our file's diff; after a
+        // file rename its path differs from targetRelPath, so fall back to the sole
+        // entry rather than keying off the original path. (SML-1568 item 3)
+        const fileDiff = deletedPatch?.diff.find(d => d.oldPath === targetRelPath || d.newPath === targetRelPath)
+          ?? deletedPatch?.diff[0];
         const replacement = fileDiff
           ? findSamePositionReplacement(fileDiff, deletedLine1Based, language)
           : null;
@@ -868,6 +881,29 @@ export async function handleTraceLineHistory(
             },
           };
         }
+      }
+
+      // Exhausted MAX_HOPS while still finding same-position replacements. Rather
+      // than discard the reconstructed hops and fall through to `trace_invalid`,
+      // return the partial chain resolved at the last known line. (SML-1568 item 2)
+      if (chain.length > 0) {
+        const finalLine0Based = currentLine - 1;
+        const finalContent = currentFileLines[finalLine0Based] ?? lastContent ?? null;
+        return {
+          success: true,
+          bookmarkId: bookmark.id,
+          originalLine: lastUpdatedLine,
+          fromCommit: commitInfo.commit,
+          baselineSource: commitInfo.baselineSource,
+          result: {
+            status: 'renamed_chain',
+            chain,
+            finalLine: finalLine0Based,
+            finalContent,
+            confidence: renameChainConfidence(chain.length, minHopSimilarity),
+            commitCount: patches.length,
+          },
+        };
       }
     }
 
@@ -1148,7 +1184,7 @@ When file content changes, the anchor may no longer resolve — this is a "broke
 - \`anchor_getRepairPackage\` — Get full context for broken anchors (anchor data, metadata, surrounding content)
 - \`anchor_repair\` — Apply a fix by rebuilding the anchor at a new line position
 - \`anchor_getHistoricalContext\` — See what the code looked like when the anchor was last valid
-- \`anchor_getFileDiff\` — Diagnose what changed (returns structured diagnosis: shifted/exact_match/fuzzy_match/no_match)
+- \`anchor_getFileDiff\` — Diagnose what changed (returns structured diagnosis: shifted/exact_match/fuzzy_match/signature_changed/inlined/merged/no_match)
 - \`anchor_searchMovedCode\` — Find code that moved to another file
 - \`anchor_traceLineHistory\` — Mechanically trace a line through commit-by-commit patches
 - \`anchor_readFileAtRevision\` — Read a section of a file at a specific commit
@@ -1200,6 +1236,8 @@ You now have both old and current surrounding content. If the bookmark's label d
    - \`exact_match\`: Content found at a new location. Verify and repair.
    - \`fuzzy_match\`: Similar content found. Review candidates and pick the best match.
    - \`signature_changed\`: The bookmarked function/method declaration was refactored in place (params→options object, generics added/removed, async conversion, return-type or visibility change) but the same-named function still exists. \`detail.newLine\` is the new declaration line and \`detail.confidence\` (high|medium) reflects body-continuity strength — verify the body is the same function and repair there.
+   - \`inlined\`: The bookmarked construct (setter/getter/method/utility function) was deleted and its body substituted at one or more call sites in the same commit. \`detail.inlinedAt.line\` is the best call site, \`detail.inlinedAt.confidence\` (medium|low) reflects how many sites matched, and \`detail.candidates\` lists them all — verify the body matches and repair at the call site (a cross-construct move may warrant a new bookmark).
+   - \`merged\`: The bookmarked construct's body was merged into another method/function in the same commit. \`detail.mergedInto.line\` is the surviving method's declaration, \`detail.mergedInto.symbol\` its name, \`detail.mergedInto.confidence\` (medium|low) the strength, and \`detail.candidates\` lists every method the body landed in — verify and repair at the merged method.
    - \`no_match\`: Full diff provided. Read it to understand what happened.
 
 A \`shifted\` diagnosis is already high confidence — label adds nothing. For \`exact_match\` with multiple hits or \`fuzzy_match\`, the bookmark's label and note can disambiguate between candidates. A \`signature_changed\` hit with high confidence is a strong repair target; at medium confidence, confirm the body matches before repairing.
@@ -1218,6 +1256,7 @@ If trace returns \`status: "deleted"\`, the line was removed from this file at a
    - If the hunk shows the code was removed and replaced with a different API call or import, the code was refactored away — this is strong evidence for declaring non-repairable.
    - If the hunk shows code removed without clear replacement, consider whether Step 4 already found a cross-file match.
    - If Step 4 returned matches with low contextScore and the hunk shows intentional removal, prefer declaring non-repairable over repairing to a coincidental match.
+   - If a \`chain\` array is also present, the line was renamed one or more times (each hop has \`from\`/\`to\`/\`commit\`) before it was finally deleted. The deletion is genuine, but the chain shows where the line lived in between — useful context when deciding whether the concept truly went away.
 
 When evaluating candidates from cross-file search or trace results, use your understanding of code structure as supplemental context for assessing whether a candidate makes sense.
 
