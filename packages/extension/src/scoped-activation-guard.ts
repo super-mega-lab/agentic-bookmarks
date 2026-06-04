@@ -32,7 +32,15 @@ export function createScopedActivationGuard(
       await options.run();
       done = true;
     } catch (err) {
-      options.onError(err);
+      // onError is a caller-supplied callback (typically logging + a UI toast). If it
+      // throws, the returned promise must still resolve — callers fire via `void trigger()`
+      // and a rejection here would leak as an unhandled rejection, breaking the
+      // documented never-rejects contract (SML-1569).
+      try {
+        options.onError(err);
+      } catch {
+        // Swallow: onError failing must not propagate out of the trigger.
+      }
     } finally {
       inFlight = false;
     }

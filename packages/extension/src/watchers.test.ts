@@ -473,6 +473,60 @@ describe('watchers — per-folder manager set (SML-1540)', () => {
     expect(set.roots()).toEqual([]);
   });
 
+  it('sync() after dispose() creates no new watchers (SML-1569)', async () => {
+    // A queued onDidChangeWorkspaceFolders → watcherSet.sync() can fire after the
+    // set was disposed on deactivate. Without a disposed guard it re-creates (and
+    // leaks) FileSystemWatchers, since the roots are still present (SML-1540 residual).
+    const roots = ['/a'];
+    const set = createWatcherManagerSet({
+      getRoots: () => roots,
+      makeDeps: makeSetDeps,
+      getLastStickyRefreshAt: () => -100000,
+    });
+
+    await set.sync();
+    expect(createdWatchers.length).toBe(4);
+
+    set.dispose();
+    expect(createdWatchers.every((w) => w.disposed)).toBe(true);
+
+    await set.sync();
+    // No new watchers created, set stays empty.
+    expect(createdWatchers.length).toBe(4);
+    expect(set.roots()).toEqual([]);
+  });
+
+  it('dispose() during an in-flight sync() creates no orphaned watchers (SML-1569)', async () => {
+    // The harder window: a doSync already PAST the chain guard, suspended awaiting
+    // makeDeps, when dispose() fires. The `disposed` re-check after makeDeps must
+    // bail before any watcher is created, so nothing leaks.
+    let releaseMakeDeps!: () => void;
+    const gate = new Promise<void>((r) => { releaseMakeDeps = r; });
+    let first = true;
+    const set = createWatcherManagerSet({
+      getRoots: () => ['/a'],
+      makeDeps: async (root) => {
+        if (first) { first = false; await gate; } // suspend the in-flight doSync
+        const deps = makeDeps();
+        deps.workspaceRoot = root;
+        return deps;
+      },
+      getLastStickyRefreshAt: () => -100000,
+    });
+
+    const syncing = set.sync();
+    // Let doSync start and suspend inside makeDeps (past the chain's disposed guard).
+    await new Promise((r) => setTimeout(r, 0));
+    // Dispose mid-flight, then let makeDeps resolve so doSync would build the manager.
+    set.dispose();
+    releaseMakeDeps();
+    await syncing;
+
+    // The losing-race sync created nothing, and the disposed set has no live roots.
+    expect(createdWatchers.length).toBe(0);
+    expect(set.roots()).toEqual([]);
+  });
+
   it('sync() isolates a failing folder — others are still set up, the set does not reject, and the failure is logged', async () => {
     // One folder's makeDeps throws; the rest must still be set up (SML-1540).
     const roots = ['/bad', '/good'];

@@ -179,7 +179,10 @@ export async function activate(context: vscode.ExtensionContext) {
     run: () => activateForWorkspace(context, log, outputChannel, welcomeProvider, agentsProvider),
     onError: (err) => {
       const msg = err instanceof Error ? err.message : String(err);
-      log.error(`Workspace-scoped activation failed: ${msg}`);
+      // Log the full stack (not just the message) so a half-wired activation is
+      // diagnosable from the output channel (SML-1569).
+      const detail = err instanceof Error && err.stack ? err.stack : msg;
+      log.error(`Workspace-scoped activation failed: ${detail}`);
       void vscode.window.showErrorMessage(
         `Agentic Bookmarks: workspace activation failed — ${msg}. Open or change a workspace folder to retry, or reload the window.`,
       );

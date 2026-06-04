@@ -188,3 +188,82 @@ describe('sticky — per-event snapshot for buffered edits (SML-1539)', () => {
     expect(editWrites.length).toBe(0);
   });
 });
+
+describe('sticky — multi-change-per-event (SML-1539 residual)', () => {
+  beforeEach(() => {
+    hoisted.handlers.length = 0;
+    editWrites = [];
+    vi.clearAllMocks();
+  });
+
+  it('refreshes each anchor from its OWN change when one event carries 2 in-place edits (multi-cursor)', async () => {
+    // A single source event carrying 2 content changes (multi-cursor edit, or a
+    // find/replace-all of equal-length text → delta 0 per change). Each anchored
+    // line must pick up its OWN line's new content, with no cross-contamination
+    // between the two changes processed under the shared per-event snapshot.
+    // (The line-count-shifting intra-event case — where applyEditDelta advances
+    // resolvedLine between changes while the snapshot stays fixed — remains a known
+    // residual limitation and is intentionally not asserted here.)
+    const uri = 'file:///w/mc.ts';
+    bookmarksFile = {
+      version: 2,
+      bookmarks: [
+        { id: 'b1', target: { uri }, anchor: { kind: 'smart', lineCache: 'OLD5', lastUpdatedLine: 5 } },
+        { id: 'b2', target: { uri }, anchor: { kind: 'smart', lineCache: 'OLD10', lastUpdatedLine: 10 } },
+      ],
+    };
+    initStateForFile(uri, [
+      { anchorId: 'b1', resolved: true, line: 5, score: 1 } as any,
+      { anchorId: 'b2', resolved: true, line: 10, score: 1 } as any,
+    ]);
+
+    registerStickyHandler(makeDeps());
+
+    // Post-event snapshot: both edits already applied (onDidChangeTextDocument fires
+    // after the document is updated). Lines 5 and 10 changed in place (delta 0).
+    const snap = [...baseLines];
+    snap[5] = 'NEW5';
+    snap[10] = 'NEW10';
+    // VS Code reports a multi-edit event's changes in descending position order
+    // (bottom-most first); their ranges are all in the pre-event coordinate space.
+    fireEvent(uri, snap.join('\n'), [
+      { range: { start: { line: 10, character: 0 }, end: { line: 10, character: 3 } }, text: 'NEW10' },
+      { range: { start: { line: 5, character: 0 }, end: { line: 5, character: 2 } }, text: 'NEW5' },
+    ]);
+
+    await settle();
+
+    expect(editWrites.length).toBeGreaterThan(0);
+    const persisted = editWrites[editWrites.length - 1];
+    expect(persisted.find((b: any) => b.id === 'b1').anchor.lineCache).toBe('NEW5');
+    expect(persisted.find((b: any) => b.id === 'b2').anchor.lineCache).toBe('NEW10');
+  });
+
+  it('does not mutate an anchor when none of an event\'s multiple changes are within its radius', async () => {
+    // Multi-change event whose changes all land far from the anchor (±radius = 1) →
+    // the line_not_touched guard must hold for every change in the event, so nothing
+    // is written.
+    const uri = 'file:///w/mc2.ts';
+    bookmarksFile = {
+      version: 2,
+      bookmarks: [
+        { id: 'b1', target: { uri }, anchor: { kind: 'smart', lineCache: 'OLD', lastUpdatedLine: 10 } },
+      ],
+    };
+    initStateForFile(uri, [{ anchorId: 'b1', resolved: true, line: 10, score: 1 } as any]);
+
+    registerStickyHandler(makeDeps());
+
+    const snap = [...baseLines];
+    snap[2] = 'X';
+    snap[3] = 'Y';
+    fireEvent(uri, snap.join('\n'), [
+      { range: { start: { line: 3, character: 0 }, end: { line: 3, character: 2 } }, text: 'Y' },
+      { range: { start: { line: 2, character: 0 }, end: { line: 2, character: 2 } }, text: 'X' },
+    ]);
+
+    await settle();
+
+    expect(editWrites.length).toBe(0);
+  });
+});
