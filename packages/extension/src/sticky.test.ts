@@ -2,7 +2,7 @@
 // ABOUTME: each buffered source event's changes must read against THAT event's own document snapshot,
 // ABOUTME: not the final document text, so the correct lineCache is persisted for multi-edit bursts.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mutable mock state, hoisted so the vi.mock factories below can read it safely.
 const hoisted = vi.hoisted(() => ({
@@ -28,33 +28,37 @@ vi.mock('vscode', () => ({
   },
 }));
 
-vi.mock('@agentic-bookmarks/core', () => ({
-  readRegistry: vi.fn(async () => ({
-    settings: {},
-    files: [{ path: 'shared/bookmarks.json', enabled: true }],
-  })),
-  getBookmarksDataRoot: vi.fn(() => '/w/.bookmarks'),
-  pathsForDataFile: vi.fn(() => ({
-    data: '/w/.bookmarks/shared/bookmarks.json',
-    pulse: '/w/.bookmarks/local/pulse/shared.pulse',
-  })),
-  readFileV2: vi.fn(async () => bookmarksFile),
-  editFileV2: vi.fn(async (_p: any, fn: any) => {
-    fn(bookmarksFile);
-    editWrites.push(JSON.parse(JSON.stringify(bookmarksFile.bookmarks)));
-  }),
-  workspaceRelativeToUri: vi.fn((p: string) => p),
-  resolveAnchors: vi.fn(() => []),
-  updateAnchorForEdit: vi.fn((anchor: any) => anchor),
-  updateAnchorLineCache: vi.fn((anchor: any, line: number, lineCache: string) => ({
-    ...anchor,
-    lineCache,
-    lastUpdatedLine: line,
-  })),
-  dispatchByAnchorType: vi.fn((anchor: any, handlers: any) => handlers[anchor.kind]?.(anchor)),
-  // The REAL ./anchorState imports classifyAnchorStatus from core; the mock must provide it.
-  classifyAnchorStatus: vi.fn(() => 'valid'),
-}));
+vi.mock('@agentic-bookmarks/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@agentic-bookmarks/core')>();
+  return {
+    ...actual,
+    // Fake ONLY the registry / file-I/O boundary — these would otherwise hit the real
+    // filesystem (the legitimate ceiling-4 boundary). Everything else runs for real:
+    // updateAnchorLineCache, dispatchByAnchorType, and classifyAnchorStatus come straight
+    // from core, so the per-event snapshot logic and the anchor-update contract (including
+    // the nonce increment) are exercised end-to-end. Previously updateAnchorLineCache was
+    // hand-mocked and silently dropped the nonce bump — a mock defining the contract it was
+    // supposed to verify. Using importOriginal instead of an inline copy means the test
+    // tracks core's real behavior and can't drift from it.
+    readRegistry: vi.fn(async () => ({
+      settings: {},
+      files: [{ path: 'shared/bookmarks.json', enabled: true }],
+    })),
+    getBookmarksDataRoot: vi.fn(() => '/w/.bookmarks'),
+    pathsForDataFile: vi.fn(() => ({
+      data: '/w/.bookmarks/shared/bookmarks.json',
+      pulse: '/w/.bookmarks/local/pulse/shared.pulse',
+    })),
+    readFileV2: vi.fn(async () => bookmarksFile),
+    editFileV2: vi.fn(async (_p: any, fn: any) => {
+      fn(bookmarksFile);
+      editWrites.push(JSON.parse(JSON.stringify(bookmarksFile.bookmarks)));
+    }),
+    workspaceRelativeToUri: vi.fn((p: string) => p),
+    resolveAnchors: vi.fn(() => []),
+    updateAnchorForEdit: vi.fn((anchor: any) => anchor),
+  };
+});
 
 import { registerStickyHandler, type StickyDeps } from './sticky';
 import { initStateForFile } from './anchorState';
@@ -83,7 +87,9 @@ function fireEvent(uri: string, snapshotText: string, contentChanges: any[]): vo
   });
 }
 
-const settle = () => new Promise((r) => setTimeout(r, 220));
+// Drive the 150ms debounce deterministically under fake timers (advanceTimersByTimeAsync
+// flushes the async readRegistry/readFileV2/editFileV2 microtasks between timer ticks).
+const settle = () => vi.advanceTimersByTimeAsync(200);
 
 // Build a 20-line document body (L0..L19) so a few touched lines stay within the
 // 'micro' lane (touchedRatio <= 0.2, maxSingleChangeRatio <= 0.3) — small files
@@ -92,9 +98,14 @@ const baseLines = Array.from({ length: 20 }, (_, i) => `L${i}`);
 
 describe('sticky — per-event snapshot for buffered edits (SML-1539)', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     hoisted.handlers.length = 0;
     editWrites = [];
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('persists the correct lineCache when 2 edits land in one debounce window', async () => {
@@ -129,7 +140,12 @@ describe('sticky — per-event snapshot for buffered edits (SML-1539)', () => {
     // buggy code persists 'L4' (final snapshot line 5); fixed code persists 'NEW5' (event-1 snapshot line 5)
     expect(editWrites.length).toBeGreaterThan(0);
     const persisted = editWrites[editWrites.length - 1].find((b: any) => b.id === 'b1');
+    // The REAL updateAnchorLineCache produced this anchor: the event-1 snapshot's line 5,
+    // its line number, and a bumped nonce ((undefined ?? 0) + 1). The old hand mock dropped
+    // the nonce — asserting it here proves the real core function ran.
     expect(persisted.anchor.lineCache).toBe('NEW5');
+    expect(persisted.anchor.lastUpdatedLine).toBe(5);
+    expect(persisted.anchor.nonce).toBe(1);
   });
 
   it('refreshes lineCache on a single in-place edit', async () => {
@@ -156,6 +172,9 @@ describe('sticky — per-event snapshot for buffered edits (SML-1539)', () => {
     expect(editWrites.length).toBeGreaterThan(0);
     const persisted = editWrites[editWrites.length - 1].find((b: any) => b.id === 'b1');
     expect(persisted.anchor.lineCache).toBe('GREEN');
+    // The single in-place edit also runs the real update: line number preserved, nonce bumped.
+    expect(persisted.anchor.lastUpdatedLine).toBe(5);
+    expect(persisted.anchor.nonce).toBe(1);
   });
 
   it('does not mutate an anchor whose line was not touched', async () => {
@@ -191,9 +210,14 @@ describe('sticky — per-event snapshot for buffered edits (SML-1539)', () => {
 
 describe('sticky — multi-change-per-event (SML-1539 residual)', () => {
   beforeEach(() => {
+    vi.useFakeTimers();
     hoisted.handlers.length = 0;
     editWrites = [];
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('refreshes each anchor from its OWN change when one event carries 2 in-place edits (multi-cursor)', async () => {
