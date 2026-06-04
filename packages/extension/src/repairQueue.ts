@@ -39,7 +39,7 @@ export interface RepairQueueDeps {
     options?: { canUseGit?: boolean; bookmarksDataFilePath?: string; enableFlexContext?: boolean; flexWindow?: number },
   ) => Promise<AutoRepairResult>;
   /** Apply a repair: create new anchor at candidate line and write to disk */
-  applyRepair: (bookmarkId: string, candidateLine: number) => Promise<boolean>;
+  applyRepair: (bookmarkId: string, candidateLine: number, fileLines?: string[]) => Promise<boolean>;
   /** Update in-memory anchor state after repair */
   updateAnchorState: (docUri: string, bookmarkId: string, line: number, status?: 'valid' | 'warning' | 'broken') => void;
   /** Update deep-flex tracking state after a deep-flex check */
@@ -229,6 +229,7 @@ export class AnchorRepairQueue implements vscode.Disposable {
           const applied = await this.deps.applyRepair(
             anchor.bookmarkId,
             result.candidate.candidateLine,
+            fileLines,
           );
 
           if (applied) {
@@ -297,6 +298,7 @@ export class AnchorRepairQueue implements vscode.Disposable {
           const applied = await this.deps.applyRepair(
             anchor.bookmarkId,
             result.candidate.candidateLine,
+            fileLines,
           );
 
           if (applied) {
@@ -390,6 +392,7 @@ export class AnchorRepairQueue implements vscode.Disposable {
             const applied = await this.deps.applyRepair(
               anchor.bookmarkId,
               result.candidate.candidateLine,
+              fileLines,
             );
             if (applied) {
               this.deps.updateAnchorState(docUri, anchor.bookmarkId, result.candidate.candidateLine, 'valid');
