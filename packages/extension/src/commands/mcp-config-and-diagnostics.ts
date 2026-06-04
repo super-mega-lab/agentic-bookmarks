@@ -67,7 +67,7 @@ import type { BookmarksProvider } from '../treeProvider';
 import type { SettingsProvider } from '../settingsProvider';
 import type { BookmarkCodeLensProvider } from '../bookmarkCodeLensProvider';
 import { buildAgentRepairPrompt, getConfiguredDataRoot } from '../workspace-helpers';
-import { buildClaudeMcpSetupCommand, buildClaudeMcpRemoveCommand, applyGitignoreSetup, applyCursorInstall } from './mcp-setup-helpers';
+import { buildClaudeMcpSetupCommand, buildClaudeMcpRemoveCommand, applyGitignoreSetup, applyCursorInstall, applyCodexInstall } from './mcp-setup-helpers';
 import {
   recordMcpInstall,
   getOutdatedMcpInstalls,
@@ -289,13 +289,9 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     try { await fs.access(serverAbs); }
     catch { vscode.window.showWarningMessage('Agentic Bookmarks: server bundle not found. Run "pnpm build" to generate server-bundle/index.js.'); }
 
-    let text = '';
-    try { text = await fs.readFile(configPath, 'utf8'); } catch { text = ''; }
-
     const argsPath = serverAbs.replace(/\\/g, '/');
-    const blockHeader = '[mcp_servers."agentic_bookmarks"]';
     const newBlock = [
-      blockHeader,
+      '[mcp_servers."agentic_bookmarks"]',
       'command = "node"',
       'args = [',
       `  "${argsPath}",`,
@@ -305,22 +301,10 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
       '',
     ].join('\n');
 
-    // Strip legacy server blocks if present
-    for (const legacyKey of ['mcp.bookmarks', 'mcp_bookmarks']) {
-      const escapedKey = legacyKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const legacyRe = new RegExp(`^\\[mcp_servers\\."${escapedKey}"\\][\\s\\S]*?(?=^\\[|(?![\\s\\S]))`, 'm');
-      text = text.replace(legacyRe, '');
-    }
-
-    const re = /^\[mcp_servers\.\"agentic_bookmarks\"\][\s\S]*?(?=^\[|(?![\s\S]))/m;
-    if (re.test(text)) {
-      text = text.replace(re, newBlock);
-    } else {
-      if (text.length && !text.endsWith('\n')) text += '\n';
-      text += (text.length ? '\n' : '') + newBlock;
-    }
-
-    await fs.writeFile(configPath, text);
+    // Upsert via the guarded helper: ENOENT/ENOTDIR → first-install (empty base);
+    // any other read error is rethrown so a permission/IO failure never clobbers the
+    // file. Backs up the existing file and writes atomically. See SML-1578.
+    await applyCodexInstall({ configPath, serverBlock: newBlock, fs: nodeFsDeps() });
     vscode.window.showInformationMessage(`Codex MCP config updated at ${configPath}`);
     await recordMcpInstall(context, 'codex', scope, currentVersion);
     await applyGitignoreSetup({ workspaceRoot, workspaceState: context.workspaceState, log });
