@@ -15,6 +15,61 @@ import {
   readRegistry,
 } from '@agentic-bookmarks/core';
 
+describe('handleBookmarkAdd — nested multi-root workspace routing (SML-1575)', () => {
+  let outerRoot: string;
+  let innerRoot: string;
+  let ctx: any;
+  let srcUri: string;
+
+  beforeEach(async () => {
+    // Outer workspace with an inner workspace nested beneath it.
+    outerRoot = path.join(tmpdir(), `bm-nested-outer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    innerRoot = path.join(outerRoot, 'inner');
+    await fs.mkdir(innerRoot, { recursive: true });
+
+    // Initialize registries on disk.
+    await readRegistry(outerRoot);
+    await readRegistry(innerRoot);
+
+    // A real source file inside the INNER workspace.
+    const srcAbs = path.join(innerRoot, 'src', 'bar.ts');
+    await fs.mkdir(path.dirname(srcAbs), { recursive: true });
+    await fs.writeFile(srcAbs, ['export function bar() {', '  return 2;', '}', ''].join('\n'), 'utf8');
+    srcUri = pathToFileURL(srcAbs).href;
+
+    // Outer listed FIRST — this is the ordering that triggers the first-match bug.
+    ctx = {
+      workspaceRoot: outerRoot,
+      workspaces: [createWorkspaceInfo(outerRoot), createWorkspaceInfo(innerRoot)],
+    };
+  });
+
+  afterEach(async () => {
+    try { await fs.rm(outerRoot, { recursive: true, force: true }); } catch {}
+  });
+
+  it('routes bookmark_add to the deepest (nested) workspace when outer is listed first', async () => {
+    const res = await handleBookmarkAdd(ctx, {
+      uri: srcUri,
+      groupName: 'InnerGroup',
+      anchor: { kind: 'point', line: 1 },
+      label: 'bar decl',
+      anchorType: 'point',
+    });
+    const parsed = JSON.parse(res.content[0].text);
+
+    expect(parsed.success).toBe(true);
+
+    // The group + bookmark must land in the INNER workspace's local file, not the outer's.
+    const innerReg = await readRegistry(innerRoot);
+    expect(innerReg.nameIndex['InnerGroup']).toBeTruthy();
+
+    // The outer workspace registry must NOT have been mutated.
+    const outerReg = await readRegistry(outerRoot);
+    expect(outerReg.nameIndex['InnerGroup']).toBeUndefined();
+  });
+});
+
 describe('handleBookmarkAdd — registered-file destination hint (SML-1392)', () => {
   let root: string;
   let ctx: any;

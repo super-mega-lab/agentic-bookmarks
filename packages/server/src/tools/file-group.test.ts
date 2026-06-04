@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os';
 import {
   handleFileCreate,
   handleFileRegister,
+  handleGroupCreate,
   handleGroupDelete,
   handleGroupRename,
   handleGroupMoveFile,
@@ -520,5 +521,81 @@ describe('workspace path containment (SML-1546)', () => {
     for (const dir of [primaryRoot, secondaryRoot]) {
       await fs.rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('nested multi-root workspace routing (SML-1575)', () => {
+  let outerRoot: string;
+  let innerRoot: string;
+
+  function mkRoot(label: string): string {
+    return path.join(
+      tmpdir(),
+      `file-group-nested-${label}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    );
+  }
+
+  beforeEach(async () => {
+    outerRoot = mkRoot('outer');
+    innerRoot = path.join(outerRoot, 'inner');
+    await fs.mkdir(innerRoot, { recursive: true });
+    await readRegistry(outerRoot);
+    await readRegistry(innerRoot);
+  });
+
+  afterEach(async () => {
+    try { await fs.rm(outerRoot, { recursive: true, force: true }); } catch {}
+  });
+
+  it('handleGroupCreate routes group into the nested workspace when outer is listed first', async () => {
+    // A bookmarks file registered in the INNER workspace.
+    const innerFile = path.join(innerRoot, '.bookmarks', 'shared', 'inner.json');
+    await fs.mkdir(path.dirname(innerFile), { recursive: true });
+    await fs.writeFile(innerFile, JSON.stringify(emptyFileV2(), null, 2), 'utf8');
+    await addFileToRegistry(innerRoot, innerFile);
+
+    // Outer listed FIRST.
+    const ctx: any = {
+      workspaceRoot: outerRoot,
+      workspaces: [createWorkspaceInfo(outerRoot), createWorkspaceInfo(innerRoot)],
+    };
+
+    const result = await handleGroupCreate(ctx, { filePath: innerFile, name: 'NestedGroup' });
+    const parsed = JSON.parse(result.content[0].text);
+    expect(parsed.success).toBe(true);
+
+    // Group must be indexed in the INNER registry, not the outer's.
+    const innerReg = await readRegistry(innerRoot);
+    expect(innerReg.nameIndex['NestedGroup']).toBeTruthy();
+
+    const outerReg = await readRegistry(outerRoot);
+    expect(outerReg.nameIndex['NestedGroup']).toBeUndefined();
+  });
+
+  it('handleGroupDelete updates the nested workspace registry, not the ancestor\'s', async () => {
+    const innerFile = path.join(innerRoot, '.bookmarks', 'shared', 'del-inner.json');
+    await fs.mkdir(path.dirname(innerFile), { recursive: true });
+    await fs.writeFile(innerFile, JSON.stringify(emptyFileV2(), null, 2), 'utf8');
+    await addFileToRegistry(innerRoot, innerFile);
+    const groupId = await createGroupInFile(innerRoot, innerFile, 'ToDelete');
+
+    const before = await readRegistry(innerRoot);
+    expect(before.nameIndex['ToDelete']).toBeTruthy();
+
+    // Outer listed FIRST.
+    const ctx: any = {
+      workspaceRoot: outerRoot,
+      workspaces: [createWorkspaceInfo(outerRoot), createWorkspaceInfo(innerRoot)],
+    };
+
+    await handleGroupDelete(ctx, { filePath: innerFile, groupId });
+
+    // INNER registry must no longer contain 'ToDelete'.
+    const innerReg = await readRegistry(innerRoot);
+    expect(innerReg.nameIndex['ToDelete']).toBeUndefined();
+
+    // OUTER registry was never involved.
+    const outerReg = await readRegistry(outerRoot);
+    expect(outerReg.nameIndex['ToDelete']).toBeUndefined();
   });
 });
