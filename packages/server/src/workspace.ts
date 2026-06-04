@@ -267,7 +267,7 @@ export async function getOrCreateLocalFile(
 
   // Look for existing local file
   const localFileEntry = registry.files.find(f =>
-    f.enabled !== false && f.path.includes('/local/')
+    f.enabled !== false && isLocalPath(f.path)
   );
 
   if (localFileEntry) {
