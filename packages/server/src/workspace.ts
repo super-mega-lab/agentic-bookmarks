@@ -71,9 +71,39 @@ export async function findWorkspaceRootUpward(startDir: string): Promise<string 
 }
 
 /**
+ * Resolve the workspace root from env vars for standalone (non-extension) server launches.
+ *
+ * Handles two contracts set by the extension's config writers:
+ * - `BOOKMARKS_UPWARD_DISCOVERY=true`: walk up from cwd to find the registry sentinel
+ * - `BOOKMARKS_DIR=…/.bookmarks/local`: strip the 'local' sub-dir to get the workspace root
+ *
+ * @param env  The process environment (injectable for testing).
+ * @param cwd  The current working directory (injectable for testing; defaults to process.cwd()).
+ */
+export async function resolveBootstrapRoot(
+  env: Record<string, string | undefined>,
+  cwd: string = process.cwd()
+): Promise<string> {
+  if (env.BOOKMARKS_UPWARD_DISCOVERY) {
+    return (await findWorkspaceRootUpward(cwd)) ?? cwd;
+  }
+  const dir = env.BOOKMARKS_DIR;
+  if (dir) {
+    const p = path.resolve(dir);
+    // Extension sets BOOKMARKS_DIR to getLocalDir(workspaceRoot) = <root>/.bookmarks/local.
+    // Strip the 'local' segment to recover the workspace root.
+    if (path.basename(p) === 'local') {
+      return path.dirname(path.dirname(p));
+    }
+    return p;
+  }
+  return cwd;
+}
+
+/**
  * Parse workspace configuration from initialization.
  */
-export function parseWorkspaceConfig(meta: any): WorkspaceInfo[] {
+export function parseWorkspaceConfig(meta: any, standaloneRoot?: string): WorkspaceInfo[] {
   // New format: array of workspace configs
   if (meta?.workspaces && Array.isArray(meta.workspaces) && meta.workspaces.length > 0) {
     return meta.workspaces.map((ws: any) => createWorkspaceInfo(
@@ -118,8 +148,10 @@ export function parseWorkspaceConfig(meta: any): WorkspaceInfo[] {
     }
   }
 
-  // Fallback: cwd
-  const cwd = process.env.BOOKMARKS_DIR || process.cwd();
+  // Fallback: use the pre-resolved standalone root (from resolveBootstrapRoot) when provided.
+  // The raw BOOKMARKS_DIR is intentionally not used here — it points to the 'local' sub-dir,
+  // not the workspace root, so callers must resolve it first via resolveBootstrapRoot.
+  const cwd = standaloneRoot ?? process.cwd();
   return [createWorkspaceInfo(cwd)];
 }
 
