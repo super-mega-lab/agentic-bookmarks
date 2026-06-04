@@ -898,8 +898,8 @@ async function activateForWorkspace(
       };
     },
     findRepairCandidate: autoRepairCandidate.findRepairCandidate as any,
-    applyRepair: (bookmarkId: string, candidateLine: number) =>
-      applyAutoRepairCandidate(bookmarkId, candidateLine, workspaceRoot, getLineCacheLength),
+    applyRepair: (bookmarkId: string, candidateLine: number, fileLines?: string[]) =>
+      applyAutoRepairCandidate(bookmarkId, candidateLine, workspaceRoot, getLineCacheLength, fileLines),
     updateAnchorState,
     updateDeepFlexState,
     refreshUI: () => { void refreshBrokenIds().then(() => provider.refresh()); debouncedCacheSync(); },

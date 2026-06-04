@@ -120,6 +120,7 @@ export async function applyAutoRepairCandidate(
   candidateLine: number,
   workspaceRoot: string,
   getLineCacheLength: () => number,
+  fileLines?: string[],
 ): Promise<boolean> {
   try {
     const reg = await readRegistry(workspaceRoot);
@@ -131,20 +132,25 @@ export async function applyAutoRepairCandidate(
         const file = await readFileV2Paths(filePaths);
         const bookmark = file.bookmarks.find(b => b.id === bookmarkId);
         if (bookmark) {
-          // Read current file lines from target
-          const targetUri = bookmark.target.uri.split('#')[0];
-          let targetFsPath: string;
-          if (targetUri.startsWith('file://')) {
-            targetFsPath = vscode.Uri.parse(targetUri).fsPath;
+          let lines: string[];
+          if (fileLines) {
+            lines = fileLines;
           } else {
-            const absoluteUri = workspaceRelativeToUri(targetUri, workspaceRoot);
-            targetFsPath = vscode.Uri.parse(absoluteUri).fsPath;
+            // Read current file lines from target
+            const targetUri = bookmark.target.uri.split('#')[0];
+            let targetFsPath: string;
+            if (targetUri.startsWith('file://')) {
+              targetFsPath = vscode.Uri.parse(targetUri).fsPath;
+            } else {
+              const absoluteUri = workspaceRelativeToUri(targetUri, workspaceRoot);
+              targetFsPath = vscode.Uri.parse(absoluteUri).fsPath;
+            }
+            const fileContent = await fsp.readFile(targetFsPath, 'utf-8');
+            lines = fileContent.split('\n');
           }
-          const fileContent = await fsp.readFile(targetFsPath, 'utf-8');
-          const fileLines = fileContent.split('\n');
           const isLocal = resolveIsLocal(file, filePaths.data, workspaceRoot);
           const blankLinesUseSupport = vscode.workspace.getConfiguration('agenticBookmarks.anchors').get('blankLinesUseSupport', true);
-          const newAnchor = createAnchor('smart', fileLines, candidateLine, {
+          const newAnchor = createAnchor('smart', lines, candidateLine, {
             isLocal,
             blankLinesUseSupport,
             lineCacheLength: getLineCacheLength(),
@@ -277,6 +283,7 @@ export async function runAutoRepairForBookmark(
       result.candidate.candidateLine,
       workspaceRoot,
       getLineCacheLength,
+      fileLines,
     );
 
     if (!applied) {
