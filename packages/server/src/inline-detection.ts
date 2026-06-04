@@ -254,10 +254,16 @@ export function detectInlinedConstruct(
       const body = extractBody(hunk, i);
       if (!body) continue;
 
+      // Bound the body to THIS construct: stop at the first brace-only line (its
+      // closing brace), the same bound merged-detection uses. Without it, a sibling
+      // construct's deletion lines leak into bodyDeletionLines and could falsely tie
+      // an unrelated declaration to the anchor. (SML-1568)
       const bodyDeletionLines: string[] = [];
       for (let j = i + 1; j < hunk.lines.length; j++) {
-        if (hunk.lines[j].type !== 'deletion') break;
-        bodyDeletionLines.push(hunk.lines[j].content);
+        const bl = hunk.lines[j];
+        if (bl.type !== 'deletion') break;
+        if (isBraceOnly(bl.content.trim())) break;
+        bodyDeletionLines.push(bl.content);
       }
 
       if (!declTiedToAnchor(anchor, line.content, bodyDeletionLines, decl.symbol, hunk)) continue;

@@ -569,4 +569,140 @@ describe('handleTraceLineHistory — multi-hop renames', () => {
       expect(r.finalContent).toContain('loadUserProfile');
     });
   }, 30000);
+
+  it('rename-then-deletion returns deleted with a partial chain (SML-1568 item 1)', async () => {
+    // The bookmarked function is renamed in a grouped hunk (1 reconstructed hop),
+    // then genuinely deleted in a later commit. The result is `deleted`, but it
+    // carries the partial rename `chain` (unified field name — formerly renameChain)
+    // so the agent can see the line was renamed before it disappeared.
+    await withTempRepo(async (repo) => {
+      commitFile(repo, 'sample.ts', [
+        'function chainKeep() {',
+        '  return keep;',
+        '}',
+        'function chainAlpha() {',
+        '  let counter = 0;',
+        '  return counter;',
+        '}',
+      ], 'add chainAlpha');
+      // Grouped rename chainAlpha -> chainBeta (signature + body lines change together).
+      commitFile(repo, 'sample.ts', [
+        'function chainKeep() {',
+        '  return keep;',
+        '}',
+        'function chainBeta() {',
+        '  let counterValue = 0;',
+        '  return counterValue;',
+        '}',
+      ], 'rename chainAlpha to chainBeta');
+      // Genuine deletion of the (renamed) function — chainKeep stays.
+      commitFile(repo, 'sample.ts', [
+        'function chainKeep() {',
+        '  return keep;',
+        '}',
+      ], 'delete chainBeta');
+
+      const bookmark = makeBookmark({
+        lineCache: 'function chainAlpha() {',
+        lastUpdatedLine: 3,
+      });
+      const currentLines = (await fs.readFile(path.join(repo, 'sample.ts'), 'utf-8')).split('\n');
+      const dataFilePath = path.join(repo, '.vscode', 'bookmarks.json');
+      const result = await handleTraceLineHistory(bookmark, repo, 'sample.ts', currentLines, dataFilePath);
+
+      expect(result.success).toBe(true);
+      const r = result.result as any;
+      expect(r.status).toBe('deleted');
+      expect(typeof r.deletedAtCommit).toBe('string');
+      expect(r.deletedHunk).not.toBeNull();
+      // Unified field: the partial rename chain rides on the deleted result.
+      expect(Array.isArray(r.chain)).toBe(true);
+      expect(r.chain.length).toBe(1);
+      expect(r.chain[0].from).toContain('chainAlpha');
+      expect(r.chain[0].to).toContain('chainBeta');
+      // The legacy field name must be gone (unified on `chain`).
+      expect(r.renameChain).toBeUndefined();
+    });
+  }, 30000);
+
+  it('follows a mid-sequence file rename and resolves the line (SML-1568 item 3)', async () => {
+    // The file is renamed mid-history (alpha.ts -> beta.ts) and the bookmarked line
+    // survives. The trace must follow the rename and resolve at the new location
+    // rather than dead-ending at `deleted` when the old path disappears.
+    await withTempRepo(async (repo) => {
+      commitFile(repo, 'alpha.ts', [
+        'export function keep() {',
+        '  return 1;',
+        '}',
+        'export function target() {',
+        '  return special();',
+        '}',
+      ], 'add alpha.ts');
+      execSync('git mv alpha.ts beta.ts', { cwd: repo, stdio: 'pipe' });
+      execSync('git commit -m "rename alpha.ts to beta.ts"', { cwd: repo, stdio: 'pipe' });
+      commitFile(repo, 'beta.ts', [
+        'export function keep() {',
+        '  return 2;',
+        '}',
+        'export function target() {',
+        '  return special();',
+        '}',
+      ], 'tweak keep in beta.ts');
+
+      const bookmark = makeBookmark({ lineCache: '  return special();', lastUpdatedLine: 4 });
+      const currentLines = (await fs.readFile(path.join(repo, 'beta.ts'), 'utf-8')).split('\n');
+      // The bookmark still points at the ORIGINAL path; the trace must follow the rename.
+      const dataFilePath = path.join(repo, '.vscode', 'bookmarks.json');
+      const result = await handleTraceLineHistory(bookmark, repo, 'alpha.ts', currentLines, dataFilePath);
+
+      expect(result.success).toBe(true);
+      const r = result.result as any;
+      expect(r.status).not.toBe('deleted');
+      expect(r.status).not.toBe('trace_invalid');
+      expect(r.status).toBe('traced');
+      expect(r.newLine).toBe(4);
+    });
+  }, 30000);
+
+  it('follows a file rename then a grouped in-place rename (SML-1568 item 3)', async () => {
+    // After the file rename (alpha.ts -> beta.ts) the line is renamed in place via a
+    // grouped hunk in the NEW file. The follow-through loop must read the deletion
+    // patch's diff under the renamed path (findSamePositionReplacement no longer keys
+    // off the original path), so the rename hop is reconstructed instead of lost.
+    await withTempRepo(async (repo) => {
+      commitFile(repo, 'alpha.ts', [
+        'function keep() {',
+        '  return 1;',
+        '}',
+        'function renameMe() {',
+        '  let counter = 0;',
+        '  return counter;',
+        '}',
+      ], 'add alpha.ts');
+      execSync('git mv alpha.ts beta.ts', { cwd: repo, stdio: 'pipe' });
+      execSync('git commit -m "rename alpha.ts to beta.ts"', { cwd: repo, stdio: 'pipe' });
+      commitFile(repo, 'beta.ts', [
+        'function keep() {',
+        '  return 1;',
+        '}',
+        'function renameMeBeta() {',
+        '  let counterValue = 0;',
+        '  return counterValue;',
+        '}',
+      ], 'rename renameMe to renameMeBeta');
+
+      const bookmark = makeBookmark({ lineCache: 'function renameMe() {', lastUpdatedLine: 3 });
+      const currentLines = (await fs.readFile(path.join(repo, 'beta.ts'), 'utf-8')).split('\n');
+      const dataFilePath = path.join(repo, '.vscode', 'bookmarks.json');
+      const result = await handleTraceLineHistory(bookmark, repo, 'alpha.ts', currentLines, dataFilePath);
+
+      expect(result.success).toBe(true);
+      const r = result.result as any;
+      expect(r.status).toBe('renamed_chain');
+      expect(r.chain.length).toBe(1);
+      expect(r.chain[0].from).toContain('renameMe');
+      expect(r.chain[0].to).toContain('renameMeBeta');
+      expect(r.finalContent).toContain('renameMeBeta');
+    });
+  }, 30000);
 });

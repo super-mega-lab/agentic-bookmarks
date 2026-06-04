@@ -228,4 +228,20 @@ describe('detectInlinedConstruct', () => {
     );
     expect(result).toBeNull();
   });
+
+  it('ties a point anchor (no lineCache) to the deleted decl by position (SML-1568 item 5)', () => {
+    // A point anchor stores only a line number, no lineCache. declTiedToAnchor must
+    // fall back to position: lastUpdatedLine 159 -> 1-based old line 160, which sits
+    // inside the setter's deletion hunk (oldStart 158, oldCount 6), so the deleted
+    // declaration is tied and the inline is detected.
+    const result = detectInlinedConstruct(
+      { lineCache: undefined, lastUpdatedLine: 159 },
+      setterDiff,
+      [],
+    );
+    expect(result).not.toBeNull();
+    expect(result!.diagnosis).toBe('inlined');
+    expect(result!.detail.deletedSymbol).toBe('promptOutput');
+    expect(result!.detail.inlinedAt.line).toBe(196);
+  });
 });
