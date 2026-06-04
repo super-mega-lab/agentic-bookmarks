@@ -804,17 +804,17 @@ export function registerMcpConfigAndDiagnosticsCommands(deps: McpConfigAndDiagno
     // Re-run MCP setup for all previously installed agents that are outdated
     vscode.commands.registerCommand('agenticBookmarks.updateMcpRegistrations', async () => {
       const outdated = getOutdatedMcpInstalls(context, currentVersion);
+      const byAgent = new Map<McpAgent, AnyScope[]>();
       for (const entry of outdated) {
+        const scopes = byAgent.get(entry.agent) ?? [];
+        scopes.push(entry.record.scope as AnyScope);
+        byAgent.set(entry.agent, scopes);
+      }
+      for (const [agent, scopes] of byAgent) {
         try {
-          if (entry.agent === 'claude') {
-            await applyClaudeSetup(entry.record.scope as 'local' | 'user');
-          } else if (entry.agent === 'cursor') {
-            await applyCursorSetup(entry.record.scope as 'project' | 'global');
-          } else if (entry.agent === 'codex') {
-            await applyCodexSetup(entry.record.scope as 'project' | 'global');
-          }
+          await applyAgentSetupAll(agent, scopes);
         } catch (e) {
-          log.error(`[updateMcpRegistrations] Failed to update ${entry.agent}: ${e}`);
+          log.error(`[updateMcpRegistrations] Failed to update ${agent}: ${e}`);
         }
       }
     }),
