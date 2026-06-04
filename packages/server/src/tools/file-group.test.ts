@@ -317,6 +317,9 @@ describe('multi-workspace group ops', () => {
     expect(parsed.tagRemovals[0].pattern).toBe('@bookmark:test123');
     // Core resolves to 0-based line 2; the MCP wire convention is 1-based, so this must be 3.
     expect(parsed.tagRemovals[0].line).toBe(3);
+    // A tag removal requires the agent to delete the now-stale marker, so the move response
+    // must surface agentActionRequired even when there are no insertions (SML-1522).
+    expect(parsed.agentActionRequired).toBe(true);
   });
 
   it('handleGroupMoveFile rejects a cross-workspace move into a sibling registered workspace (SML-1559)', async () => {
