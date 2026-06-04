@@ -181,27 +181,6 @@ export async function handleGroupRename(ctx: ServerContext, args: Record<string,
   };
 }
 
-/**
- * Find the registered workspace that owns `uri`, preferring the MOST specific
- * (deepest-rooted) match. getWorkspaceForUri returns the first array match, which
- * for a file inside a workspace nested under another would resolve to the ancestor;
- * here we need the innermost owner so a move into a nested workspace is detected
- * rather than silently attributed to the ancestor. Relative URIs match no root
- * (consistent with findWorkspaceForUri) and return null.
- */
-function ownerWorkspace(uri: string, workspaces: WorkspaceInfo[]): WorkspaceInfo | null {
-  let best: WorkspaceInfo | null = null;
-  for (const ws of workspaces) {
-    if (
-      isWithinWorkspace(uri, ws.workspaceRoot) &&
-      (!best || ws.workspaceRoot.length > best.workspaceRoot.length)
-    ) {
-      best = ws;
-    }
-  }
-  return best;
-}
-
 export async function handleGroupMoveFile(ctx: ServerContext, args: Record<string, any>) {
   const { sourceFile, destFile, groupId } = args as { sourceFile: string; destFile: string; groupId: string };
   // moveGroupBetweenFiles is single-workspace by construction — one registry, one
@@ -210,8 +189,9 @@ export async function handleGroupMoveFile(ctx: ServerContext, args: Record<strin
   // sibling-workspace dest false-rejects as "outside the workspace", and a dest in a
   // workspace NESTED under the source root passes the source-root containment check
   // and corrupts the source registry's nameIndex (SML-1559).
-  const srcWs = ownerWorkspace(sourceFile, ctx.workspaces);
-  const dstWs = ownerWorkspace(destFile, ctx.workspaces);
+  // getWorkspaceForUri uses deepest-match so nested workspaces are attributed correctly (SML-1575).
+  const srcWs = getWorkspaceForUri(sourceFile, ctx.workspaces);
+  const dstWs = getWorkspaceForUri(destFile, ctx.workspaces);
   if (srcWs && dstWs && srcWs.workspaceRoot !== dstWs.workspaceRoot) {
     return { content: [{ type: 'text', text: `Error: cross-workspace group moves are not supported — source and destination must be in the same workspace` }] };
   }

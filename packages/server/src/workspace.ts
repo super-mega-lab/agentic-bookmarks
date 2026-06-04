@@ -6,7 +6,7 @@ import {
   type WorkspaceRegistryV1,
   type WorkspaceInfo,
   createWorkspaceInfo,
-  findWorkspaceForUri,
+  isWithinWorkspace,
   type BookmarksFileV2,
   ensureLocalDir,
   getLocalDir,
@@ -162,14 +162,23 @@ export function getPrimaryWorkspace(workspaces: WorkspaceInfo[]): WorkspaceInfo 
 }
 
 /**
- * Get workspace for a given URI.
+ * Get workspace for a given URI, preferring the deepest (most specific) match.
  * Returns null if URI is not in any workspace.
+ *
+ * Uses longest-root-path matching so a file inside a nested workspace (B inside A)
+ * resolves to B rather than A, regardless of array order (SML-1575).
  */
 export function getWorkspaceForUri(uri: string, workspaces: WorkspaceInfo[]): WorkspaceInfo | null {
-  const wsRoot = findWorkspaceForUri(uri, workspaces);
-  if (!wsRoot) return null;
-
-  return workspaces.find(ws => ws.workspaceRoot === wsRoot) ?? null;
+  let best: WorkspaceInfo | null = null;
+  for (const ws of workspaces) {
+    if (
+      isWithinWorkspace(uri, ws.workspaceRoot) &&
+      (!best || ws.workspaceRoot.length > best.workspaceRoot.length)
+    ) {
+      best = ws;
+    }
+  }
+  return best;
 }
 
 /**
